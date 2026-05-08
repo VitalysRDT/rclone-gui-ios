@@ -23,7 +23,7 @@ import Foundation
 import SwiftData
 
 @MainActor
-public final class TransferQueue: ObservableObject {
+public final class TransferQueue {
     public static let shared = TransferQueue()
 
     private init() {}
@@ -173,8 +173,10 @@ public final class TransferQueue: ObservableObject {
 
     private func startPolling(_ transfer: Transfer) {
         guard let jobID = transfer.jobID else { return }
+        let transferID = transfer.id
         let task = Task { [weak self] in
-            await self?.pollLoop(transferID: transfer.id, jobID: jobID)
+            await self?.pollLoop(transferID: transferID, jobID: jobID)
+            return ()
         }
         pollTasks[jobID] = task
     }

@@ -117,10 +117,10 @@ public struct DownloadFileIntent: AppIntent {
         try FileManager.default.createDirectory(
             at: dst.deletingLastPathComponent(), withIntermediateDirectories: true
         )
-        _ = try await TransferQueue.shared.enqueueDownload(
+        try await TransferQueue.shared.enqueueDownload(
             remote: remoteName,
             path: pathInRemote,
-            toLocalURL: dst
+            to: dst
         )
         return .result(dialog: "Téléchargement de \(basename) lancé.")
     }

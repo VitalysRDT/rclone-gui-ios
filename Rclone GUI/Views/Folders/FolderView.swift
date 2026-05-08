@@ -147,7 +147,7 @@ struct FolderView: View {
             try await TransferQueue.shared.enqueueDelete(
                 remote: remote,
                 path: target.pathInRemote,
-                recursive: target.isDirectory
+                isDirectory: target.isDirectory
             )
             await load()
         } catch {

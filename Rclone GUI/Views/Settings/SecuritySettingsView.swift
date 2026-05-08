@@ -45,12 +45,14 @@ struct SecuritySettingsView: View {
                 Text("Au-delà de cette durée sans utilisation, l'app re-demande la biométrie. Phase E2 ajoutera le wipe automatique du cache.")
             }
 
-            Section("Configuration") {
+            Section {
                 Button(role: .destructive) {
                     showWipeConfirm = true
                 } label: {
                     Label("Effacer la configuration rclone", systemImage: "trash.slash")
                 }
+            } header: {
+                Text("Configuration")
             } footer: {
                 Text("Supprime le rclone.conf chiffré localement et la clé maître Keychain. Tu pourras ré-importer ensuite.")
             }

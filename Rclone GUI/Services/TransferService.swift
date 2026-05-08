@@ -172,9 +172,12 @@ public actor TransferService {
     }
 
     private func jobIDFromRPC<I: Encodable>(method: String, input: I) async throws -> Int {
-        struct Output: Decodable { let jobid: Int }
-        let resp: Output = try await RcloneCore.shared.rpc(method, input: input)
+        let resp: JobIDResponse = try await RcloneCore.shared.rpc(method, input: input)
         return resp.jobid
+    }
+
+    private struct JobIDResponse: Decodable {
+        let jobid: Int
     }
 }
 

@@ -35,17 +35,14 @@ public actor MediaCacheService {
 
         try fm.createDirectory(at: cacheURL.deletingLastPathComponent(), withIntermediateDirectories: true)
 
-        // Run rclone copyfile to land the file locally.
-        let jobID = try await TransferService.shared.startCopyFile(
-            srcRemote: remote, srcPath: path,
-            dstRemote: nil, dstPath: cacheURL.path,
-            async: true
+        // Run rclone copyfile to land the file locally. Source = "<remote>:" with `path`,
+        // destination = the cache parent dir (as local fs) with the cache filename.
+        let jobID = try await TransferService.shared.copyFileAsync(
+            srcFs: "\(remote):",
+            srcPath: path,
+            dstFs: cacheURL.deletingLastPathComponent().path,
+            dstPath: cacheURL.lastPathComponent
         )
-
-        guard let jobID else {
-            // Sync mode (rclone returned without a job id) — file should exist now.
-            return cacheURL
-        }
 
         try await waitForJob(jobID: jobID)
         return cacheURL
@@ -83,7 +80,7 @@ public actor MediaCacheService {
     private func waitForJob(jobID: Int) async throws {
         while !Task.isCancelled {
             try await Task.sleep(for: .milliseconds(500))
-            let info = try await TransferService.shared.jobStatus(jobID)
+            let info = try await TransferService.shared.jobStatus(jobID: jobID)
             if info.finished {
                 if info.success { return }
                 throw RcloneError.rcloneError(

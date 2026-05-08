@@ -72,19 +72,13 @@ struct EntryActionsMenu: View {
         let dst = Self.downloadDestination(remote: remote, entry: entry)
         do {
             try Self.ensureParentExists(dst)
-            if entry.isDirectory {
-                _ = try await TransferQueue.shared.enqueueDownloadFolder(
-                    remote: remote,
-                    path: entry.pathInRemote,
-                    toLocalURL: dst
-                )
-            } else {
-                _ = try await TransferQueue.shared.enqueueDownload(
-                    remote: remote,
-                    path: entry.pathInRemote,
-                    toLocalURL: dst
-                )
-            }
+            // Phase D v1 : single-file download via copyfile. Folder recursive
+            // download will be added in Phase E2 via sync/copy + manifest walking.
+            try await TransferQueue.shared.enqueueDownload(
+                remote: remote,
+                path: entry.pathInRemote,
+                to: dst
+            )
         } catch {
             // Failure is surfaced via Transfer.lastError (the queue persists it)
             // — UI toast deferred to Phase E.
@@ -179,9 +173,10 @@ struct RenameSheetView: View {
         let dstPath = parent.isEmpty ? newName : "\(parent)/\(newName)"
 
         do {
-            _ = try await TransferQueue.shared.enqueueMove(
-                srcRemote: remote, srcPath: entry.pathInRemote,
-                dstRemote: remote, dstPath: dstPath
+            try await TransferQueue.shared.enqueueRename(
+                remote: remote,
+                oldPath: entry.pathInRemote,
+                newPath: dstPath
             )
             isPresented = false
         } catch {
