@@ -5,6 +5,20 @@
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>
+		<string>audio</string>
+		<string>fetch</string>
+		<string>processing</string>
+	</array>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Rclone GUI utilise un serveur localhost interne pour streamer vos fichiers (audio/vidéo), y compris les fichiers chiffrés. Aucun trafic ne quitte votre appareil par cette voie.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Face ID protège l'accès à votre configuration rclone et à vos identifiants stockés.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Permet d'uploader vos photos et vidéos vers vos remotes rclone.</string>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.rougetet.rclone-gui.transfer-resume</string>
+		<string>com.rougetet.rclone-gui.refresh</string>
 	</array>
 </dict>
 </plist>

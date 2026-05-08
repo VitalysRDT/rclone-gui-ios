@@ -1,0 +1,3 @@
+# Empty directory placeholder.
+# After running scripts/build-rclone.sh, this directory will contain
+# RcloneKit.xcframework (ignored by .gitignore).

@@ -1,0 +1,44 @@
+# --- Xcode ---------------------------------------------------------------
+build/
+DerivedData/
+*.xcuserdatad/
+*.xcuserstate
+xcuserdata/
+*.moved-aside
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# --- Swift Package Manager ----------------------------------------------
+.swiftpm/
+.build/
+Package.resolved
+
+# --- CocoaPods (not used, just in case) ---------------------------------
+Pods/
+
+# --- Fastlane (future) --------------------------------------------------
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+
+# --- Rclone build artifacts ---------------------------------------------
+# The xcframework is large and rebuildable from scripts/build-rclone.sh.
+# Uncomment to commit it for reproducible builds; otherwise keep ignored.
+Frameworks/RcloneKit.xcframework/
+.build/rclone/
+
+# --- Logs / temp --------------------------------------------------------
+logs/*.log
+*.log
+.DS_Store
