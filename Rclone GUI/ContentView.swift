@@ -11,8 +11,26 @@ import SwiftUI
 import SwiftData
 
 struct ContentView: View {
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
+    @State private var showOnboarding = false
+
     var body: some View {
         MainTabView()
+            .sheet(isPresented: $showOnboarding) {
+                OnboardingView(isPresented: Binding(
+                    get: { showOnboarding },
+                    set: { newValue in
+                        showOnboarding = newValue
+                        if !newValue { hasCompletedOnboarding = true }
+                    }
+                ))
+                .interactiveDismissDisabled(true)
+            }
+            .task {
+                if !hasCompletedOnboarding {
+                    showOnboarding = true
+                }
+            }
     }
 }
 

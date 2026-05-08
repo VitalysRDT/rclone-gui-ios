@@ -2,74 +2,58 @@
 //  SettingsView.swift
 //  Rclone GUI — Views/Settings
 //
-//  Phase C placeholder. The full settings (cache, biometrics, OAuth,
-//  bandwidth, log export) lands in Phase E.
+//  Top-level settings screen. Branches to specialized sub-views.
 //
 
 import SwiftUI
 
 struct SettingsView: View {
-    @State private var rcloneVersion: String = "—"
-    @State private var versionLoadState: VersionLoadState = .idle
-
-    enum VersionLoadState: Equatable {
-        case idle
-        case loaded(String)
-        case failed(String)
-    }
+    @State private var showImport = false
 
     var body: some View {
         NavigationStack {
             Form {
                 Section("Configuration") {
-                    NavigationLink {
-                        Text("Import du rclone.conf — Phase E")
-                            .foregroundStyle(.secondary)
+                    Button {
+                        showImport = true
                     } label: {
-                        Label("Importer rclone.conf", systemImage: "square.and.arrow.down")
+                        Label("Importer un rclone.conf", systemImage: "square.and.arrow.down")
                     }
 
                     NavigationLink {
-                        Text("Sécurité — Phase E")
-                            .foregroundStyle(.secondary)
+                        SecuritySettingsView()
                     } label: {
                         Label("Sécurité & biométrie", systemImage: "lock.shield")
                     }
                 }
 
-                Section("À propos") {
-                    HStack {
-                        Label("Version rclone", systemImage: "shippingbox")
-                        Spacer()
-                        Text(rcloneVersion).foregroundStyle(.secondary)
-                    }
-                    .task {
-                        do {
-                            let v = try await RcloneCore.shared.version()
-                            rcloneVersion = v
-                            versionLoadState = .loaded(v)
-                        } catch {
-                            rcloneVersion = "ERR"
-                            versionLoadState = .failed(error.localizedDescription)
-                        }
-                    }
-
-                    if case .failed(let msg) = versionLoadState {
-                        Text(msg).font(.caption).foregroundStyle(.red)
+                Section("Stockage") {
+                    NavigationLink {
+                        CacheSettingsView()
+                    } label: {
+                        Label("Cache média", systemImage: "tray.full")
                     }
                 }
 
-                Section {
-                    Text("Réglages complets disponibles en Phase E.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                Section("Diagnostic") {
+                    NavigationLink {
+                        LogsView()
+                    } label: {
+                        Label("Logs", systemImage: "doc.text.magnifyingglass")
+                    }
+                    NavigationLink {
+                        AboutView()
+                    } label: {
+                        Label("À propos", systemImage: "info.circle")
+                    }
                 }
             }
             .navigationTitle("Réglages")
+            .sheet(isPresented: $showImport) {
+                ImportConfigView(onImported: {
+                    showImport = false
+                })
+            }
         }
     }
-}
-
-#Preview {
-    SettingsView()
 }
