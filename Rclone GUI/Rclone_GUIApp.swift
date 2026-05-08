@@ -2,8 +2,6 @@
 //  Rclone_GUIApp.swift
 //  Rclone GUI
 //
-//  Created by Vitalys ROUGETET--DE TROYANE on 08/05/2026.
-//
 
 import SwiftUI
 import SwiftData
@@ -12,9 +10,14 @@ import SwiftData
 struct Rclone_GUIApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
-            Item.self,
+            Remote.self,
+            RemoteEntry.self,
+            Transfer.self,
         ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+        let modelConfiguration = ModelConfiguration(
+            schema: schema,
+            isStoredInMemoryOnly: false
+        )
 
         do {
             return try ModelContainer(for: schema, configurations: [modelConfiguration])
