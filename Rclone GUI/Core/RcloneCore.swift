@@ -23,6 +23,12 @@ public actor RcloneCore {
     /// which Swift forbids).
     private struct EmptyInput: Encodable {}
 
+    /// `true` when the in-process engine is the mock (no real librclone).
+    /// Used by the UI to show a "mock mode" banner.
+    public var isMockEngine: Bool {
+        engine is MockRcloneEngine
+    }
+
     public init(engine: any RcloneEngine) {
         self.engine = engine
     }

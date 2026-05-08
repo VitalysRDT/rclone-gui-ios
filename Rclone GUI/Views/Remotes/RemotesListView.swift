@@ -11,6 +11,7 @@ import SwiftUI
 struct RemotesListView: View {
     @State private var remotes: [RemoteSummaryDTO] = []
     @State private var loadState: LoadState = .idle
+    @State private var isMockEngine = false
 
     enum LoadState: Equatable {
         case idle
@@ -75,10 +76,30 @@ struct RemotesListView: View {
 
         case .loading, .loaded:
             let list = List {
-                ForEach(remotes) { remote in
-                    NavigationLink(value: NavigationDestination.folder(remote: remote.name, path: "")) {
-                        RemoteRowView(remote: remote)
+                if isMockEngine {
+                    Section {
+                        Label {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Mode mock actif").font(.caption.weight(.semibold))
+                                Text("Les remotes sont lus depuis ton rclone.conf chiffré, mais la navigation, le téléchargement et le streaming nécessitent le vrai moteur. Build `RcloneKit.xcframework` via `./scripts/build-rclone.sh`.")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                        } icon: {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundStyle(.orange)
+                        }
                     }
+                }
+
+                Section {
+                    ForEach(remotes) { remote in
+                        NavigationLink(value: NavigationDestination.folder(remote: remote.name, path: "")) {
+                            RemoteRowView(remote: remote)
+                        }
+                    }
+                } header: {
+                    Text("\(remotes.count) remote\(remotes.count > 1 ? "s" : "")")
                 }
             }
             #if os(iOS)
@@ -91,6 +112,7 @@ struct RemotesListView: View {
 
     private func load() async {
         loadState = .loading
+        isMockEngine = await RcloneCore.shared.isMockEngine
         do {
             remotes = try await RemoteService.shared.listRemoteSummaries()
             loadState = .loaded
