@@ -20,6 +20,7 @@ struct FolderView: View {
     @State private var query = ""
     @State private var renameTarget: RemoteEntryDTO?
     @State private var deleteTarget: RemoteEntryDTO?
+    @State private var playTarget: RemoteEntryDTO?
     @State private var deleteIsRecursive = false
 
     enum LoadState: Equatable {
@@ -104,6 +105,9 @@ struct FolderView: View {
                     )
                 )
                 .onDisappear { Task { await load() } }
+            }
+            .fullScreenCover(item: $playTarget) { entry in
+                MediaPlayerHost(remote: remote, entry: entry)
             }
             .confirmationDialog(
                 deleteDialogTitle,
@@ -214,7 +218,8 @@ struct FolderView: View {
                     entry: entry,
                     remote: remote,
                     renameTarget: $renameTarget,
-                    deleteTarget: $deleteTarget
+                    deleteTarget: $deleteTarget,
+                    playTarget: $playTarget
                 )
             }
         } else {
@@ -224,7 +229,8 @@ struct FolderView: View {
                         entry: entry,
                         remote: remote,
                         renameTarget: $renameTarget,
-                        deleteTarget: $deleteTarget
+                        deleteTarget: $deleteTarget,
+                        playTarget: $playTarget
                     )
                 }
         }

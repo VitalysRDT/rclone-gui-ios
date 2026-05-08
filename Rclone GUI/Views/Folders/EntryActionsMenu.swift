@@ -2,9 +2,14 @@
 //  EntryActionsMenu.swift
 //  Rclone GUI — Views/Folders
 //
-//  Context menu (long-press / right-click) for a file or folder row.
-//  Phase C scope: download, rename, delete, copy/move (limited).
-//  Phase D will add: play, share via presigned URL, open with…
+//  Context-menu actions attached to each row in FolderView. Surfaces:
+//    - Lire        (file ; only if isMediaFile)
+//    - Télécharger (file or folder, recursive)
+//    - Renommer
+//    - Copier le chemin
+//    - Supprimer   (with confirmation)
+//
+//  Move + Share will land in Phase E.
 //
 
 import SwiftUI
@@ -12,128 +17,175 @@ import SwiftUI
 struct EntryActionsMenu: View {
     let entry: RemoteEntryDTO
     let remote: String
-    let onRequestRename: () -> Void
-    let onRequestMove: () -> Void
+
+    /// Bindings to the parent's sheet/dialog state. The parent owns the
+    /// actual UI (sheet / fullScreenCover / confirmationDialog) so the
+    /// menu is fire-and-forget.
+    @Binding var renameTarget: RemoteEntryDTO?
+    @Binding var deleteTarget: RemoteEntryDTO?
+    @Binding var playTarget: RemoteEntryDTO?
 
     var body: some View {
         Group {
+            if !entry.isDirectory, Self.isMediaFile(entry.name) {
+                Button {
+                    playTarget = entry
+                } label: {
+                    Label("Lire", systemImage: "play.circle")
+                }
+                Divider()
+            }
+
             Button {
-                Task { await downloadAction() }
+                Task { await download() }
             } label: {
                 Label(entry.isDirectory ? "Télécharger le dossier" : "Télécharger",
                       systemImage: "arrow.down.circle")
             }
 
-            Button(action: onRequestRename) {
+            Button {
+                renameTarget = entry
+            } label: {
                 Label("Renommer", systemImage: "pencil")
             }
 
-            Button(action: onRequestMove) {
-                Label("Déplacer…", systemImage: "arrow.left.arrow.right")
+            Button {
+                #if canImport(UIKit)
+                UIPasteboard.general.string = entry.pathInRemote
+                #endif
+            } label: {
+                Label("Copier le chemin", systemImage: "doc.on.doc")
             }
 
             Divider()
 
             Button(role: .destructive) {
-                Task { await deleteAction() }
+                deleteTarget = entry
             } label: {
                 Label("Supprimer", systemImage: "trash")
             }
         }
     }
 
-    // MARK: - Actions
-
     @MainActor
-    private func downloadAction() async {
-        let documents = FileManager.default.urls(
-            for: .documentDirectory,
-            in: .userDomainMask
-        ).first ?? URL(fileURLWithPath: NSTemporaryDirectory())
-        let dst = documents
-            .appending(path: "Downloads", directoryHint: .isDirectory)
-            .appending(path: remote, directoryHint: .isDirectory)
-            .appending(path: entry.pathInRemote)
+    private func download() async {
+        let dst = Self.downloadDestination(remote: remote, entry: entry)
         do {
-            try await TransferQueue.shared.enqueueDownload(
-                remote: remote,
-                path: entry.pathInRemote,
-                to: dst
-            )
+            try Self.ensureParentExists(dst)
+            if entry.isDirectory {
+                _ = try await TransferQueue.shared.enqueueDownloadFolder(
+                    remote: remote,
+                    path: entry.pathInRemote,
+                    toLocalURL: dst
+                )
+            } else {
+                _ = try await TransferQueue.shared.enqueueDownload(
+                    remote: remote,
+                    path: entry.pathInRemote,
+                    toLocalURL: dst
+                )
+            }
         } catch {
-            // Surfaced in Transfer.lastError once enqueued; if the enqueue
-            // itself throws (e.g. RPC unreachable), we currently swallow it.
-            // Phase E adds an error toast surface.
-            print("Download enqueue failed: \(error.localizedDescription)")
+            // Failure is surfaced via Transfer.lastError (the queue persists it)
+            // — UI toast deferred to Phase E.
         }
     }
 
-    @MainActor
-    private func deleteAction() async {
-        do {
-            try await TransferQueue.shared.enqueueDelete(
-                remote: remote,
-                path: entry.pathInRemote,
-                isDirectory: entry.isDirectory
-            )
-        } catch {
-            print("Delete enqueue failed: \(error.localizedDescription)")
-        }
+    // MARK: - Helpers
+
+    private static func downloadDestination(remote: String, entry: RemoteEntryDTO) -> URL {
+        let docs = FileManager.default
+            .urls(for: .documentDirectory, in: .userDomainMask)
+            .first ?? URL(fileURLWithPath: NSTemporaryDirectory())
+        return docs
+            .appending(path: "Downloads", directoryHint: .isDirectory)
+            .appending(path: remote, directoryHint: .isDirectory)
+            .appending(path: entry.name)
+    }
+
+    private static func ensureParentExists(_ url: URL) throws {
+        let parent = url.deletingLastPathComponent()
+        try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
+    }
+
+    static func isMediaFile(_ name: String) -> Bool {
+        let ext = (name as NSString).pathExtension.lowercased()
+        return [
+            // Video
+            "mp4", "mkv", "mov", "avi", "webm", "m4v", "ts", "mpg", "mpeg",
+            // Audio
+            "mp3", "m4a", "wav", "flac", "ogg", "aac", "alac", "opus"
+        ].contains(ext)
     }
 }
 
-// MARK: - Rename sheet helper
+// MARK: - Rename Sheet
 
-struct RenameSheet: View {
+struct RenameSheetView: View {
     let entry: RemoteEntryDTO
     let remote: String
     @Binding var isPresented: Bool
 
-    @State private var newName: String
-
-    init(entry: RemoteEntryDTO, remote: String, isPresented: Binding<Bool>) {
-        self.entry = entry
-        self.remote = remote
-        self._isPresented = isPresented
-        self._newName = State(initialValue: entry.name)
-    }
+    @State private var newName: String = ""
+    @State private var isWorking = false
+    @State private var error: String?
 
     var body: some View {
         NavigationStack {
             Form {
                 Section("Nouveau nom") {
-                    TextField("Nom", text: $newName)
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.never)
+                    let field = TextField("Nom de fichier", text: $newName)
+                        .autocorrectionDisabled(true)
+                    #if os(iOS)
+                    field.textInputAutocapitalization(.never)
+                    #else
+                    field
+                    #endif
                 }
-                Section {
-                    Button("Renommer") {
-                        Task { await rename() }
+
+                if let error {
+                    Section {
+                        Text(error).foregroundStyle(.red)
                     }
-                    .disabled(newName.isEmpty || newName == entry.name)
                 }
             }
             .navigationTitle("Renommer")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Annuler") { isPresented = false }
                 }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button {
+                        Task { await rename() }
+                    } label: {
+                        if isWorking { ProgressView() } else { Text("Renommer") }
+                    }
+                    .disabled(newName.isEmpty || newName == entry.name || isWorking)
+                }
             }
+            .onAppear { newName = entry.name }
         }
     }
 
+    @MainActor
     private func rename() async {
+        isWorking = true
+        defer { isWorking = false }
+
         let parent = (entry.pathInRemote as NSString).deletingLastPathComponent
-        let newPath = parent.isEmpty ? newName : "\(parent)/\(newName)"
+        let dstPath = parent.isEmpty ? newName : "\(parent)/\(newName)"
+
         do {
-            try await TransferQueue.shared.enqueueRename(
-                remote: remote,
-                oldPath: entry.pathInRemote,
-                newPath: newPath
+            _ = try await TransferQueue.shared.enqueueMove(
+                srcRemote: remote, srcPath: entry.pathInRemote,
+                dstRemote: remote, dstPath: dstPath
             )
             isPresented = false
         } catch {
-            print("Rename failed: \(error.localizedDescription)")
+            self.error = error.localizedDescription
         }
     }
 }
