@@ -23,14 +23,39 @@ public enum AppGroup {
     /// Keychain access group for credentials shared between app and extension.
     public static let keychainAccessGroup = "$(AppIdentifierPrefix)com.rougetet.rclone-gui"
 
-    /// URL of the App Group container, fatal-trap if entitlement is missing.
+    /// URL of the App Group container.
+    /// Falls back to the app's own `Application Support` directory if the
+    /// entitlement is not provisioned (free Apple ID, App Group not declared
+    /// in the developer portal, fresh device with stale profile, etc.).
+    /// Side effect of the fallback: the FileProvider extension can no longer
+    /// share data with the main app — already documented as a Phase D v1
+    /// limitation in PHASE-D.md.
     public static var containerURL: URL {
-        guard let url = FileManager.default.containerURL(
+        if let url = FileManager.default.containerURL(
             forSecurityApplicationGroupIdentifier: identifier
-        ) else {
-            fatalError("App Group container '\(identifier)' is not accessible. Verify entitlements + provisioning profile.")
+        ) {
+            return url
         }
-        return url
+
+        let fm = FileManager.default
+        if let support = try? fm.url(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: true
+        ) {
+            return support
+        }
+        // Last-resort fallback if even Application Support is unavailable
+        // (extremely unlikely but keeps us crash-free).
+        return URL(fileURLWithPath: NSHomeDirectory())
+            .appending(path: "Library/Application Support", directoryHint: .isDirectory)
+    }
+
+    /// True when the real App Group container is being used (i.e. the
+    /// entitlement is provisioned). Useful for diagnostics in Settings.
+    public static var isAppGroupProvisioned: Bool {
+        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: identifier) != nil
     }
 
     /// Path inside the App Group where the encrypted rclone.conf is stored.

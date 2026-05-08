@@ -41,7 +41,14 @@ public actor ConfigStore {
         let key = try loadOrCreateMasterKey()
         let sealed = try ChaChaPoly.seal(rcloneConf, using: key)
         let envelope = sealed.combined
-        try envelope.write(to: AppGroup.rcloneConfURL, options: [.atomic, .completeFileProtection])
+        let target = AppGroup.rcloneConfURL
+        // Ensure the parent directory exists (it usually does via App Group
+        // or Application Support, but be defensive on first launch).
+        try FileManager.default.createDirectory(
+            at: target.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try envelope.write(to: target, options: [.atomic, .completeFileProtection])
     }
 
     /// Wipe the stored conf and the master key. After this, the next save creates a fresh key.
