@@ -29,8 +29,14 @@ public enum RcloneError: Error, LocalizedError, Sendable {
             return "RPC '\(method)' failed: \(msg)"
         case .rcloneError(let code, let method, let msg):
             return "rclone error \(code) on '\(method)': \(msg)"
-        case .invalidJSON(let method, _, _):
-            return "Invalid JSON from rclone for '\(method)'"
+        case .invalidJSON(let method, let raw, _):
+            // Include a short sample of the raw payload — invaluable for
+            // diagnosing librclone returning text instead of JSON (e.g.
+            // misconfigured conf path producing "Config file not found"
+            // notices in the response stream).
+            let sample = raw.prefix(200).replacingOccurrences(of: "\n", with: " ")
+            let suffix = raw.count > 200 ? "…(\(raw.count) chars total)" : ""
+            return "Invalid JSON from rclone for '\(method)': \(sample)\(suffix)"
         case .unexpectedResponseShape(let method, let expected, _):
             return "Unexpected response shape for '\(method)' (expected \(expected))"
         }

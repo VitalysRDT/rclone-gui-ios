@@ -64,6 +64,30 @@ public actor ConfigStore {
         FileManager.default.fileExists(atPath: AppGroup.rcloneConfURL.path)
     }
 
+    /// Decrypt the stored conf and write it as plaintext to a temporary
+    /// location with full file protection. Returns the URL.
+    ///
+    /// Used to feed librclone via the `RCLONE_CONFIG` environment variable
+    /// since librclone cannot read the encrypted blob directly. The file
+    /// is written to the user's Caches directory (excluded from iCloud
+    /// backup) and protected with `.completeFileProtection`.
+    ///
+    /// Throws `RcloneError.engineNotAvailable` when no conf has been imported.
+    public func writeDecryptedToTempFile() async throws -> URL {
+        guard let plaintext = try await load() else {
+            throw RcloneError.engineNotAvailable("Aucune configuration rclone importée")
+        }
+        let caches = try FileManager.default.url(
+            for: .cachesDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: true
+        )
+        let target = caches.appending(path: "rclone.conf")
+        try plaintext.write(to: target, options: [.atomic, .completeFileProtection])
+        return target
+    }
+
     // MARK: - Master key (Keychain)
 
     private func loadOrCreateMasterKey() throws -> SymmetricKey {
