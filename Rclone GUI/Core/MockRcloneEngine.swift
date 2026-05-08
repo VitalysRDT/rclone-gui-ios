@@ -17,6 +17,14 @@ import Foundation
 public struct MockRcloneEngine: RcloneEngine {
     public nonisolated init() {}
 
+    public nonisolated func setEnv(name: String, value: String) {
+        // no-op : the mock has no Go runtime to brief.
+    }
+
+    public nonisolated func diagnosticJSON() -> String {
+        #"{"engine":"mock"}"#
+    }
+
     public func initialize() async throws {
         // no-op
     }

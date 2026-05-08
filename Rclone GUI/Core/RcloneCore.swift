@@ -82,16 +82,15 @@ public actor RcloneCore {
 
     private func ensureInit() async throws {
         guard !initialized else { return }
-        // Point librclone at the imported rclone.conf via RCLONE_CONFIG env var.
-        // Without this, rclone falls back to /private/var/mobile/.../.rclone.conf
-        // which doesn't exist on iOS, logs "Config file not found - using
-        // defaults", and then returns malformed JSON for config/* RPCs.
-        // setenv must happen BEFORE the Go runtime reads it (i.e. before
-        // librclone.Initialize), and it's process-wide so subsequent reinit
-        // requires Finalize+Initialize on the bridge side (not yet exposed).
+        // Point librclone at the imported rclone.conf via RCLONE_CONFIG.
+        // We MUST go through engine.setEnv (which calls os.Setenv inside
+        // the Go runtime) — host-side setenv(3) is invisible because
+        // gomobile caches environ at framework-load time. The previous
+        // implementation used POSIX setenv and rclone fell back to its
+        // default path, logging "Config file not found - using defaults".
         do {
             let confURL = try await ConfigStore.shared.writeDecryptedToTempFile()
-            setenv("RCLONE_CONFIG", confURL.path, 1)
+            engine.setEnv(name: "RCLONE_CONFIG", value: confURL.path)
         } catch {
             // No config yet — librclone will start with defaults but the
             // app should already be on the import screen, so RPCs aren't
@@ -102,6 +101,12 @@ public actor RcloneCore {
         }
         try await engine.initialize()
         initialized = true
+    }
+
+    /// Returns the engine's diagnostic JSON. Surfaced in Settings → Diagnostic
+    /// to help confirm that `RCLONE_CONFIG` is wired through to the Go runtime.
+    public func diagnosticJSON() -> String {
+        engine.diagnosticJSON()
     }
 
 
