@@ -42,3 +42,7 @@ Frameworks/RcloneKit.xcframework/
 logs/*.log
 *.log
 .DS_Store
+
+# Build artefacts gomobile + Frameworks
+.build/
+Frameworks/RcloneKit.xcframework/

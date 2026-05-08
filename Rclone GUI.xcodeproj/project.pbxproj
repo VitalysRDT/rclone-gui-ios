@@ -6,6 +6,11 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		7B0B8E33ECD5AB8679811892 /* RcloneKit.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 0EDA7E10EA31464140579D9F /* RcloneKit.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		CB7411FC13E1B32764656198 /* RcloneKit.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0EDA7E10EA31464140579D9F /* RcloneKit.xcframework */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		2796AC842FAE017500640D86 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -23,7 +28,22 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		79789492D71F6F3D69613CDB /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				7B0B8E33ECD5AB8679811892 /* RcloneKit.xcframework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		0EDA7E10EA31464140579D9F /* RcloneKit.xcframework */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = wrapper.xcframework; path = Frameworks/RcloneKit.xcframework; sourceTree = SOURCE_ROOT; };
 		2796AC722FAE017400640D86 /* Rclone GUI.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Rclone GUI.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		2796AC832FAE017500640D86 /* Rclone GUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Rclone GUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		2796AC8D2FAE017500640D86 /* Rclone GUIUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Rclone GUIUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -50,11 +70,15 @@
 		};
 		2796AC862FAE017500640D86 /* Rclone GUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = "Rclone GUITests";
 			sourceTree = "<group>";
 		};
 		2796AC902FAE017500640D86 /* Rclone GUIUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = "Rclone GUIUITests";
 			sourceTree = "<group>";
 		};
@@ -65,6 +89,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CB7411FC13E1B32764656198 /* RcloneKit.xcframework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -92,6 +117,7 @@
 				2796AC862FAE017500640D86 /* Rclone GUITests */,
 				2796AC902FAE017500640D86 /* Rclone GUIUITests */,
 				2796AC732FAE017400640D86 /* Products */,
+				6AB32690E2E8FBB0528803BB /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -105,6 +131,15 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		6AB32690E2E8FBB0528803BB /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				0EDA7E10EA31464140579D9F /* RcloneKit.xcframework */,
+			);
+			name = Frameworks;
+			path = Frameworks;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -115,6 +150,7 @@
 				2796AC6E2FAE017400640D86 /* Sources */,
 				2796AC6F2FAE017400640D86 /* Frameworks */,
 				2796AC702FAE017400640D86 /* Resources */,
+				79789492D71F6F3D69613CDB /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
@@ -124,8 +160,6 @@
 				2796AC742FAE017400640D86 /* Rclone GUI */,
 			);
 			name = "Rclone GUI";
-			packageProductDependencies = (
-			);
 			productName = "Rclone GUI";
 			productReference = 2796AC722FAE017400640D86 /* Rclone GUI.app */;
 			productType = "com.apple.product-type.application";
@@ -147,8 +181,6 @@
 				2796AC862FAE017500640D86 /* Rclone GUITests */,
 			);
 			name = "Rclone GUITests";
-			packageProductDependencies = (
-			);
 			productName = "Rclone GUITests";
 			productReference = 2796AC832FAE017500640D86 /* Rclone GUITests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -170,8 +202,6 @@
 				2796AC902FAE017500640D86 /* Rclone GUIUITests */,
 			);
 			name = "Rclone GUIUITests";
-			packageProductDependencies = (
-			);
 			productName = "Rclone GUIUITests";
 			productReference = 2796AC8D2FAE017500640D86 /* Rclone GUIUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
@@ -294,6 +324,10 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/Frameworks",
+				);
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Rclone GUI/Info.plist";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
@@ -339,6 +373,10 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/Frameworks",
+				);
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Rclone GUI/Info.plist";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;

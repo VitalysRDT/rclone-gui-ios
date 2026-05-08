@@ -99,8 +99,20 @@ else
 fi
 
 # --- Build via gomobile bind -------------------------------------------------
+#
+# gomobile cannot bind librclone directly because RPC returns (string, int) —
+# gomobile only supports 0, 1, or (T, error). We bind a small Swift-friendly
+# wrapper at scripts/rclone-bridge/ which exposes RPC as a struct return.
 
-cd "$WORK_DIR/rclone"
+BRIDGE_DIR="$PROJECT_ROOT/scripts/rclone-bridge"
+[ -d "$BRIDGE_DIR" ] || { echo "ERROR: bridge dir not found at $BRIDGE_DIR"; exit 1; }
+
+cd "$BRIDGE_DIR"
+
+echo ""
+echo "Resolving bridge module dependencies (go mod tidy)..."
+go mod tidy
+
 mkdir -p "$OUTPUT_DIR"
 
 # Clean previous output to avoid xcframework merge conflicts
@@ -111,18 +123,23 @@ if [ -e "$XCFRAMEWORK" ]; then
 fi
 
 echo ""
-echo "Running 'gomobile bind' (5–15 min cold, 2–5 min warm)..."
+echo "Running 'gomobile bind' on rclone-bridge (5–15 min cold, 2–5 min warm)..."
 echo ""
 
-# -target=ios,iossimulator covers iPhone (arm64) + Simulator (arm64+x86_64)
-# Maccatalyst could be added later (-target=ios,iossimulator,maccatalyst)
-# -ldflags strips debug symbols → smaller binary
+# Targets:
+#   -target=ios            iPhone device (arm64)
+#   -target=iossimulator   Simulator (arm64 + amd64)
+# We currently restrict to ios device only because rclone's transitive deps
+# (gopsutil) include cgo files that include <libproc.h> which is unavailable
+# in the iOS Simulator x86_64 SDK. The arm64 simulator slice has the same
+# limitation. Until we stub gopsutil/cpu we ship device-only and run the
+# app on a real iPhone.
 gomobile bind \
-    -target=ios,iossimulator \
+    -target=ios/arm64 \
     -o "$XCFRAMEWORK" \
     -ldflags="-s -w" \
     -tags="rclone_no_serve_dlna" \
-    github.com/rclone/rclone/librclone/librclone
+    .
 
 # --- Report ------------------------------------------------------------------
 
