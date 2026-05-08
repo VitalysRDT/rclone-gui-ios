@@ -18,6 +18,9 @@ struct FolderView: View {
     @State private var sortMode: SortMode = .name
     @State private var sortDescending = false
     @State private var query = ""
+    @State private var renameTarget: RemoteEntryDTO?
+    @State private var deleteTarget: RemoteEntryDTO?
+    @State private var deleteIsRecursive = false
 
     enum LoadState: Equatable {
         case idle
@@ -91,12 +94,61 @@ struct FolderView: View {
             .refreshable {
                 await load()
             }
+            .sheet(item: $renameTarget) { entry in
+                RenameSheetView(
+                    entry: entry,
+                    remote: remote,
+                    isPresented: Binding(
+                        get: { renameTarget != nil },
+                        set: { if !$0 { renameTarget = nil } }
+                    )
+                )
+                .onDisappear { Task { await load() } }
+            }
+            .confirmationDialog(
+                deleteDialogTitle,
+                isPresented: Binding(
+                    get: { deleteTarget != nil },
+                    set: { if !$0 { deleteTarget = nil } }
+                ),
+                titleVisibility: .visible
+            ) {
+                Button("Supprimer", role: .destructive) {
+                    Task { await performDelete() }
+                }
+                Button("Annuler", role: .cancel) { deleteTarget = nil }
+            } message: {
+                if let target = deleteTarget {
+                    Text(target.isDirectory
+                         ? "Le dossier et tout son contenu seront supprimés."
+                         : "Ce fichier sera supprimé du remote.")
+                }
+            }
 
         #if os(iOS)
         main.navigationBarTitleDisplayMode(.inline)
         #else
         main
         #endif
+    }
+
+    private var deleteDialogTitle: String {
+        deleteTarget.map { "Supprimer « \($0.name) » ?" } ?? "Supprimer ?"
+    }
+
+    private func performDelete() async {
+        guard let target = deleteTarget else { return }
+        deleteTarget = nil
+        do {
+            try await TransferQueue.shared.enqueueDelete(
+                remote: remote,
+                path: target.pathInRemote,
+                recursive: target.isDirectory
+            )
+            await load()
+        } catch {
+            // Surface as an error — Phase E adds toast notifications
+        }
     }
 
     private struct TaskKey: Hashable, Sendable {
@@ -157,8 +209,24 @@ struct FolderView: View {
             )) {
                 EntryRowView(entry: entry)
             }
+            .contextMenu {
+                EntryActionsMenu(
+                    entry: entry,
+                    remote: remote,
+                    renameTarget: $renameTarget,
+                    deleteTarget: $deleteTarget
+                )
+            }
         } else {
             EntryRowView(entry: entry)
+                .contextMenu {
+                    EntryActionsMenu(
+                        entry: entry,
+                        remote: remote,
+                        renameTarget: $renameTarget,
+                        deleteTarget: $deleteTarget
+                    )
+                }
         }
     }
 

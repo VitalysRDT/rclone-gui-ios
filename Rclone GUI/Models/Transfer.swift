@@ -48,6 +48,9 @@ public final class Transfer {
     public var finishedAt: Date?
     public var lastError: String?
 
+    /// rclone job id (returned by async RPC). nil for sync ops.
+    public var jobID: Int?
+
     public var kind: TransferKind {
         get { TransferKind(rawValue: kindRaw) ?? .download }
         set { kindRaw = newValue.rawValue }

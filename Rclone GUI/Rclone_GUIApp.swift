@@ -29,6 +29,12 @@ struct Rclone_GUIApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .task {
+                    // Wire the transfer queue to the SwiftData store on first appear.
+                    await MainActor.run {
+                        TransferQueue.shared.attach(modelContext: sharedModelContainer.mainContext)
+                    }
+                }
         }
         .modelContainer(sharedModelContainer)
     }
