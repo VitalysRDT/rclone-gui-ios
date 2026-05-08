@@ -22,7 +22,7 @@ public struct LogEntry: Sendable, Codable, Identifiable, Hashable {
     public let category: String
     public let message: String
 
-    public init(level: LogLevel, category: String, message: String) {
+    public nonisolated init(level: LogLevel, category: String, message: String) {
         self.id = UUID()
         self.timestamp = .now
         self.level = level

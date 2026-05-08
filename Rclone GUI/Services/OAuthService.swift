@@ -84,12 +84,22 @@ public final class OAuthService: NSObject {
 #if canImport(AuthenticationServices)
 extension OAuthService: ASWebAuthenticationPresentationContextProviding {
     public func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
-        // Find the active key window (iOS-style presentation anchor)
         #if canImport(UIKit)
-        return UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .flatMap { $0.windows }
-            .first { $0.isKeyWindow } ?? ASPresentationAnchor()
+        // Prefer the key window of the foreground active scene; fall back to
+        // a windowScene-bound anchor (iOS 26 deprecates ASPresentationAnchor()).
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        if let keyWindow = scenes
+            .flatMap(\.windows)
+            .first(where: { $0.isKeyWindow }) {
+            return keyWindow
+        }
+        if let scene = scenes.first(where: { $0.activationState == .foregroundActive }) ?? scenes.first {
+            return ASPresentationAnchor(windowScene: scene)
+        }
+        // Pathological: app is foreground but has no UIWindowScene. An
+        // ASWebAuthenticationSession cannot present without a scene anyway,
+        // so crash explicitly rather than returning a dangling anchor.
+        preconditionFailure("OAuthService.presentationAnchor called without an active UIWindowScene")
         #else
         return ASPresentationAnchor()
         #endif

@@ -18,10 +18,10 @@ import Foundation
 public enum AppGroup {
     /// Shared App Group identifier. Update both this constant and the
     /// `com.apple.security.application-groups` entitlement together.
-    public static let identifier = "group.com.rougetet.rclone-gui"
+    public nonisolated static let identifier = "group.com.rougetet.rclone-gui"
 
     /// Keychain access group for credentials shared between app and extension.
-    public static let keychainAccessGroup = "$(AppIdentifierPrefix)com.rougetet.rclone-gui"
+    public nonisolated static let keychainAccessGroup = "$(AppIdentifierPrefix)com.rougetet.rclone-gui"
 
     /// URL of the App Group container.
     /// Falls back to the app's own `Application Support` directory if the
@@ -30,7 +30,7 @@ public enum AppGroup {
     /// Side effect of the fallback: the FileProvider extension can no longer
     /// share data with the main app — already documented as a Phase D v1
     /// limitation in PHASE-D.md.
-    public static var containerURL: URL {
+    public nonisolated static var containerURL: URL {
         if let url = FileManager.default.containerURL(
             forSecurityApplicationGroupIdentifier: identifier
         ) {
@@ -54,22 +54,22 @@ public enum AppGroup {
 
     /// True when the real App Group container is being used (i.e. the
     /// entitlement is provisioned). Useful for diagnostics in Settings.
-    public static var isAppGroupProvisioned: Bool {
+    public nonisolated static var isAppGroupProvisioned: Bool {
         FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: identifier) != nil
     }
 
     /// Path inside the App Group where the encrypted rclone.conf is stored.
-    public static var rcloneConfURL: URL {
+    public nonisolated static var rcloneConfURL: URL {
         containerURL.appending(path: "rclone.conf.enc")
     }
 
     /// Path inside the App Group for the SwiftData store.
-    public static var swiftDataStoreURL: URL {
+    public nonisolated static var swiftDataStoreURL: URL {
         containerURL.appending(path: "RcloneGUI.sqlite")
     }
 
     /// Path for the thumbnail cache.
-    public static var thumbnailCacheURL: URL {
+    public nonisolated static var thumbnailCacheURL: URL {
         containerURL.appending(path: "Thumbnails", directoryHint: .isDirectory)
     }
 }

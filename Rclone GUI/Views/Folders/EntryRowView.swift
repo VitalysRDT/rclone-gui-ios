@@ -57,7 +57,7 @@ struct EntryRowView: View {
             return "doc.text.fill"
         case "vtt", "srt", "ass", "ssa", "sub":
             return "captions.bubble.fill"
-        case "swift", "py", "go", "rs", "js", "ts", "json", "yml", "yaml", "toml":
+        case "swift", "py", "go", "rs", "js", "json", "yml", "yaml", "toml":
             return "chevron.left.forwardslash.chevron.right"
         case "html", "htm", "css":
             return "globe"

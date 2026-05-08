@@ -163,7 +163,11 @@ struct FolderView: View {
     @ViewBuilder
     private var content: some View {
         switch loadState {
-        case .idle, .loading where entries.isEmpty:
+        case .idle:
+            ProgressView("Chargement…")
+                .controlSize(.large)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        case .loading where entries.isEmpty:
             ProgressView("Chargement…")
                 .controlSize(.large)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)

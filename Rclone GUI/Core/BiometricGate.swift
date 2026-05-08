@@ -17,7 +17,7 @@ public enum BiometricReason: Sendable {
     case configWrite
     case revealRemoteCredentials
 
-    var localized: String {
+    nonisolated var localized: String {
         switch self {
         case .appOpen:
             return NSLocalizedString("Déverrouiller Rclone GUI", comment: "FaceID prompt at app open")
@@ -60,8 +60,9 @@ public actor BiometricGate {
             return .unavailable(msg)
         }
 
+        let localizedReason = reason.localized
         return await withCheckedContinuation { continuation in
-            context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason.localized) { success, error in
+            context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: localizedReason) { success, error in
                 if success {
                     continuation.resume(returning: .authenticated)
                     return

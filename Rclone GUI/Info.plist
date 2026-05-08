@@ -20,5 +20,7 @@
 		<string>com.rougetet.rclone-gui.transfer-resume</string>
 		<string>com.rougetet.rclone-gui.refresh</string>
 	</array>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>

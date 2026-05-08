@@ -15,7 +15,7 @@
 import Foundation
 
 public struct MockRcloneEngine: RcloneEngine {
-    public init() {}
+    public nonisolated init() {}
 
     public func initialize() async throws {
         // no-op

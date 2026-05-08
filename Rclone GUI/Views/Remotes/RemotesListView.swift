@@ -52,7 +52,9 @@ struct RemotesListView: View {
     @ViewBuilder
     private var content: some View {
         switch loadState {
-        case .idle, .loading where remotes.isEmpty:
+        case .idle:
+            ProgressView("Chargement des remotes…")
+        case .loading where remotes.isEmpty:
             ProgressView("Chargement des remotes…")
 
         case .failed(let message):
