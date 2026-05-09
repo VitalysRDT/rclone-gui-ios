@@ -1,0 +1,101 @@
+name: iOS CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ios-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Build & test (iOS Simulator)
+    runs-on: macos-15
+    timeout-minutes: 25
+
+    env:
+      PROJECT: Rclone GUI.xcodeproj
+      SCHEME: Rclone GUI
+      DESTINATION: platform=iOS Simulator,name=iPhone 17 Pro,OS=latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          xcrun simctl list runtimes | head -20
+          swift --version
+
+      - name: Resolve dependencies
+        run: |
+          xcodebuild -resolvePackageDependencies \
+            -project "$PROJECT" \
+            -scheme "$SCHEME"
+
+      - name: Build for testing
+        run: |
+          set -o pipefail
+          xcodebuild build-for-testing \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -destination "$DESTINATION" \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            ONLY_ACTIVE_ARCH=YES
+
+      - name: Run unit tests
+        run: |
+          set -o pipefail
+          xcodebuild test-without-building \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -destination "$DESTINATION" \
+            -configuration Debug \
+            -only-testing:"Rclone GUITests" \
+            CODE_SIGNING_ALLOWED=NO \
+            ONLY_ACTIVE_ARCH=YES
+
+  archive-dry-run:
+    name: Archive (dry run, unsigned)
+    runs-on: macos-15
+    timeout-minutes: 25
+    needs: build-and-test
+
+    env:
+      PROJECT: Rclone GUI.xcodeproj
+      SCHEME: Rclone GUI
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build generic iOS device archive (no signing)
+        run: |
+          set -o pipefail
+          xcodebuild archive \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/RcloneGUI-CI.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="" \
+            PROVISIONING_PROFILE_SPECIFIER=""
+
+      - name: Verify archive structure
+        run: |
+          APP="build/RcloneGUI-CI.xcarchive/Products/Applications/Rclone GUI.app"
+          if [ ! -d "$APP" ]; then
+            echo "ERROR: archive missing the .app bundle"
+            ls -la "build/RcloneGUI-CI.xcarchive/Products/Applications/" || true
+            exit 1
+          fi
+          echo "Archive structure OK"
+          du -sh "build/RcloneGUI-CI.xcarchive"

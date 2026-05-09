@@ -151,7 +151,12 @@ struct FolderView: View {
             )
             await load()
         } catch {
-            // Surface as an error — Phase E adds toast notifications
+            await LogService.shared.log(
+                .error,
+                category: "transfer",
+                message: "Échec suppression \(remote):\(target.pathInRemote) : \(error.localizedDescription)"
+            )
+            loadState = .failed("Échec de la suppression : \(error.localizedDescription)")
         }
     }
 

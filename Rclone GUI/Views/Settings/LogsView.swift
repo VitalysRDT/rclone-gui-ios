@@ -10,6 +10,7 @@ struct LogsView: View {
     @State private var levelFilter: LogLevel? = nil
     @State private var exportURL: URL?
     @State private var showShare = false
+    @State private var exportError: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -79,6 +80,18 @@ struct LogsView: View {
             }
         }
         #endif
+        .alert(
+            "Export échoué",
+            isPresented: Binding(
+                get: { exportError != nil },
+                set: { if !$0 { exportError = nil } }
+            ),
+            presenting: exportError
+        ) { _ in
+            Button("OK", role: .cancel) { exportError = nil }
+        } message: { msg in
+            Text(msg)
+        }
     }
 
     private var filterBar: some View {
@@ -113,7 +126,12 @@ struct LogsView: View {
             exportURL = url
             showShare = true
         } catch {
-            // Silent fail v1
+            await LogService.shared.log(
+                .error,
+                category: "logs",
+                message: "Export échoué : \(error.localizedDescription)"
+            )
+            exportError = error.localizedDescription
         }
     }
 }

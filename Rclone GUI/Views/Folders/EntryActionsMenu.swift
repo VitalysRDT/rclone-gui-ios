@@ -80,8 +80,15 @@ struct EntryActionsMenu: View {
                 to: dst
             )
         } catch {
-            // Failure is surfaced via Transfer.lastError (the queue persists it)
-            // — UI toast deferred to Phase E.
+            // The queue persists Transfer.lastError when a job fails mid-run,
+            // but enqueue itself failing (e.g. local FS error before the job
+            // is even submitted) wouldn't show up there. Log it so it surfaces
+            // in Settings → Logs at minimum.
+            await LogService.shared.log(
+                .error,
+                category: "transfer",
+                message: "Échec de mise en file de téléchargement (\(remote):\(entry.pathInRemote)) : \(error.localizedDescription)"
+            )
         }
     }
 
