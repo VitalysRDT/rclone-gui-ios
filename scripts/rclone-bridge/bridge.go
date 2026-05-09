@@ -10,8 +10,18 @@ import (
 
 	"github.com/rclone/rclone/librclone/librclone"
 
-	// Blank import: gomobile/gobind resolves the bind package via the
-	// module graph, so the bridge module must declare the dependency.
+	// Blank imports: each subsystem registers its rc.Calls in its own
+	// init(). Without these the bridge would only expose the calls
+	// declared by the librclone package itself (config/*, core/*) and
+	// any attempt at operations/list, sync/copy, etc. would 404 with
+	// "couldn't find method". The upstream librclone/librclone.go
+	// binary does the same thing — we mirror it here, minus FUSE
+	// (cmd/{cmount,mount,mount2}) which won't link on iOS.
+	_ "github.com/rclone/rclone/backend/all"   // all backends (drive, s3, ...)
+	_ "github.com/rclone/rclone/fs/operations" // operations/* rc commands
+	_ "github.com/rclone/rclone/fs/sync"       // sync/* rc commands
+
+	// gomobile/gobind resolves the bind package via the module graph.
 	_ "golang.org/x/mobile/bind"
 )
 
