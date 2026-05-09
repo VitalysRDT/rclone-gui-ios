@@ -82,24 +82,32 @@ public actor RcloneCore {
 
     private func ensureInit() async throws {
         guard !initialized else { return }
-        // Point librclone at the imported rclone.conf via RCLONE_CONFIG.
-        // We MUST go through engine.setEnv (which calls os.Setenv inside
-        // the Go runtime) — host-side setenv(3) is invisible because
-        // gomobile caches environ at framework-load time. The previous
-        // implementation used POSIX setenv and rclone fell back to its
-        // default path, logging "Config file not found - using defaults".
+        // Resolve the imported rclone.conf path. ConfigStore decrypts the
+        // ChaChaPoly envelope and writes a plaintext copy to Caches/.
+        let confPath: String
         do {
             let confURL = try await ConfigStore.shared.writeDecryptedToTempFile()
-            engine.setEnv(name: "RCLONE_CONFIG", value: confURL.path)
+            confPath = confURL.path
         } catch {
-            // No config yet — librclone will start with defaults but the
-            // app should already be on the import screen, so RPCs aren't
-            // expected before a conf is stored. Surface a clear error.
             throw RcloneError.engineNotAvailable(
                 "Aucune configuration rclone importée. Importe d'abord depuis Réglages."
             )
         }
+        // RCLONE_CONFIG is intentionally set even though rclone v1.68 does
+        // NOT honor it as a config path (it's only consulted at package
+        // init() as a boolean to decide whether to skip mkdir of the
+        // default config dir — see fs/config/config.go:254). We set it
+        // anyway so the Diagnostic JSON surfaces the intended path.
+        engine.setEnv(name: "RCLONE_CONFIG", value: confPath)
         try await engine.initialize()
+        // The actual override that makes rclone read OUR file: invoke the
+        // built-in `config/setpath` RPC, which calls config.SetConfigPath.
+        // Initialize() only installs the storage handler; the file isn't
+        // read until first config access, so setpath here is in time.
+        struct SetPathInput: Encodable { let path: String }
+        let payloadData = try JSONEncoder().encode(SetPathInput(path: confPath))
+        let pathPayload = String(decoding: payloadData, as: UTF8.self)
+        _ = try await engine.rpcRaw(method: "config/setpath", inputJSON: pathPayload)
         initialized = true
     }
 

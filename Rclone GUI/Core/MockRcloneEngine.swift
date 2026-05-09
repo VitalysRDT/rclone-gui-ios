@@ -52,6 +52,12 @@ public struct MockRcloneEngine: RcloneEngine {
         case "core/quit":
             return #"{}"#
 
+        case "config/setpath":
+            // Mock honors the call so RcloneCore.ensureInit() succeeds when
+            // running without RcloneKit. Path resolution isn't relevant here
+            // because the mock reads the conf via ConfigStore.shared.load().
+            return #"{}"#
+
         default:
             throw RcloneError.rpcFailed(
                 method: method,
