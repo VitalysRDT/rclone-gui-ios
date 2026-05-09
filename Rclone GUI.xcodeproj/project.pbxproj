@@ -7,11 +7,28 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		7B0B8E33ECD5AB8679811892 /* RcloneKit.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 0EDA7E10EA31464140579D9F /* RcloneKit.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		CB7411FC13E1B32764656198 /* RcloneKit.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0EDA7E10EA31464140579D9F /* RcloneKit.xcframework */; };
+		278FAAAE2FAF741D0019F255 /* UniformTypeIdentifiers.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 278FAAAD2FAF741D0019F255 /* UniformTypeIdentifiers.framework */; };
+		278FAAC62FAF741D0019F255 /* RcloneFileProviderUI.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 278FAABC2FAF741D0019F255 /* RcloneFileProviderUI.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		278FAAC92FAF741D0019F255 /* RcloneFileProvider.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 278FAAAC2FAF741D0019F255 /* RcloneFileProvider.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		7B0B8E33ECD5AB8679811892 /* Frameworks/RcloneKit.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 0EDA7E10EA31464140579D9F /* Frameworks/RcloneKit.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		CB7411FC13E1B32764656198 /* Frameworks/RcloneKit.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0EDA7E10EA31464140579D9F /* Frameworks/RcloneKit.xcframework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		278FAAC42FAF741D0019F255 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 2796AC6A2FAE017400640D86 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 278FAABB2FAF741D0019F255;
+			remoteInfo = RcloneFileProviderUI;
+		};
+		278FAAC72FAF741D0019F255 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 2796AC6A2FAE017400640D86 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 278FAAAB2FAF741D0019F255;
+			remoteInfo = RcloneFileProvider;
+		};
 		2796AC842FAE017500640D86 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 2796AC6A2FAE017400640D86 /* Project object */;
@@ -29,13 +46,25 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
+		278FAACA2FAF741D0019F255 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				278FAAC92FAF741D0019F255 /* RcloneFileProvider.appex in Embed Foundation Extensions */,
+				278FAAC62FAF741D0019F255 /* RcloneFileProviderUI.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		79789492D71F6F3D69613CDB /* Embed Frameworks */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
-				7B0B8E33ECD5AB8679811892 /* RcloneKit.xcframework in Embed Frameworks */,
+				7B0B8E33ECD5AB8679811892 /* Frameworks/RcloneKit.xcframework in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -43,13 +72,30 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		0EDA7E10EA31464140579D9F /* RcloneKit.xcframework */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = wrapper.xcframework; path = Frameworks/RcloneKit.xcframework; sourceTree = SOURCE_ROOT; };
+		0EDA7E10EA31464140579D9F /* Frameworks/RcloneKit.xcframework */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = wrapper.xcframework; path = Frameworks/RcloneKit.xcframework; sourceTree = SOURCE_ROOT; };
+		278FAAAC2FAF741D0019F255 /* RcloneFileProvider.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = RcloneFileProvider.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		278FAAAD2FAF741D0019F255 /* UniformTypeIdentifiers.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UniformTypeIdentifiers.framework; path = System/Library/Frameworks/UniformTypeIdentifiers.framework; sourceTree = SDKROOT; };
+		278FAABC2FAF741D0019F255 /* RcloneFileProviderUI.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = RcloneFileProviderUI.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		2796AC722FAE017400640D86 /* Rclone GUI.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Rclone GUI.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		2796AC832FAE017500640D86 /* Rclone GUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Rclone GUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		2796AC8D2FAE017500640D86 /* Rclone GUIUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Rclone GUIUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		278FAAD02FAF741D0019F255 /* Exceptions for "RcloneFileProviderUI" folder in "RcloneFileProviderUI" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 278FAABB2FAF741D0019F255 /* RcloneFileProviderUI */;
+		};
+		278FAAD22FAF741D0019F255 /* Exceptions for "RcloneFileProvider" folder in "RcloneFileProvider" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 278FAAAB2FAF741D0019F255 /* RcloneFileProvider */;
+		};
 		2796AC952FAE017500640D86 /* Exceptions for "Rclone GUI" folder in "Rclone GUI" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -60,6 +106,22 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		278FAAAF2FAF741D0019F255 /* RcloneFileProvider */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				278FAAD22FAF741D0019F255 /* Exceptions for "RcloneFileProvider" folder in "RcloneFileProvider" target */,
+			);
+			path = RcloneFileProvider;
+			sourceTree = "<group>";
+		};
+		278FAABD2FAF741D0019F255 /* RcloneFileProviderUI */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				278FAAD02FAF741D0019F255 /* Exceptions for "RcloneFileProviderUI" folder in "RcloneFileProviderUI" target */,
+			);
+			path = RcloneFileProviderUI;
+			sourceTree = "<group>";
+		};
 		2796AC742FAE017400640D86 /* Rclone GUI */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -70,26 +132,37 @@
 		};
 		2796AC862FAE017500640D86 /* Rclone GUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = "Rclone GUITests";
 			sourceTree = "<group>";
 		};
 		2796AC902FAE017500640D86 /* Rclone GUIUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = "Rclone GUIUITests";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		278FAAA92FAF741D0019F255 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				278FAAAE2FAF741D0019F255 /* UniformTypeIdentifiers.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		278FAAB92FAF741D0019F255 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		2796AC6F2FAE017400640D86 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				CB7411FC13E1B32764656198 /* RcloneKit.xcframework in Frameworks */,
+				CB7411FC13E1B32764656198 /* Frameworks/RcloneKit.xcframework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -116,6 +189,8 @@
 				2796AC742FAE017400640D86 /* Rclone GUI */,
 				2796AC862FAE017500640D86 /* Rclone GUITests */,
 				2796AC902FAE017500640D86 /* Rclone GUIUITests */,
+				278FAAAF2FAF741D0019F255 /* RcloneFileProvider */,
+				278FAABD2FAF741D0019F255 /* RcloneFileProviderUI */,
 				2796AC732FAE017400640D86 /* Products */,
 				6AB32690E2E8FBB0528803BB /* Frameworks */,
 			);
@@ -127,6 +202,8 @@
 				2796AC722FAE017400640D86 /* Rclone GUI.app */,
 				2796AC832FAE017500640D86 /* Rclone GUITests.xctest */,
 				2796AC8D2FAE017500640D86 /* Rclone GUIUITests.xctest */,
+				278FAAAC2FAF741D0019F255 /* RcloneFileProvider.appex */,
+				278FAABC2FAF741D0019F255 /* RcloneFileProviderUI.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -134,15 +211,59 @@
 		6AB32690E2E8FBB0528803BB /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				0EDA7E10EA31464140579D9F /* RcloneKit.xcframework */,
+				0EDA7E10EA31464140579D9F /* Frameworks/RcloneKit.xcframework */,
+				278FAAAD2FAF741D0019F255 /* UniformTypeIdentifiers.framework */,
 			);
-			name = Frameworks;
 			path = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		278FAAAB2FAF741D0019F255 /* RcloneFileProvider */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 278FAAD12FAF741D0019F255 /* Build configuration list for PBXNativeTarget "RcloneFileProvider" */;
+			buildPhases = (
+				278FAAA82FAF741D0019F255 /* Sources */,
+				278FAAA92FAF741D0019F255 /* Frameworks */,
+				278FAAAA2FAF741D0019F255 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				278FAAAF2FAF741D0019F255 /* RcloneFileProvider */,
+			);
+			name = RcloneFileProvider;
+			packageProductDependencies = (
+			);
+			productName = RcloneFileProvider;
+			productReference = 278FAAAC2FAF741D0019F255 /* RcloneFileProvider.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		278FAABB2FAF741D0019F255 /* RcloneFileProviderUI */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 278FAACF2FAF741D0019F255 /* Build configuration list for PBXNativeTarget "RcloneFileProviderUI" */;
+			buildPhases = (
+				278FAAB82FAF741D0019F255 /* Sources */,
+				278FAAB92FAF741D0019F255 /* Frameworks */,
+				278FAABA2FAF741D0019F255 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				278FAABD2FAF741D0019F255 /* RcloneFileProviderUI */,
+			);
+			name = RcloneFileProviderUI;
+			packageProductDependencies = (
+			);
+			productName = RcloneFileProviderUI;
+			productReference = 278FAABC2FAF741D0019F255 /* RcloneFileProviderUI.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		2796AC712FAE017400640D86 /* Rclone GUI */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 2796AC962FAE017500640D86 /* Build configuration list for PBXNativeTarget "Rclone GUI" */;
@@ -151,10 +272,13 @@
 				2796AC6F2FAE017400640D86 /* Frameworks */,
 				2796AC702FAE017400640D86 /* Resources */,
 				79789492D71F6F3D69613CDB /* Embed Frameworks */,
+				278FAACA2FAF741D0019F255 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				278FAAC52FAF741D0019F255 /* PBXTargetDependency */,
+				278FAAC82FAF741D0019F255 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				2796AC742FAE017400640D86 /* Rclone GUI */,
@@ -216,6 +340,12 @@
 				LastSwiftUpdateCheck = 2640;
 				LastUpgradeCheck = 2640;
 				TargetAttributes = {
+					278FAAAB2FAF741D0019F255 = {
+						CreatedOnToolsVersion = 26.4.1;
+					};
+					278FAABB2FAF741D0019F255 = {
+						CreatedOnToolsVersion = 26.4.1;
+					};
 					2796AC712FAE017400640D86 = {
 						CreatedOnToolsVersion = 26.4.1;
 					};
@@ -246,11 +376,27 @@
 				2796AC712FAE017400640D86 /* Rclone GUI */,
 				2796AC822FAE017500640D86 /* Rclone GUITests */,
 				2796AC8C2FAE017500640D86 /* Rclone GUIUITests */,
+				278FAAAB2FAF741D0019F255 /* RcloneFileProvider */,
+				278FAABB2FAF741D0019F255 /* RcloneFileProviderUI */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		278FAAAA2FAF741D0019F255 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		278FAABA2FAF741D0019F255 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		2796AC702FAE017400640D86 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -275,6 +421,20 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		278FAAA82FAF741D0019F255 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		278FAAB82FAF741D0019F255 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		2796AC6E2FAE017400640D86 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -299,6 +459,16 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		278FAAC52FAF741D0019F255 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 278FAABB2FAF741D0019F255 /* RcloneFileProviderUI */;
+			targetProxy = 278FAAC42FAF741D0019F255 /* PBXContainerItemProxy */;
+		};
+		278FAAC82FAF741D0019F255 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 278FAAAB2FAF741D0019F255 /* RcloneFileProvider */;
+			targetProxy = 278FAAC72FAF741D0019F255 /* PBXContainerItemProxy */;
+		};
 		2796AC852FAE017500640D86 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 2796AC712FAE017400640D86 /* Rclone GUI */;
@@ -312,6 +482,130 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		278FAACB2FAF741D0019F255 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = RcloneFileProvider/RcloneFileProvider.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = B897YNXQ77;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = RcloneFileProvider/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = RcloneFileProvider;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.rougetet.Rclone-GUI.fileprovider";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		278FAACC2FAF741D0019F255 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = RcloneFileProvider/RcloneFileProvider.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = B897YNXQ77;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = RcloneFileProvider/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = RcloneFileProvider;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.rougetet.Rclone-GUI.fileprovider";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		278FAACD2FAF741D0019F255 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = B897YNXQ77;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = RcloneFileProviderUI/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = RcloneFileProviderUI;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.rougetet.Rclone-GUI.fileproviderui";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		278FAACE2FAF741D0019F255 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = B897YNXQ77;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = RcloneFileProviderUI/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = RcloneFileProviderUI;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.rougetet.Rclone-GUI.fileproviderui";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
 		2796AC972FAE017500640D86 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -639,6 +933,24 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		278FAACF2FAF741D0019F255 /* Build configuration list for PBXNativeTarget "RcloneFileProviderUI" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				278FAACD2FAF741D0019F255 /* Debug */,
+				278FAACE2FAF741D0019F255 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		278FAAD12FAF741D0019F255 /* Build configuration list for PBXNativeTarget "RcloneFileProvider" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				278FAACB2FAF741D0019F255 /* Debug */,
+				278FAACC2FAF741D0019F255 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		2796AC6D2FAE017400640D86 /* Build configuration list for PBXProject "Rclone GUI" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
