@@ -89,6 +89,11 @@ public actor RcloneCore {
             let confURL = try await ConfigStore.shared.writeDecryptedToTempFile()
             confPath = confURL.path
         } catch {
+            await LogService.shared.log(
+                .error,
+                category: "engine",
+                message: "ConfigStore.writeDecryptedToTempFile a échoué : \(error.localizedDescription)"
+            )
             throw RcloneError.engineNotAvailable(
                 "Aucune configuration rclone importée. Importe d'abord depuis Réglages."
             )
@@ -109,6 +114,30 @@ public actor RcloneCore {
         let pathPayload = String(decoding: payloadData, as: UTF8.self)
         _ = try await engine.rpcRaw(method: "config/setpath", inputJSON: pathPayload)
         initialized = true
+
+        // Probe the engine for diagnostics. Best effort — failures here
+        // are not fatal, the user just won't see version/remote count in
+        // the in-app log.
+        let diag = engine.diagnosticJSON()
+        await LogService.shared.log(
+            .info,
+            category: "engine",
+            message: "Initialized — confPath=\(confPath) diag=\(diag)"
+        )
+        if let version = try? await engine.rpcRaw(method: "core/version", inputJSON: "{}") {
+            await LogService.shared.log(
+                .debug,
+                category: "engine",
+                message: "core/version raw=\(version.prefix(200))"
+            )
+        }
+        if let listRaw = try? await engine.rpcRaw(method: "config/listremotes", inputJSON: "{}") {
+            await LogService.shared.log(
+                .info,
+                category: "engine",
+                message: "config/listremotes : \(listRaw.prefix(400))"
+            )
+        }
     }
 
     /// Returns the engine's diagnostic JSON. Surfaced in Settings → Diagnostic

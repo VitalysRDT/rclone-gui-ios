@@ -39,6 +39,40 @@ public actor LogService {
 
     private init() {}
 
+    /// Emit a one-shot diagnostic snapshot at boot. Useful in TestFlight
+    /// where the user can't read Xcode console. Surfaces App Group state,
+    /// ConfigStore presence, engine type — every fact that would otherwise
+    /// require connecting a debugger to discover.
+    public static func emitBoot() async {
+        let isAppGroup = AppGroup.isAppGroupProvisioned
+        await shared.log(
+            isAppGroup ? .info : .error,
+            category: "boot",
+            message: isAppGroup
+                ? "App Group OK : \(AppGroup.identifier)"
+                : "App Group « \(AppGroup.identifier) » non provisionné — fallback vers Application Support. FileProvider ne pourra pas partager. Crée l'App Group sur Apple Developer Portal et réinstalle."
+        )
+        await shared.log(
+            .info,
+            category: "boot",
+            message: "Container : \(AppGroup.containerURL.path)"
+        )
+        let hasConf = await ConfigStore.shared.hasStoredConf()
+        await shared.log(
+            hasConf ? .info : .info,
+            category: "boot",
+            message: hasConf
+                ? "Configuration rclone importée détectée."
+                : "Aucune configuration rclone importée — utilise Réglages → Importer."
+        )
+        let isMock = await RcloneCore.shared.isMockEngine
+        await shared.log(
+            .info,
+            category: "boot",
+            message: "Moteur rclone : \(isMock ? "Mock (pas de librclone embarqué)" : "Librclone v1.68.0 (réel)")"
+        )
+    }
+
     public func log(_ level: LogLevel, category: String, message: String) {
         let entry = LogEntry(level: level, category: category, message: message)
         ring.append(entry)

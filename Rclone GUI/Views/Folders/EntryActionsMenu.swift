@@ -24,6 +24,7 @@ struct EntryActionsMenu: View {
     @Binding var renameTarget: RemoteEntryDTO?
     @Binding var deleteTarget: RemoteEntryDTO?
     @Binding var playTarget: RemoteEntryDTO?
+    @Binding var moveTarget: RemoteEntryDTO?
 
     var body: some View {
         Group {
@@ -47,6 +48,12 @@ struct EntryActionsMenu: View {
                 renameTarget = entry
             } label: {
                 Label("Renommer", systemImage: "pencil")
+            }
+
+            Button {
+                moveTarget = entry
+            } label: {
+                Label("Déplacer", systemImage: "arrow.left.arrow.right")
             }
 
             Button {
@@ -79,6 +86,11 @@ struct EntryActionsMenu: View {
                 path: entry.pathInRemote,
                 to: dst
             )
+            await LogService.shared.log(
+                .info,
+                category: "transfer",
+                message: "Téléchargement enqueued : \(remote):\(entry.pathInRemote) → \(dst.path)"
+            )
         } catch {
             // The queue persists Transfer.lastError when a job fails mid-run,
             // but enqueue itself failing (e.g. local FS error before the job
@@ -88,6 +100,32 @@ struct EntryActionsMenu: View {
                 .error,
                 category: "transfer",
                 message: "Échec de mise en file de téléchargement (\(remote):\(entry.pathInRemote)) : \(error.localizedDescription)"
+            )
+        }
+    }
+
+    /// Public entrypoint used by single-tap on a row when the file is not
+    /// a media file. Triggers the same enqueue flow as the menu button.
+    @MainActor
+    static func tapDownload(remote: String, entry: RemoteEntryDTO) async {
+        let dst = downloadDestination(remote: remote, entry: entry)
+        do {
+            try ensureParentExists(dst)
+            try await TransferQueue.shared.enqueueDownload(
+                remote: remote,
+                path: entry.pathInRemote,
+                to: dst
+            )
+            await LogService.shared.log(
+                .info,
+                category: "transfer",
+                message: "Téléchargement (tap) : \(remote):\(entry.pathInRemote)"
+            )
+        } catch {
+            await LogService.shared.log(
+                .error,
+                category: "transfer",
+                message: "Échec téléchargement tap (\(remote):\(entry.pathInRemote)) : \(error.localizedDescription)"
             )
         }
     }

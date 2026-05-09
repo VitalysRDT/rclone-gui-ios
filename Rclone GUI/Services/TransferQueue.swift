@@ -190,11 +190,23 @@ public final class TransferQueue {
                     break
                 }
                 if status.finished {
+                    let finalKind = transfer.kind
+                    let finalSrc = transfer.sourcePath
                     if status.success {
                         transfer.status = .completed
+                        await LogService.shared.log(
+                            .info,
+                            category: "transfer",
+                            message: "✅ \(finalKind.rawValue) terminé : \(finalSrc)"
+                        )
                     } else {
                         transfer.status = .failed
                         transfer.lastError = status.error ?? "Échec inconnu"
+                        await LogService.shared.log(
+                            .error,
+                            category: "transfer",
+                            message: "❌ \(finalKind.rawValue) échoué : \(finalSrc) — \(status.error ?? "raison inconnue")"
+                        )
                     }
                     transfer.finishedAt = .now
                     try? modelContext?.save()
@@ -210,6 +222,11 @@ public final class TransferQueue {
                 transfer?.lastError = error.localizedDescription
                 transfer?.finishedAt = .now
                 try? modelContext?.save()
+                await LogService.shared.log(
+                    .error,
+                    category: "transfer",
+                    message: "Polling jobID=\(jobID) interrompu : \(error.localizedDescription)"
+                )
                 break
             }
         }

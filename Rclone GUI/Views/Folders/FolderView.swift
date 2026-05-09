@@ -8,6 +8,7 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct FolderView: View {
     let remote: String
@@ -21,7 +22,31 @@ struct FolderView: View {
     @State private var renameTarget: RemoteEntryDTO?
     @State private var deleteTarget: RemoteEntryDTO?
     @State private var playTarget: RemoteEntryDTO?
+    @State private var moveTarget: RemoteEntryDTO?
+    @State private var availableRemotes: [String] = []
     @State private var deleteIsRecursive = false
+
+    /// All transfers currently running. SwiftData refreshes this view
+    /// whenever a status flips, so the inline row progress is live without
+    /// a manual timer.
+    @Query(filter: #Predicate<Transfer> { $0.statusRaw == "running" })
+    private var runningTransfers: [Transfer]
+
+    /// Map of "<remote>:<path>" → Transfer for quick lookup per row.
+    private var activeTransferByPath: [String: Transfer] {
+        var dict: [String: Transfer] = [:]
+        for t in runningTransfers {
+            // Match download (sourceRemote:sourcePath), upload (destinationRemote:destinationPath),
+            // delete/rename/move (sourceRemote:sourcePath).
+            if let r = t.sourceRemote, r == remote, !t.sourcePath.isEmpty {
+                dict[t.sourcePath] = t
+            }
+            if let r = t.destinationRemote, r == remote, !t.destinationPath.isEmpty {
+                dict[t.destinationPath] = t
+            }
+        }
+        return dict
+    }
 
     enum LoadState: Equatable {
         case idle
@@ -108,6 +133,18 @@ struct FolderView: View {
             }
             .fullScreenCover(item: $playTarget) { entry in
                 MediaPlayerHost(remote: remote, entry: entry)
+            }
+            .sheet(item: $moveTarget) { entry in
+                MoveSheetView(
+                    entry: entry,
+                    sourceRemote: remote,
+                    availableRemotes: availableRemotes.isEmpty ? [remote] : availableRemotes,
+                    isPresented: Binding(
+                        get: { moveTarget != nil },
+                        set: { if !$0 { moveTarget = nil } }
+                    )
+                )
+                .onDisappear { Task { await load() } }
             }
             .confirmationDialog(
                 deleteDialogTitle,
@@ -215,12 +252,14 @@ struct FolderView: View {
 
     @ViewBuilder
     private func rowView(for entry: RemoteEntryDTO) -> some View {
+        let activeTransfer = activeTransferByPath[entry.pathInRemote]
+
         if entry.isDirectory {
             NavigationLink(value: NavigationDestination.folder(
                 remote: remote,
                 path: entry.pathInRemote
             )) {
-                EntryRowView(entry: entry)
+                EntryRowView(entry: entry, activeTransfer: activeTransfer)
             }
             .contextMenu {
                 EntryActionsMenu(
@@ -228,20 +267,37 @@ struct FolderView: View {
                     remote: remote,
                     renameTarget: $renameTarget,
                     deleteTarget: $deleteTarget,
-                    playTarget: $playTarget
+                    playTarget: $playTarget,
+                    moveTarget: $moveTarget
                 )
             }
         } else {
-            EntryRowView(entry: entry)
-                .contextMenu {
-                    EntryActionsMenu(
-                        entry: entry,
-                        remote: remote,
-                        renameTarget: $renameTarget,
-                        deleteTarget: $deleteTarget,
-                        playTarget: $playTarget
-                    )
-                }
+            // Single-tap action: media → play, anything else → enqueue
+            // download. Long-press still surfaces the full action menu.
+            Button {
+                handleTap(on: entry)
+            } label: {
+                EntryRowView(entry: entry, activeTransfer: activeTransfer)
+            }
+            .buttonStyle(.plain)
+            .contextMenu {
+                EntryActionsMenu(
+                    entry: entry,
+                    remote: remote,
+                    renameTarget: $renameTarget,
+                    deleteTarget: $deleteTarget,
+                    playTarget: $playTarget,
+                    moveTarget: $moveTarget
+                )
+            }
+        }
+    }
+
+    private func handleTap(on entry: RemoteEntryDTO) {
+        if EntryActionsMenu.isMediaFile(entry.name) {
+            playTarget = entry
+        } else {
+            Task { await EntryActionsMenu.tapDownload(remote: remote, entry: entry) }
         }
     }
 
@@ -269,8 +325,23 @@ struct FolderView: View {
         do {
             entries = try await RemoteService.shared.list(remote: remote, path: path)
             loadState = .loaded
+            await LogService.shared.log(
+                .debug,
+                category: "browse",
+                message: "Listé \(entries.count) entrée(s) dans \(remote):\(path)"
+            )
+            // Refresh the available-remotes list used by MoveSheetView.
+            // Best effort; failure here is non-blocking.
+            if let names = try? await RemoteService.shared.listRemoteNames() {
+                availableRemotes = names
+            }
         } catch {
             loadState = .failed(error.localizedDescription)
+            await LogService.shared.log(
+                .error,
+                category: "browse",
+                message: "Échec list \(remote):\(path) : \(error.localizedDescription)"
+            )
         }
     }
 }

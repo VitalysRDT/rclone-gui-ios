@@ -33,6 +33,7 @@ struct Rclone_GUIApp: App {
                     await MainActor.run {
                         TransferQueue.shared.attach(modelContext: sharedModelContainer.mainContext)
                     }
+                    await LogService.emitBoot()
                     await FileProviderManager.shared.registerDomain()
                 }
         }

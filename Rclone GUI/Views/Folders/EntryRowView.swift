@@ -10,6 +10,7 @@ import SwiftUI
 
 struct EntryRowView: View {
     let entry: RemoteEntryDTO
+    var activeTransfer: Transfer? = nil
 
     var body: some View {
         HStack(spacing: 12) {
@@ -23,16 +24,90 @@ struct EntryRowView: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
 
-                Text(secondaryLine)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                if let active = activeTransfer {
+                    transferProgressLine(for: active)
+                } else {
+                    Text(secondaryLine)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
             }
 
             Spacer(minLength: 4)
+
+            if activeTransfer != nil {
+                ProgressView()
+                    .controlSize(.small)
+            }
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityText)
+    }
+
+    @ViewBuilder
+    private func transferProgressLine(for transfer: Transfer) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 6) {
+                Image(systemName: transferIcon(for: transfer.kind))
+                    .foregroundStyle(transferColor(for: transfer.kind))
+                Text(transferLabel(for: transfer))
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(transferColor(for: transfer.kind))
+            }
+            if transfer.bytesTotal > 0 {
+                ProgressView(
+                    value: Double(transfer.bytesTransferred),
+                    total: Double(transfer.bytesTotal)
+                )
+                .progressViewStyle(.linear)
+                .tint(transferColor(for: transfer.kind))
+            } else {
+                ProgressView()
+                    .progressViewStyle(.linear)
+                    .tint(transferColor(for: transfer.kind))
+            }
+        }
+        .padding(.top, 2)
+    }
+
+    private func transferIcon(for kind: TransferKind) -> String {
+        switch kind {
+        case .download: return "arrow.down.circle.fill"
+        case .upload:   return "arrow.up.circle.fill"
+        case .move:     return "arrow.left.arrow.right.circle.fill"
+        case .copy:     return "doc.on.doc.fill"
+        case .sync:     return "arrow.triangle.2.circlepath.circle.fill"
+        case .delete:   return "trash.circle.fill"
+        }
+    }
+
+    private func transferColor(for kind: TransferKind) -> Color {
+        switch kind {
+        case .download: return .blue
+        case .upload:   return .indigo
+        case .move:     return .orange
+        case .copy:     return .teal
+        case .sync:     return .purple
+        case .delete:   return .red
+        }
+    }
+
+    private func transferLabel(for transfer: Transfer) -> String {
+        let action: String
+        switch transfer.kind {
+        case .download: action = "Téléchargement"
+        case .upload:   action = "Envoi"
+        case .move:     action = "Déplacement"
+        case .copy:     action = "Copie"
+        case .sync:     action = "Sync"
+        case .delete:   action = "Suppression"
+        }
+        if transfer.bytesTotal > 0 {
+            let pct = Int(Double(transfer.bytesTransferred) / Double(transfer.bytesTotal) * 100)
+            return "\(action) — \(pct)% · \(formatBytes(transfer.bytesTransferred)) / \(formatBytes(transfer.bytesTotal))"
+        }
+        return "\(action) en cours…"
     }
 
     // MARK: Icon
