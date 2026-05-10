@@ -116,18 +116,46 @@ public final class FilesClipboard {
 
     /// Paste staged items into the target folder. Routes through
     /// `TransferQueue.enqueueRemoteTransferBatch` so the user sees the same
-    /// progress UI as any other remote transfer. Clears the clipboard on
-    /// successful enqueue (regardless of whether the underlying jobs later
-    /// succeed) — Files.app does the same.
+    /// progress UI as any other remote transfer.
     ///
-    /// Refuses to paste a cut item into its own current parent folder
-    /// (would be a no-op move) — call sites should check `canPaste(into:folder:)`
-    /// before showing the Coller button to avoid the case entirely.
+    /// Clears the clipboard *before* dispatching, mirroring the system
+    /// clipboard contract — the act of pasting commits the intent regardless
+    /// of the async outcome. Per-item failures are recorded in TransferQueue
+    /// so the user can inspect them; the clipboard does not stay dirty.
+    ///
+    /// Pre-flight: unless `force` is true, every destination path is stat-ed
+    /// and any conflict throws `FilesClipboardError.destinationConflict` so
+    /// the caller can prompt for confirmation. This prevents silent
+    /// `rclone copyfile/movefile` overwrites — the canonical data-loss
+    /// scenario for a file manager.
     @discardableResult
-    public func paste(into remote: String, folder: String) async throws -> TransferBatch? {
+    public func paste(into remote: String, folder: String, force: Bool = false) async throws -> TransferBatch? {
         guard !items.isEmpty, let srcRemote = sourceRemote else { return nil }
 
-        let entries: [RemoteEntryDTO] = items.map { item in
+        // Pre-flight conflict check (skip with `force: true`, e.g. after the
+        // user has confirmed an overwrite dialog). We collect *all* conflicts
+        // before throwing so the dialog can list them, not surface them one
+        // at a time.
+        if !force {
+            var conflicts: [String] = []
+            for item in items {
+                let destPath = joined(folder, item.name)
+                let exists = (try? await RemoteService.shared.stat(remote: remote, path: destPath)) ?? nil
+                if exists != nil {
+                    conflicts.append(item.name)
+                }
+            }
+            if !conflicts.isEmpty {
+                throw FilesClipboardError.destinationConflict(conflicts)
+            }
+        }
+
+        // Snapshot before clearing so the dispatch loop still has the data.
+        let snapshot = items
+        let snapshotOperation = operation
+        clear()
+
+        let entries: [RemoteEntryDTO] = snapshot.map { item in
             RemoteEntryDTO(
                 pathInRemote: item.path,
                 name: item.name,
@@ -140,27 +168,25 @@ public final class FilesClipboard {
             )
         }
 
-        let kind: TransferKind = operation == .cut ? .move : .copy
-        let batch = try await TransferQueue.shared.enqueueRemoteTransferBatch(
+        let kind: TransferKind = snapshotOperation == .cut ? .move : .copy
+        return try await TransferQueue.shared.enqueueRemoteTransferBatch(
             kind: kind,
             srcRemote: srcRemote,
             entries: entries,
             dstRemote: remote,
             dstFolder: folder
         )
-
-        clear()
-        return batch
     }
 
     /// Whether pasting into the given target makes sense given the current
-    /// clipboard. Returns false for an empty clipboard, or for a cut into
-    /// the source folder of any staged item (would be a no-op move).
+    /// clipboard. Returns false for an empty clipboard, or for a cut where
+    /// *any* staged item would land back into its own parent folder
+    /// (a no-op self-move that some rclone backends error on).
     public func canPaste(into remote: String, folder: String) -> Bool {
         guard !items.isEmpty else { return false }
         guard operation == .cut else { return true }
-        // A cut paste into the same parent folder is a no-op for every item.
-        return !items.allSatisfy { item in
+        // Refuse if any single item would no-op-move into its own parent.
+        return !items.contains { item in
             item.remote == remote && parent(of: item.path) == folder
         }
     }
@@ -170,5 +196,30 @@ public final class FilesClipboard {
     private func parent(of path: String) -> String {
         let parent = (path as NSString).deletingLastPathComponent
         return parent
+    }
+
+    /// Mirror of TransferQueue.joinedRemotePath — strips leading/trailing
+    /// slashes from the folder so we don't produce paths like "/foo/bar"
+    /// that some rclone backends choke on.
+    private func joined(_ folder: String, _ name: String) -> String {
+        let cleanFolder = folder.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        return cleanFolder.isEmpty ? name : "\(cleanFolder)/\(name)"
+    }
+}
+
+public enum FilesClipboardError: LocalizedError, Equatable {
+    /// One or more destination paths already exist; the user must confirm
+    /// the overwrite before the paste proceeds. The associated value is the
+    /// list of conflicting basenames so the UI can list them.
+    case destinationConflict([String])
+
+    public var errorDescription: String? {
+        switch self {
+        case .destinationConflict(let names):
+            if names.count == 1 {
+                return "« \(names[0]) » existe déjà à cet emplacement."
+            }
+            return "\(names.count) éléments existent déjà à cet emplacement."
+        }
     }
 }

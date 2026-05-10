@@ -136,10 +136,13 @@ public final class TrashService {
         // Pre-flight: refuse if anything already lives at the original path.
         // The user may have created a new file at the same location after
         // trashing the old one; we must not silently destroy it.
-        if let existing = try? await RemoteService.shared.stat(
+        // Flatten Optional<Optional<RemoteEntryDTO>> from try? + stat's own
+        // optional return into a single layer for a clean nil check.
+        let existingAtOriginal = (try? await RemoteService.shared.stat(
             remote: entry.originalRemote,
             path: entry.originalPath
-        ), existing != nil {
+        )) ?? nil
+        if existingAtOriginal != nil {
             throw TrashError.destinationOccupied(entry.originalPath)
         }
 
@@ -163,7 +166,7 @@ public final class TrashService {
         // wrapper is harmless (auto-removed by mkdir cleanup on next trash op).
         if !entry.isDirectory {
             let wrapper = (entry.trashPath as NSString).deletingLastPathComponent
-            try? await TransferService.shared.purgeAsync(
+            _ = try? await TransferService.shared.purgeAsync(
                 remote: entry.originalRemote,
                 path: wrapper
             )

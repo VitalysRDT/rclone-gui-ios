@@ -41,6 +41,11 @@ struct FolderView: View {
     @State private var transientMessage: String?
     @State private var openingEntryID: String?
 
+    // Conflict resolution for paste — surfaced when FilesClipboardError.destinationConflict
+    // is thrown by the pre-flight stat check. Holds the list of conflicting
+    // basenames so the dialog can list them, plus a flag to retry with force.
+    @State private var pasteConflictNames: [String]?
+
     // Haptic triggers — bumped each time an action of the matching kind fires.
     // We use Int counters because SwiftUI's .sensoryFeedback(_:trigger:) needs
     // an Equatable trigger that *changes* to fire; toggling Bool would clamp
@@ -303,6 +308,22 @@ struct FolderView: View {
             } message: {
                 Text(transientMessage ?? "")
             }
+            .confirmationDialog(
+                pasteConflictTitle,
+                isPresented: Binding(
+                    get: { pasteConflictNames != nil },
+                    set: { if !$0 { pasteConflictNames = nil } }
+                ),
+                titleVisibility: .visible
+            ) {
+                Button("Remplacer", role: .destructive) {
+                    pasteConflictNames = nil
+                    Task { await pasteFromClipboard(force: true) }
+                }
+                Button("Annuler", role: .cancel) { pasteConflictNames = nil }
+            } message: {
+                Text(pasteConflictMessage)
+            }
             .sensoryFeedback(.success, trigger: hapticSuccessTrigger)
             .sensoryFeedback(.warning, trigger: hapticWarningTrigger)
             .sensoryFeedback(.selection, trigger: hapticImpactTrigger)
@@ -428,6 +449,7 @@ struct FolderView: View {
 
         rowViewBase(row: row, entry: entry, activeTransfer: activeTransfer)
             .opacity(isCutStaged ? 0.45 : 1)
+            .accessibilityHint(isCutStaged ? "Coupé, en attente de collage dans un autre dossier" : "")
     }
 
     @ViewBuilder
@@ -777,6 +799,23 @@ struct FolderView: View {
         }
     }
 
+    private var pasteConflictTitle: String {
+        guard let names = pasteConflictNames else { return "" }
+        return names.count == 1
+            ? "« \(names[0]) » existe déjà"
+            : "\(names.count) éléments existent déjà"
+    }
+
+    private var pasteConflictMessage: String {
+        guard let names = pasteConflictNames else { return "" }
+        if names.count == 1 {
+            return "Le fichier de destination sera écrasé sans possibilité d'annulation. La version remplacée n'est pas envoyée à la corbeille."
+        }
+        let preview = names.prefix(3).joined(separator: ", ")
+        let suffix = names.count > 3 ? " et \(names.count - 3) autre\(names.count - 3 > 1 ? "s" : "")" : ""
+        return "Les fichiers suivants seront écrasés sans possibilité d'annulation : \(preview)\(suffix)."
+    }
+
     private var pasteMenuLabel: String {
         let clip = FilesClipboard.shared
         let count = clip.count
@@ -786,12 +825,21 @@ struct FolderView: View {
             : "Coller (\(suffix), copier)"
     }
 
-    private func pasteFromClipboard() async {
+    private func pasteFromClipboard(force: Bool = false) async {
         do {
-            _ = try await FilesClipboard.shared.paste(into: remote, folder: path)
-            transientMessage = "Collage en cours dans la file de transferts."
+            _ = try await FilesClipboard.shared.paste(into: remote, folder: path, force: force)
+            transientMessage = force
+                ? "Collage avec écrasement en cours dans la file de transferts."
+                : "Collage en cours dans la file de transferts."
             hapticSuccessTrigger &+= 1
             await load()
+        } catch let error as FilesClipboardError {
+            if case .destinationConflict(let names) = error {
+                pasteConflictNames = names
+            } else {
+                transientMessage = "Échec du collage : \(error.localizedDescription)"
+                hapticWarningTrigger &+= 1
+            }
         } catch {
             transientMessage = "Échec du collage : \(error.localizedDescription)"
             hapticWarningTrigger &+= 1

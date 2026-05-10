@@ -411,6 +411,9 @@ struct FilesClipboardTests {
     @Test("clear empties the clipboard")
     func clearEmpties() {
         let clip = FilesClipboard.shared
+        clip.clear()
+        defer { clip.clear() }
+
         clip.stage(items: [sampleItem(name: "a")], operation: .cut)
         clip.clear()
         #expect(clip.isEmpty)
@@ -422,6 +425,8 @@ struct FilesClipboardTests {
     func cannotPasteEmpty() {
         let clip = FilesClipboard.shared
         clip.clear()
+        defer { clip.clear() }
+
         #expect(!clip.canPaste(into: "drive", folder: "Documents"))
     }
 
