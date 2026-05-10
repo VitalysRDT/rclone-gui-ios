@@ -44,11 +44,12 @@ public struct PhotoSyncRunSummary: Sendable, Equatable {
 
 struct PhotoSyncLimits: Sendable, Equatable {
     var indexSaveBatchSize = 250
-    /// How many records we enqueue per `runSync` pass. Picked so that once a
-    /// few uploads complete and free a slot in `maxActiveUploads`, the next
-    /// batch is already queued behind them — keeps the pipeline saturated
-    /// without pinning every photo in memory at once.
-    var enqueueBatchSize = 25
+    /// How many records we enqueue per `runSync` pass. Réduit de 25 → 10
+    /// pour borner la durée d'un cycle MainActor à ~700ms-1.5s max (vs
+    /// 1.75-3.75s avant) : SwiftUI peut rendre les tabs entre deux batches.
+    /// Throughput global préservé via `scheduleContinuationIfNeeded` qui
+    /// chaîne les batches dès qu'un slot se libère côté maxActiveUploads.
+    var enqueueBatchSize = 10
     /// How many TransferQueue jobs we want active in parallel for photo sync.
     /// rclone-bridge handles concurrent jobs fine; the cap exists mostly so
     /// the user's manual transfers don't get crowded out.
@@ -388,7 +389,7 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
     // MARK: - Sync
 
     @discardableResult
-    public func syncNow(limit: Int = 25) async -> PhotoSyncRunSummary {
+    public func syncNow(limit: Int = 10) async -> PhotoSyncRunSummary {
         let summary = await runSync(requestedLimit: limit, continueUntilEmpty: false, includeFailedRetries: true)
         #if os(iOS)
         await postSyncCompleteNotification(uploaded: summary.completedCount, failed: summary.failedCount)
@@ -641,6 +642,11 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
                     )
                     remotePaths.append(remotePath)
                     bytes += exported.bytes
+                    // Cède le MainActor entre chaque enqueueUpload : sans
+                    // ça, 25 records × 1-2 fichiers × ~50ms d'enqueue MainActor
+                    // = MainActor pinné 1-3s, UI complètement gelée (tab switch
+                    // impossible, Remotes inaccessible).
+                    await Task.yield()
                 }
                 record.remotePaths = remotePaths
                 record.byteCount = bytes
@@ -655,6 +661,12 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
                 try? modelContext.save()
                 await LogService.shared.log(.error, category: "photos", message: "Asset \(record.localIdentifier) non enqueue : \(error.localizedDescription)")
             }
+            // Yield également entre records pour garantir qu'un tap
+            // utilisateur (tab switch, NavigationLink) puisse être traité
+            // entre deux exports — un export PhotoKit peut se terminer
+            // instantanément si l'asset est déjà sur device, et la boucle
+            // enchaînerait sans laisser SwiftUI rendre.
+            await Task.yield()
         }
         return enqueuedCount
     }
@@ -696,7 +708,11 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         guard shouldContinueUntilEmpty else { return }
         continuationTask?.cancel()
         continuationTask = Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(250))
+            // Délai allongé à 1s (vs 250ms) : laisse SwiftUI traiter les
+            // taps utilisateur (tab switch, ouverture Remotes) entre deux
+            // batches de sync. Throughput inchangé — la prochaine batch
+            // démarre dès que le user est inactif 1s.
+            try? await Task.sleep(for: .seconds(1))
             await PhotoSyncService.shared.continueFullSyncIfNeeded()
         }
     }
