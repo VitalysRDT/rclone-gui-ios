@@ -15,7 +15,6 @@ struct PerformanceSettingsView: View {
     /// Granularity 0.5 MB/s — fine enough for cellular tuning, coarse enough
     /// to keep the slider readable.
     @AppStorage("transfer.bandwidthLimitMBps") private var bandwidthLimitMBps: Double = 0
-    @AppStorage("transfer.pauseAllOnLaunch") private var pauseAllOnLaunch: Bool = false
 
     @State private var isPaused = false
     @State private var transientMessage: String?
@@ -96,12 +95,11 @@ struct PerformanceSettingsView: View {
             Text(transientMessage ?? "")
         }
         .task {
-            // Reflect the live queue state on appearance, so re-entering the
-            // view after a pause shows the toggle in the correct position.
+            // Reflect the live queue state on appearance. The launch task in
+            // Rclone_GUIApp already replayed the persisted pause/bwlimit state
+            // through restoreFromPersistedState; we just mirror the resulting
+            // isPausedGlobally into the local Toggle binding.
             isPaused = TransferQueue.shared.isPausedGlobally
-            // Also re-apply the persisted ceiling — useful if rclone was
-            // restarted between launches and lost its bandwidth setting.
-            await applyBandwidthLimit(mbps: bandwidthLimitMBps)
         }
     }
 

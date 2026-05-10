@@ -436,6 +436,7 @@ public final class TransferQueue {
             sourceKind: .remote,
             bytesTotal: entry.size
         )
+        transfer.isDirectoryTransfer = entry.isDirectory
         transfer.status = .running
         modelContext?.insert(transfer)
         try modelContext?.save()
@@ -514,15 +515,14 @@ public final class TransferQueue {
                   let dstRemote = transfer.destinationRemote else {
                 throw TransferQueueError.cannotRetry("Source ou destination manquante.")
             }
-            // Synthetic DTO — real fields are recovered server-side at copy time.
-            // The replay's Transfer record carries the canonical metadata; the
-            // synthesized entry just needs the path + name + isDirectory bits.
-            // We assume isDirectory == false for retry; for directory transfers
-            // the user can re-trigger the original action manually.
+            // Use the persisted isDirectoryTransfer flag set by enqueueRemoteTransfer.
+            // Pre-Sprint-3 records have nil → treat as file (the old default behavior).
+            // For records where we know it's a directory, we route through the right
+            // rclone RPC (sync/copy or sync/move instead of operations/copyfile).
             let synthetic = RemoteEntryDTO(
                 pathInRemote: transfer.sourcePath,
                 name: transfer.displayName ?? (transfer.sourcePath as NSString).lastPathComponent,
-                isDirectory: false,
+                isDirectory: transfer.isDirectoryTransfer ?? false,
                 size: transfer.bytesTotal,
                 modTime: .now,
                 mimeType: nil,
@@ -553,11 +553,17 @@ public final class TransferQueue {
         try? modelContext?.save()
     }
 
+    /// Persisted across launches so that the UI and rclone agree on the
+    /// pause state after a cold start. rclone forgets its bwlimit between
+    /// runs, so we replay this flag at boot via `restoreFromPersistedState`.
+    public static let persistedPauseKey = "transfer.isPausedGlobally"
+
     /// Pause every running rclone job by lowering the global bandwidth ceiling
     /// to 1 byte/second (rclone treats rate "0" as "unlimited"). Idempotent.
     public func pauseAllTransfers() async throws {
         try await TransferService.shared.pauseAllTransfers()
         isPausedGlobally = true
+        UserDefaults.standard.set(true, forKey: Self.persistedPauseKey)
     }
 
     /// Restore the user's preferred bandwidth ceiling and resume progress.
@@ -565,6 +571,7 @@ public final class TransferQueue {
     public func resumeAllTransfers(bytesPerSecond: Int64) async throws {
         try await TransferService.shared.resumeAllTransfers(bytesPerSecond: bytesPerSecond)
         isPausedGlobally = false
+        UserDefaults.standard.set(false, forKey: Self.persistedPauseKey)
     }
 
     /// Apply the user's bandwidth setting without toggling pause state.
@@ -574,8 +581,53 @@ public final class TransferQueue {
         try await TransferService.shared.setBandwidthLimit(bytesPerSecond: bytesPerSecond)
     }
 
-    /// Live state mirrored from `pauseAllTransfers` / `resumeAllTransfers`.
-    /// SwiftUI views can observe this via the @MainActor isolation.
+    /// Cold-start handler: re-applies the persisted pause/bwlimit state to
+    /// rclone (which forgot it) and updates the in-memory `isPausedGlobally`
+    /// flag so the UI matches the real backend state.
+    ///
+    /// `bytesPerSecond` is the user's preferred ceiling (0 = unlimited),
+    /// read from `@AppStorage("transfer.bandwidthLimitMBps")` by the caller.
+    /// Retries with exponential backoff on RPC failure — rclone's Go runtime
+    /// may not be listening yet at the moment this is invoked.
+    public func restoreFromPersistedState(bytesPerSecond: Int64) async {
+        let wasPaused = UserDefaults.standard.bool(forKey: Self.persistedPauseKey)
+
+        // Up to 3 attempts with 0.5s, 1s, 2s backoff covers a slow Go runtime
+        // start without making the launch path feel sluggish on a healthy boot.
+        let delays: [UInt64] = [500_000_000, 1_000_000_000, 2_000_000_000]
+        for (index, delay) in delays.enumerated() {
+            do {
+                if wasPaused {
+                    try await TransferService.shared.pauseAllTransfers()
+                    isPausedGlobally = true
+                } else {
+                    try await TransferService.shared.setBandwidthLimit(bytesPerSecond: bytesPerSecond)
+                    isPausedGlobally = false
+                }
+                if index > 0 {
+                    await LogService.shared.log(
+                        .info,
+                        category: "transfer",
+                        message: "Bandwidth/pause state restored after \(index) retry attempt(s)"
+                    )
+                }
+                return
+            } catch {
+                if index == delays.count - 1 {
+                    await LogService.shared.log(
+                        .error,
+                        category: "transfer",
+                        message: "Failed restoring bandwidth/pause after \(delays.count) attempts: \(error.localizedDescription)"
+                    )
+                    return
+                }
+                try? await Task.sleep(nanoseconds: delay)
+            }
+        }
+    }
+
+    /// Live state mirrored from `pauseAllTransfers` / `resumeAllTransfers`
+    /// and rehydrated by `restoreFromPersistedState` at launch.
     public private(set) var isPausedGlobally: Bool = false
 
     // MARK: - Polling

@@ -87,12 +87,14 @@ struct Rclone_GUIApp: App {
                     Task.detached(priority: .background) { @MainActor in
                         await TrashService.shared.purgeExpired()
                     }
-                    // Apply persisted bandwidth ceiling — rclone forgets it on
-                    // restart, so we re-send it every boot. 0 means "off".
+                    // Re-apply bandwidth ceiling and pause flag — rclone forgets
+                    // both on restart. restoreFromPersistedState handles both
+                    // and retries with backoff if the rclone Go runtime isn't
+                    // listening yet, with LogService failure entries on giving up.
                     Task.detached(priority: .background) { @MainActor in
                         let mbps = UserDefaults.standard.double(forKey: "transfer.bandwidthLimitMBps")
                         let bytesPerSecond = Int64(mbps * 1024 * 1024)
-                        try? await TransferQueue.shared.applyBandwidthLimit(bytesPerSecond: bytesPerSecond)
+                        await TransferQueue.shared.restoreFromPersistedState(bytesPerSecond: bytesPerSecond)
                     }
                 }
         }
