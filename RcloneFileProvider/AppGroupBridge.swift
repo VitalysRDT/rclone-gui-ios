@@ -297,6 +297,81 @@ public enum FileProviderBridge {
         }
         return session
     }
+
+    /// Demande à l'app principale de lister ce dossier remote et d'écrire son
+    /// folder manifest dans App Group. L'extension polle l'apparition du
+    /// manifest. Évite d'appeler RcloneProviderClient.list dans la .appex
+    /// (Go runtime + crypt → jetsam OOM sur les gros dossiers).
+    public static func requestFolderManifestViaMainApp(
+        remote: String,
+        path: String,
+        timeout: TimeInterval
+    ) async throws {
+        try ensureDirectoriesExist()
+        let manifestURL = folderManifestURL(remote: remote, path: path)
+        // Mtime min : si le manifest existe déjà mais est ancien (>10s), on le
+        // considère comme stale et redemande pour le rafraîchir. iOS s'attend
+        // à du contenu vivant.
+        let staleThreshold: TimeInterval = 10
+        if let attrs = try? FileManager.default.attributesOfItem(atPath: manifestURL.path),
+           let mtime = attrs[.modificationDate] as? Date,
+           mtime.timeIntervalSinceNow > -staleThreshold {
+            return
+        }
+
+        let requestID = UUID().uuidString
+        let pending = PendingFetch(
+            requestID: requestID,
+            remote: remote,
+            path: path,
+            destPath: manifestURL.path,
+            createdAt: .now,
+            kind: "list"
+        )
+        let pendingURL = pendingFetchURL(requestID: requestID)
+        let data = try JSONEncoder().encode(pending)
+        try data.write(to: pendingURL, options: [.atomic])
+
+        appendDiagnostic("ipc list request id=\(requestID) remote=\(remote) path=\(path)")
+        postDarwinNotification(notificationFetchRequest)
+
+        let deadline = Date().addingTimeInterval(timeout)
+        let startTime = Date()
+        while Date() < deadline {
+            try Task.checkCancellation()
+
+            if let attrs = try? FileManager.default.attributesOfItem(atPath: manifestURL.path),
+               let mtime = attrs[.modificationDate] as? Date,
+               mtime > startTime {
+                appendDiagnostic("ipc list ready id=\(requestID)")
+                try? FileManager.default.removeItem(at: pendingURL)
+                return
+            }
+
+            let errorURL = pendingURL.appendingPathExtension("error")
+            if let errorData = try? Data(contentsOf: errorURL),
+               let message = String(data: errorData, encoding: .utf8) {
+                appendDiagnostic("ipc list error id=\(requestID) message=\(message)")
+                try? FileManager.default.removeItem(at: pendingURL)
+                try? FileManager.default.removeItem(at: errorURL)
+                throw NSError(
+                    domain: NSFileProviderErrorDomain,
+                    code: NSFileProviderError.serverUnreachable.rawValue,
+                    userInfo: [NSLocalizedDescriptionKey: message]
+                )
+            }
+
+            try? await Task.sleep(for: .milliseconds(200))
+        }
+
+        try? FileManager.default.removeItem(at: pendingURL)
+        appendDiagnostic("ipc list timeout id=\(requestID)")
+        throw NSError(
+            domain: NSFileProviderErrorDomain,
+            code: NSFileProviderError.serverUnreachable.rawValue,
+            userInfo: [NSLocalizedDescriptionKey: "Lancez Rclone GUI puis réessayez (listing indisponible)."]
+        )
+    }
 }
 
 public struct RemoteManifestEntry: Codable, Sendable {

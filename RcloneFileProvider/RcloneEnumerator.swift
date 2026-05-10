@@ -111,18 +111,28 @@ public final class RcloneEnumerator: NSObject, NSFileProviderEnumerator {
                 return
             }
 
+            // Manifest absent : déléguer à l'app principale (Go runtime + crypt
+            // dans la .appex jetsam-able sur les gros dossiers crypt). Une fois
+            // le manifest écrit, on le relit ici et on l'enumere.
             do {
-                let entries = try await RcloneProviderClient.shared.list(remote: decoded.remote, path: decoded.path)
-                fileProviderLog.debug("enumerating \(decoded.remote, privacy: .public):\(decoded.path, privacy: .public) from rclone: \(entries.count, privacy: .public) items")
-                FileProviderBridge.appendDiagnostic("enumerate \(decoded.remote):\(decoded.path) from rclone count=\(entries.count)")
-                let items = items(for: entries, parentIdentifier: itemIdentifier, remote: decoded.remote)
-                observer.didEnumerate(items)
+                try await FileProviderBridge.requestFolderManifestViaMainApp(
+                    remote: decoded.remote,
+                    path: decoded.path,
+                    timeout: 60
+                )
+                if let manifestEntries = loadFolderManifestIfAvailable(remote: decoded.remote, path: decoded.path) {
+                    FileProviderBridge.appendDiagnostic("enumerate \(decoded.remote):\(decoded.path) from manifest (via IPC) count=\(manifestEntries.count)")
+                    observer.didEnumerate(items(for: manifestEntries, parentIdentifier: itemIdentifier, remote: decoded.remote))
+                    observer.finishEnumerating(upTo: nil)
+                    return
+                }
+                FileProviderBridge.appendDiagnostic("enumerate \(decoded.remote):\(decoded.path) IPC done but manifest missing")
+                observer.didEnumerate([])
                 observer.finishEnumerating(upTo: nil)
             } catch {
                 fileProviderLog.error("enumerating \(decoded.remote, privacy: .public):\(decoded.path, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
                 FileProviderBridge.appendDiagnostic("enumerate \(decoded.remote):\(decoded.path) failed: \(error.localizedDescription)")
-                observer.didEnumerate([])
-                observer.finishEnumerating(upTo: nil)
+                observer.finishEnumeratingWithError(error)
             }
         }
     }

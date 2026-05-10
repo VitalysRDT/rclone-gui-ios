@@ -110,10 +110,51 @@ public final class FileProviderFetchService {
         processing.insert(pending.requestID)
         defer { processing.remove(pending.requestID) }
 
-        if pending.kind == "stream-url" {
+        switch pending.kind {
+        case "stream-url":
             await handleStreamURLRequest(pending: pending, pendingURL: url)
-        } else {
+        case "list":
+            await handleListRequest(pending: pending, pendingURL: url)
+        default:
             await handleFullDownload(pending: pending, pendingURL: url)
+        }
+    }
+
+    private func handleListRequest(pending: AppGroupPendingFetch, pendingURL: URL) async {
+        await LogService.shared.log(
+            .info,
+            category: "fileprovider",
+            message: "FetchService list \(pending.remote):\(pending.path)"
+        )
+
+        do {
+            let entries = try await RemoteService.shared.list(
+                remote: pending.remote,
+                path: pending.path
+            )
+            // FileProviderManager écrit le manifest au bon path et signale
+            // l'enumerator (que iOS ignorera pour cette requete-ci, mais utile
+            // pour les rafraîchissements futurs).
+            await FileProviderManager.shared.writeFolderManifest(
+                remote: pending.remote,
+                path: pending.path,
+                entries: entries
+            )
+            await LogService.shared.log(
+                .info,
+                category: "fileprovider",
+                message: "FetchService list done \(pending.remote):\(pending.path) (\(entries.count) entrées)"
+            )
+            try? FileManager.default.removeItem(at: pendingURL)
+        } catch {
+            let message = error.localizedDescription
+            await LogService.shared.log(
+                .error,
+                category: "fileprovider",
+                message: "FetchService list failed \(pending.remote):\(pending.path) : \(message)"
+            )
+            let errorURL = pendingURL.appendingPathExtension("error")
+            try? Data(message.utf8).write(to: errorURL, options: [.atomic])
         }
     }
 
