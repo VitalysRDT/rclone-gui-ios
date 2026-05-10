@@ -158,27 +158,32 @@ public final class RcloneFileProvider: NSObject, NSFileProviderReplicatedExtensi
 
         let tempDir = fetchTemporaryDirectory()
         let ext = (decoded.path as NSString).pathExtension
-        var destination = tempDir.appending(path: UUID().uuidString)
+        let requestID = UUID().uuidString
+        var destination = tempDir.appending(path: requestID)
         if !ext.isEmpty {
             destination = destination.appendingPathExtension(ext)
         }
 
         Task {
             do {
-                let entry = try await RcloneProviderClient.shared.download(
+                // Délégation IPC vers l'app principale (Go runtime + crypt jetsam-able
+                // dans une .appex iOS limitée à ~256 Mo).
+                try await FileProviderBridge.requestFetchViaMainApp(
+                    requestID: requestID,
                     remote: decoded.remote,
                     path: decoded.path,
-                    to: destination
+                    destination: destination,
+                    timeout: 120
                 )
                 let downloadedSize = (try? FileManager.default
-                    .attributesOfItem(atPath: destination.path)[.size] as? Int64) ?? entry?.size ?? 0
+                    .attributesOfItem(atPath: destination.path)[.size] as? Int64) ?? 0
                 let item = RcloneItem(
                     id: itemIdentifier,
                     parentID: parentIdentifier(remote: decoded.remote, path: decoded.path),
-                    displayName: entry?.name ?? (decoded.path as NSString).lastPathComponent,
+                    displayName: (decoded.path as NSString).lastPathComponent,
                     isDirectory: false,
                     size: downloadedSize,
-                    modTime: entry?.modTime ?? .now
+                    modTime: .now
                 )
                 FileProviderBridge.appendDiagnostic("fetchContents done id=\(itemIdentifier.rawValue) size=\(downloadedSize) at=\(destination.path)")
                 progress.completedUnitCount = 100

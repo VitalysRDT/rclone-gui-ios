@@ -5,14 +5,25 @@
 
 import SwiftUI
 import SwiftData
+import BackgroundTasks
+import Darwin
 
 @main
 struct Rclone_GUIApp: App {
+    init() {
+        prepareRuntime()
+        PhotoSyncService.shared.registerBackgroundTasks()
+    }
+
     var sharedModelContainer: ModelContainer = {
+        _ = try? AppGroup.prepareSharedContainerLayout()
+
         let schema = Schema([
             Remote.self,
             RemoteEntry.self,
             Transfer.self,
+            TransferBatch.self,
+            PhotoSyncAsset.self,
         ])
         // Local-only store: explicitly opt out of SwiftData/CloudKit auto-sync.
         // The app declares the iCloud entitlement (for future iCloud Drive
@@ -21,8 +32,11 @@ struct Rclone_GUIApp: App {
         // .none here, SwiftData detects the entitlement and tries to mirror
         // every entity through CloudKit, crashing at container init.
         let modelConfiguration = ModelConfiguration(
+            "RcloneGUI",
             schema: schema,
             isStoredInMemoryOnly: false,
+            allowsSave: true,
+            groupContainer: .identifier(AppGroup.identifier),
             cloudKitDatabase: .none
         )
 
@@ -51,11 +65,35 @@ struct Rclone_GUIApp: App {
                 .task {
                     await MainActor.run {
                         TransferQueue.shared.attach(modelContext: sharedModelContainer.mainContext)
+                        PhotoSyncService.shared.attach(modelContext: sharedModelContainer.mainContext)
                     }
+                    try? await ConfigStore.shared.migrateMasterKeyToSharedAccessGroupIfNeeded()
                     await LogService.emitBoot()
                     await FileProviderManager.shared.registerDomain()
+                    await MainActor.run {
+                        FileProviderFetchService.shared.start()
+                    }
+                    if let remotes = try? await RemoteService.shared.listRemoteSummaries() {
+                        await FileProviderManager.shared.writeRemotesManifest(remotes)
+                    }
+                    PhotoSyncService.shared.scheduleBackgroundProcessing()
                 }
         }
         .modelContainer(sharedModelContainer)
+    }
+}
+
+private func prepareRuntime() {
+    do {
+        try AppGroup.prepareSharedContainerLayout()
+        let workingDirectory = AppGroup.runtimeWorkingDirectoryURL
+        _ = workingDirectory.path.withCString { chdir($0) }
+        setenv("PWD", workingDirectory.path, 1)
+        setenv("HOME", AppGroup.containerURL.path, 1)
+        setenv("TMPDIR", NSTemporaryDirectory(), 1)
+    } catch {
+        let fallback = NSTemporaryDirectory()
+        _ = fallback.withCString { chdir($0) }
+        setenv("PWD", fallback, 1)
     }
 }

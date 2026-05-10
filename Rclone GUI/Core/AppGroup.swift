@@ -21,7 +21,14 @@ public enum AppGroup {
     public nonisolated static let identifier = "group.com.rougetet.rclone-gui"
 
     /// Keychain access group for credentials shared between app and extension.
-    public nonisolated static let keychainAccessGroup = "$(AppIdentifierPrefix)com.rougetet.rclone-gui"
+    public nonisolated static var keychainAccessGroup: String? {
+        guard let value = Bundle.main.object(forInfoDictionaryKey: "RcloneKeychainAccessGroup") as? String,
+              !value.isEmpty,
+              !value.contains("$(") else {
+            return nil
+        }
+        return value
+    }
 
     /// URL of the App Group container.
     /// Falls back to the app's own `Application Support` directory if the
@@ -65,11 +72,69 @@ public enum AppGroup {
 
     /// Path inside the App Group for the SwiftData store.
     public nonisolated static var swiftDataStoreURL: URL {
-        containerURL.appending(path: "RcloneGUI.sqlite")
+        applicationSupportURL.appending(path: "RcloneGUI.store")
     }
 
     /// Path for the thumbnail cache.
     public nonisolated static var thumbnailCacheURL: URL {
         containerURL.appending(path: "Thumbnails", directoryHint: .isDirectory)
     }
+
+    public nonisolated static var fileProviderDiagnosticsURL: URL {
+        containerURL
+            .appending(path: "FileProvider", directoryHint: .isDirectory)
+            .appending(path: "diagnostics.log")
+    }
+
+    public nonisolated static var pendingFetchesDir: URL {
+        containerURL.appending(path: "pending-fetches", directoryHint: .isDirectory)
+    }
+
+    /// Nom de la Darwin notification postée par l'extension FileProvider
+    /// pour signaler une nouvelle demande de fetch à l'app principale.
+    public static let fileProviderFetchRequestNotification = "com.rougetet.rclone-gui.fp.fetch-request"
+
+    /// Writable Application Support directory inside the group container.
+    /// CoreData/SwiftData will not reliably create this nested directory on
+    /// iOS when the store lives in an App Group, so the app creates it before
+    /// building the ModelContainer.
+    public nonisolated static var applicationSupportURL: URL {
+        containerURL
+            .appending(path: "Library", directoryHint: .isDirectory)
+            .appending(path: "Application Support", directoryHint: .isDirectory)
+    }
+
+    /// A safe writable cwd for Go/rclone. Avoid using the app bundle path:
+    /// gomobile/cgo can receive it URL-escaped when the app product name has
+    /// spaces, which triggers a noisy `chdir(...%20...) failed` at launch.
+    public nonisolated static var runtimeWorkingDirectoryURL: URL {
+        containerURL
+            .appending(path: "Library", directoryHint: .isDirectory)
+            .appending(path: "RcloneRuntime", directoryHint: .isDirectory)
+    }
+
+    @discardableResult
+    public nonisolated static func prepareSharedContainerLayout() throws -> URL {
+        let fm = FileManager.default
+        try fm.createDirectory(at: applicationSupportURL, withIntermediateDirectories: true)
+        try fm.createDirectory(at: thumbnailCacheURL, withIntermediateDirectories: true)
+        try fm.createDirectory(at: runtimeWorkingDirectoryURL, withIntermediateDirectories: true)
+        try fm.createDirectory(at: pendingFetchesDir, withIntermediateDirectories: true)
+        try fm.createDirectory(
+            at: fileProviderDiagnosticsURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        return swiftDataStoreURL
+    }
+}
+
+/// Mirror du PendingFetch défini côté extension (RcloneFileProvider/AppGroupBridge.swift).
+/// Codé identique pour assurer le decoding cross-target via JSON. Les deux structs
+/// doivent rester synchronisées (mêmes champs, mêmes noms).
+public struct AppGroupPendingFetch: Codable, Sendable {
+    public let requestID: String
+    public let remote: String
+    public let path: String
+    public let destPath: String
+    public let createdAt: Date
 }
