@@ -156,3 +156,221 @@ struct AppGroupTests {
         #expect(!url.path.isEmpty)
     }
 }
+
+// MARK: - Download conflict policy
+
+@Suite("Local download conflict resolver")
+struct LocalDownloadConflictTests {
+
+    @Test("keepBoth appends a numeric suffix before the extension")
+    func keepBothAppendsSuffix() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appending(path: "rclone-gui-tests-\(UUID().uuidString)", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let original = directory.appending(path: "photo.heic")
+        try Data("one".utf8).write(to: original)
+
+        let resolved = try LocalFileConflictResolver.destination(for: original, policy: .keepBoth)
+        #expect(resolved?.lastPathComponent == "photo 2.heic")
+    }
+
+    @Test("skip returns nil when the destination already exists")
+    func skipExistingFile() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appending(path: "rclone-gui-tests-\(UUID().uuidString)", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let original = directory.appending(path: "movie.mov")
+        try Data("one".utf8).write(to: original)
+
+        let resolved = try LocalFileConflictResolver.destination(for: original, policy: .skip)
+        #expect(resolved == nil)
+    }
+
+    @Test("replace removes the existing destination and returns the same URL")
+    func replaceExistingFile() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appending(path: "rclone-gui-tests-\(UUID().uuidString)", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let original = directory.appending(path: "document.pdf")
+        try Data("one".utf8).write(to: original)
+
+        let resolved = try LocalFileConflictResolver.destination(for: original, policy: .replace)
+        #expect(resolved == original)
+        #expect(!FileManager.default.fileExists(atPath: original.path))
+    }
+}
+
+// MARK: - Photo sync index model
+
+@Suite("PhotoSyncAsset index model")
+struct PhotoSyncAssetTests {
+
+    @Test("status and remote paths round-trip through persisted raw fields")
+    func statusAndPathsRoundTrip() {
+        let asset = PhotoSyncAsset(
+            localIdentifier: "A1B2/L0/001",
+            mediaType: "image",
+            creationDate: Date(timeIntervalSince1970: 1_700_000_000)
+        )
+
+        asset.status = .enqueued
+        asset.remotePaths = [
+            "Photos/2023/11/image.heic",
+            "Photos/2023/11/image.mov"
+        ]
+
+        #expect(asset.status == .enqueued)
+        #expect(asset.statusRaw == "enqueued")
+        #expect(asset.remotePaths.count == 2)
+        #expect(asset.remotePaths[0].hasSuffix("image.heic"))
+    }
+
+    @Test("invalid raw status falls back to pending")
+    func invalidStatusFallsBackToPending() {
+        let asset = PhotoSyncAsset(localIdentifier: "x", mediaType: "video", creationDate: nil)
+        asset.statusRaw = "unknown-state"
+        #expect(asset.status == .pending)
+    }
+}
+
+@Suite("PhotoSync service batching")
+struct PhotoSyncServiceBatchingTests {
+
+    @Test("full-library scan can return more than one hundred new assets")
+    func scanKeepsMoreThanOneHundredAssets() {
+        let candidates = (0..<250).map { index in
+            PhotoSyncCandidate(
+                localIdentifier: "asset-\(index)",
+                mediaType: "image",
+                creationDate: Date(timeIntervalSince1970: TimeInterval(index))
+            )
+        }
+
+        let result = PhotoSyncService.scanCandidates(candidates, excluding: ["asset-3", "asset-17"])
+        let batches = PhotoSyncService.batches(result, size: 100)
+
+        #expect(result.count == 248)
+        #expect(result.count > 100)
+        #expect(batches.count == 3)
+        #expect(batches[0].count == 100)
+        #expect(batches[2].count == 48)
+    }
+
+    @Test("enqueue capacity never exceeds the photo concurrency limit")
+    func enqueueCapacityHonorsActiveUploads() {
+        let limits = PhotoSyncLimits(indexSaveBatchSize: 100, enqueueBatchSize: 3, maxActiveUploads: 3, maxRetries: 3)
+
+        #expect(PhotoSyncService.enqueueCapacity(activeCount: 0, requestedLimit: 10, limits: limits) == 3)
+        #expect(PhotoSyncService.enqueueCapacity(activeCount: 2, requestedLimit: 10, limits: limits) == 1)
+        #expect(PhotoSyncService.enqueueCapacity(activeCount: 3, requestedLimit: 10, limits: limits) == 0)
+        #expect(PhotoSyncService.enqueueCapacity(activeCount: 1, requestedLimit: 1, limits: limits) == 1)
+    }
+
+    @Test("continuation resumes only when pending work can fit")
+    func continuationNeedsPendingWorkAndCapacity() {
+        let limits = PhotoSyncLimits(indexSaveBatchSize: 100, enqueueBatchSize: 3, maxActiveUploads: 3, maxRetries: 3)
+
+        #expect(PhotoSyncService.shouldContinueSync(continueUntilEmpty: true, pendingCount: 5, activeCount: 2, limits: limits))
+        #expect(!PhotoSyncService.shouldContinueSync(continueUntilEmpty: true, pendingCount: 5, activeCount: 3, limits: limits))
+        #expect(!PhotoSyncService.shouldContinueSync(continueUntilEmpty: true, pendingCount: 0, activeCount: 0, limits: limits))
+        #expect(!PhotoSyncService.shouldContinueSync(continueUntilEmpty: false, pendingCount: 5, activeCount: 0, limits: limits))
+    }
+}
+
+// MARK: - Transfer batch metadata
+
+@Suite("Transfer batch metadata")
+struct TransferBatchMetadataTests {
+
+    @Test("transfer stores batch fields used by recursive operations")
+    func storesBatchFields() {
+        let batchID = UUID().uuidString
+        let transfer = Transfer(
+            kind: .download,
+            sourceRemote: "photos",
+            sourcePath: "2026/IMG_0001.HEIC",
+            destinationPath: "/tmp/IMG_0001.HEIC",
+            batchID: batchID,
+            relativePath: "2026/IMG_0001.HEIC",
+            displayName: "IMG_0001.HEIC",
+            sourceKind: .photoLibrary,
+            bytesTotal: 42
+        )
+
+        #expect(transfer.batchID == batchID)
+        #expect(transfer.relativePath == "2026/IMG_0001.HEIC")
+        #expect(transfer.displayName == "IMG_0001.HEIC")
+        #expect(transfer.sourceKind == TransferSourceKind.photoLibrary)
+    }
+}
+
+// MARK: - Trash retention model
+
+@Suite("TrashEntry retention metadata")
+struct TrashEntryTests {
+
+    @Test("default retention is 30 days from trashedAt")
+    func defaultRetentionIs30Days() {
+        let trashedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        let entry = TrashEntry(
+            originalRemote: "drive",
+            originalPath: "Documents/foo.pdf",
+            originalName: "foo.pdf",
+            isDirectory: false,
+            sizeBytes: 12_345,
+            trashPath: ".rclone-gui-trash/abc/foo.pdf",
+            trashedAt: trashedAt
+        )
+        let expectedExpiry = trashedAt.addingTimeInterval(30 * 24 * 60 * 60)
+        #expect(entry.expiresAt == expectedExpiry)
+        #expect(entry.originalRemote == "drive")
+        #expect(entry.trashPath.hasPrefix(".rclone-gui-trash/"))
+        #expect(!entry.isDirectory)
+    }
+
+    @Test("custom retention is honored and expiresAt sits in the future")
+    func customRetentionTakesEffect() {
+        let trashedAt = Date.now
+        let entry = TrashEntry(
+            originalRemote: "s3",
+            originalPath: "Backup/2026",
+            originalName: "2026",
+            isDirectory: true,
+            sizeBytes: -1,
+            trashPath: ".rclone-gui-trash/xyz/2026",
+            trashedAt: trashedAt,
+            retention: 60
+        )
+        #expect(entry.expiresAt.timeIntervalSince(trashedAt) == 60)
+        #expect(entry.expiresAt > .now)
+        #expect(entry.isDirectory)
+        #expect(entry.sizeBytes == -1)
+    }
+
+    @Test("UUID id is unique across newly trashed entries")
+    func generatedIDsAreUnique() {
+        let a = TrashEntry(
+            originalRemote: "r",
+            originalPath: "a",
+            originalName: "a",
+            isDirectory: false,
+            sizeBytes: 0,
+            trashPath: ".rclone-gui-trash/a/a"
+        )
+        let b = TrashEntry(
+            originalRemote: "r",
+            originalPath: "a",
+            originalName: "a",
+            isDirectory: false,
+            sizeBytes: 0,
+            trashPath: ".rclone-gui-trash/b/a"
+        )
+        #expect(a.id != b.id)
+    }
+}

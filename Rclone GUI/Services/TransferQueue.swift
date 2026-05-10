@@ -55,7 +55,9 @@ public final class TransferQueue {
             kind: .download,
             sourceRemote: remote,
             sourcePath: path,
-            destinationPath: localURL.path
+            destinationPath: localURL.path,
+            displayName: localURL.lastPathComponent,
+            sourceKind: .remote
         )
         transfer.status = .running
         modelContext?.insert(transfer)
@@ -72,12 +74,118 @@ public final class TransferQueue {
         startPolling(transfer)
     }
 
-    public func enqueueUpload(local: URL, remote: String, path: String) async throws {
+    @discardableResult
+    public func enqueueDownloadBatch(
+        remote: String,
+        entries: [RemoteEntryDTO],
+        to directory: URL,
+        conflictPolicy: LocalConflictPolicy
+    ) async throws -> TransferBatch {
+        let batch = TransferBatch(
+            title: entries.count == 1 ? "Téléchargement \(entries[0].name)" : "Téléchargement de \(entries.count) éléments",
+            kind: .download,
+            totalItems: entries.count
+        )
+        batch.status = .running
+        modelContext?.insert(batch)
+        try modelContext?.save()
+
+        for entry in entries {
+            try await enqueueDownload(
+                remote: remote,
+                entry: entry,
+                to: directory,
+                conflictPolicy: conflictPolicy,
+                batchID: batch.id
+            )
+        }
+        return batch
+    }
+
+    public func enqueueDownload(
+        remote: String,
+        entry: RemoteEntryDTO,
+        to directory: URL,
+        conflictPolicy: LocalConflictPolicy = .keepBoth,
+        batchID: String? = nil
+    ) async throws {
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let requestedURL = directory.appending(path: entry.name, directoryHint: entry.isDirectory ? .isDirectory : .notDirectory)
+        guard let destinationURL = try LocalFileConflictResolver.destination(for: requestedURL, policy: conflictPolicy) else {
+            await LogService.shared.log(.info, category: "transfer", message: "Téléchargement ignoré : \(remote):\(entry.pathInRemote)")
+            return
+        }
+
+        if entry.isDirectory {
+            try FileManager.default.createDirectory(at: destinationURL, withIntermediateDirectories: true)
+            let transfer = Transfer(
+                kind: .download,
+                sourceRemote: remote,
+                sourcePath: entry.pathInRemote,
+                destinationPath: destinationURL.path,
+                batchID: batchID,
+                relativePath: entry.name,
+                displayName: entry.name,
+                sourceKind: .remote
+            )
+            transfer.status = .running
+            modelContext?.insert(transfer)
+            try modelContext?.save()
+
+            let jobID = try await TransferService.shared.copyDirAsync(
+                srcFs: "\(remote):\(entry.pathInRemote)",
+                dstFs: destinationURL.path
+            )
+            transfer.jobID = jobID
+            try modelContext?.save()
+            startPolling(transfer)
+        } else {
+            let transfer = Transfer(
+                kind: .download,
+                sourceRemote: remote,
+                sourcePath: entry.pathInRemote,
+                destinationPath: destinationURL.path,
+                batchID: batchID,
+                relativePath: entry.name,
+                displayName: entry.name,
+                sourceKind: .remote,
+                bytesTotal: entry.size
+            )
+            transfer.status = .running
+            modelContext?.insert(transfer)
+            try modelContext?.save()
+
+            let parent = destinationURL.deletingLastPathComponent()
+            let jobID = try await TransferService.shared.copyFileAsync(
+                srcFs: "\(remote):",
+                srcPath: entry.pathInRemote,
+                dstFs: parent.path,
+                dstPath: destinationURL.lastPathComponent
+            )
+            transfer.jobID = jobID
+            try modelContext?.save()
+            startPolling(transfer)
+        }
+    }
+
+    public func enqueueUpload(
+        local: URL,
+        remote: String,
+        path: String,
+        batchID: String? = nil,
+        relativePath: String? = nil,
+        sourceKind: TransferSourceKind = .localFile
+    ) async throws {
         let transfer = Transfer(
             kind: .upload,
             sourcePath: local.path,
             destinationRemote: remote,
-            destinationPath: path
+            destinationPath: path,
+            batchID: batchID,
+            relativePath: relativePath,
+            displayName: local.lastPathComponent,
+            sourceKind: sourceKind,
+            bytesTotal: fileSize(at: local)
         )
         transfer.status = .running
         modelContext?.insert(transfer)
@@ -88,6 +196,81 @@ public final class TransferQueue {
             srcPath: local.lastPathComponent,
             dstFs: "\(remote):",
             dstPath: path
+        )
+        transfer.jobID = jobID
+        try modelContext?.save()
+        startPolling(transfer)
+    }
+
+    @discardableResult
+    public func enqueueUploadBatch(
+        localURLs: [URL],
+        remote: String,
+        destinationFolder: String,
+        sourceKind: TransferSourceKind = .localFile
+    ) async throws -> TransferBatch {
+        let batch = TransferBatch(
+            title: localURLs.count == 1 ? "Upload \(localURLs[0].lastPathComponent)" : "Upload de \(localURLs.count) éléments",
+            kind: .upload,
+            totalItems: localURLs.count
+        )
+        batch.status = .running
+        modelContext?.insert(batch)
+        try modelContext?.save()
+
+        for localURL in localURLs {
+            let didStart = localURL.startAccessingSecurityScopedResource()
+            defer { if didStart { localURL.stopAccessingSecurityScopedResource() } }
+
+            if isDirectory(localURL) {
+                let dstPath = joinedRemotePath(destinationFolder, localURL.lastPathComponent)
+                try await enqueueUploadFolder(
+                    localFolder: localURL,
+                    remote: remote,
+                    destinationFolder: dstPath,
+                    batchID: batch.id,
+                    sourceKind: sourceKind
+                )
+            } else {
+                let dstPath = joinedRemotePath(destinationFolder, localURL.lastPathComponent)
+                try await enqueueUpload(
+                    local: localURL,
+                    remote: remote,
+                    path: dstPath,
+                    batchID: batch.id,
+                    relativePath: localURL.lastPathComponent,
+                    sourceKind: sourceKind
+                )
+            }
+        }
+        return batch
+    }
+
+    public func enqueueUploadFolder(
+        localFolder: URL,
+        remote: String,
+        destinationFolder: String,
+        batchID: String? = nil,
+        sourceKind: TransferSourceKind = .localFolder
+    ) async throws {
+        let transfer = Transfer(
+            kind: .upload,
+            sourcePath: localFolder.path,
+            destinationRemote: remote,
+            destinationPath: destinationFolder,
+            batchID: batchID,
+            relativePath: localFolder.lastPathComponent,
+            displayName: localFolder.lastPathComponent,
+            sourceKind: sourceKind,
+            bytesTotal: directorySize(at: localFolder)
+        )
+        transfer.status = .running
+        modelContext?.insert(transfer)
+        try modelContext?.save()
+
+        let jobID = try await TransferService.shared.copyDirAsync(
+            srcFs: localFolder.path,
+            dstFs: "\(remote):\(destinationFolder)"
         )
         transfer.jobID = jobID
         try modelContext?.save()
@@ -114,6 +297,49 @@ public final class TransferQueue {
         transfer.jobID = jobID
         try modelContext?.save()
         startPolling(transfer)
+    }
+
+    /// Soft-delete: move the item to the per-remote trash folder via TrashService.
+    /// The original path is recorded so the user can restore it within the
+    /// retention window (30 days by default).
+    ///
+    /// `sizeBytes` is best-effort metadata for the trash UI. Pass -1 if unknown.
+    public func enqueueTrash(
+        remote: String,
+        path: String,
+        name: String,
+        isDirectory: Bool,
+        sizeBytes: Int64
+    ) async throws {
+        let transfer = Transfer(
+            kind: .delete,
+            sourceRemote: remote,
+            sourcePath: path,
+            destinationPath: "",
+            displayName: "Corbeille — \(name)"
+        )
+        transfer.status = .running
+        modelContext?.insert(transfer)
+        try modelContext?.save()
+
+        do {
+            _ = try await TrashService.shared.moveToTrash(
+                remote: remote,
+                path: path,
+                name: name,
+                isDirectory: isDirectory,
+                sizeBytes: sizeBytes
+            )
+            transfer.status = .completed
+            transfer.finishedAt = .now
+            try modelContext?.save()
+        } catch {
+            transfer.status = .failed
+            transfer.lastError = error.localizedDescription
+            transfer.finishedAt = .now
+            try? modelContext?.save()
+            throw error
+        }
     }
 
     public func enqueueRename(remote: String, oldPath: String, newPath: String) async throws {
@@ -157,6 +383,103 @@ public final class TransferQueue {
         startPolling(transfer)
     }
 
+    @discardableResult
+    public func enqueueRemoteTransferBatch(
+        kind: TransferKind,
+        srcRemote: String,
+        entries: [RemoteEntryDTO],
+        dstRemote: String,
+        dstFolder: String
+    ) async throws -> TransferBatch {
+        let batch = TransferBatch(
+            title: remoteBatchTitle(kind: kind, count: entries.count),
+            kind: kind,
+            totalItems: entries.count
+        )
+        batch.status = .running
+        modelContext?.insert(batch)
+        try modelContext?.save()
+
+        for entry in entries {
+            try await enqueueRemoteTransfer(
+                kind: kind,
+                srcRemote: srcRemote,
+                entry: entry,
+                dstRemote: dstRemote,
+                dstPath: joinedRemotePath(dstFolder, entry.name),
+                batchID: batch.id
+            )
+        }
+
+        return batch
+    }
+
+    public func enqueueRemoteTransfer(
+        kind: TransferKind,
+        srcRemote: String,
+        entry: RemoteEntryDTO,
+        dstRemote: String,
+        dstPath: String,
+        batchID: String? = nil
+    ) async throws {
+        precondition(kind == .copy || kind == .move || kind == .sync)
+
+        let transfer = Transfer(
+            kind: kind,
+            sourceRemote: srcRemote,
+            sourcePath: entry.pathInRemote,
+            destinationRemote: dstRemote,
+            destinationPath: dstPath,
+            batchID: batchID,
+            relativePath: entry.name,
+            displayName: entry.name,
+            sourceKind: .remote,
+            bytesTotal: entry.size
+        )
+        transfer.status = .running
+        modelContext?.insert(transfer)
+        try modelContext?.save()
+
+        let jobID: Int
+        switch (kind, entry.isDirectory) {
+        case (.copy, false), (.sync, false):
+            jobID = try await TransferService.shared.copyFileAsync(
+                srcFs: "\(srcRemote):",
+                srcPath: entry.pathInRemote,
+                dstFs: "\(dstRemote):",
+                dstPath: dstPath
+            )
+        case (.copy, true):
+            jobID = try await TransferService.shared.copyDirAsync(
+                srcFs: "\(srcRemote):\(entry.pathInRemote)",
+                dstFs: "\(dstRemote):\(dstPath)"
+            )
+        case (.move, false):
+            jobID = try await TransferService.shared.moveFileAsync(
+                srcFs: "\(srcRemote):",
+                srcPath: entry.pathInRemote,
+                dstFs: "\(dstRemote):",
+                dstPath: dstPath
+            )
+        case (.move, true):
+            jobID = try await TransferService.shared.moveDirAsync(
+                srcFs: "\(srcRemote):\(entry.pathInRemote)",
+                dstFs: "\(dstRemote):\(dstPath)"
+            )
+        case (.sync, true):
+            jobID = try await TransferService.shared.syncDirAsync(
+                srcFs: "\(srcRemote):\(entry.pathInRemote)",
+                dstFs: "\(dstRemote):\(dstPath)"
+            )
+        default:
+            throw RcloneError.engineNotAvailable("Type de transfert remote non supporté : \(kind.rawValue)")
+        }
+
+        transfer.jobID = jobID
+        try modelContext?.save()
+        startPolling(transfer)
+    }
+
     public func cancel(_ transfer: Transfer) async {
         if let id = transfer.jobID {
             pollTasks[id]?.cancel()
@@ -193,7 +516,16 @@ public final class TransferQueue {
                     let finalKind = transfer.kind
                     let finalSrc = transfer.sourcePath
                     if status.success {
+                        transfer.bytesTransferred = max(transfer.bytesTransferred, transfer.bytesTotal)
                         transfer.status = .completed
+                        updateBatch(transfer.batchID, completedDelta: 1, failedDelta: 0)
+                        if transfer.sourceKind == .photoLibrary {
+                            PhotoSyncService.shared.transferDidFinish(
+                                destinationPath: transfer.destinationPath,
+                                success: true,
+                                error: nil
+                            )
+                        }
                         await LogService.shared.log(
                             .info,
                             category: "transfer",
@@ -202,6 +534,14 @@ public final class TransferQueue {
                     } else {
                         transfer.status = .failed
                         transfer.lastError = status.error ?? "Échec inconnu"
+                        updateBatch(transfer.batchID, completedDelta: 0, failedDelta: 1)
+                        if transfer.sourceKind == .photoLibrary {
+                            PhotoSyncService.shared.transferDidFinish(
+                                destinationPath: transfer.destinationPath,
+                                success: false,
+                                error: transfer.lastError
+                            )
+                        }
                         await LogService.shared.log(
                             .error,
                             category: "transfer",
@@ -221,6 +561,7 @@ public final class TransferQueue {
                 transfer?.status = .failed
                 transfer?.lastError = error.localizedDescription
                 transfer?.finishedAt = .now
+                updateBatch(transfer?.batchID, completedDelta: 0, failedDelta: transfer == nil ? 0 : 1)
                 try? modelContext?.save()
                 await LogService.shared.log(
                     .error,
@@ -266,13 +607,59 @@ public final class TransferQueue {
         // core/stats reports per-file under `transferring`, keyed by the destination basename.
         // We do best-effort matching.
         for transfer in running {
-            let targetName = (transfer.destinationPath as NSString).lastPathComponent
-            if let match = stats.transferring.first(where: { $0.name == targetName }) {
+            if let match = stats.transferring.first(where: { statMatchesTransfer($0, transfer: transfer) })
+                ?? uniqueSizeFallback(stats: stats, running: running, transfer: transfer)
+                ?? singleTransferFallback(stats: stats, running: running) {
                 transfer.bytesTransferred = match.bytesTransferred
                 transfer.bytesTotal = max(match.bytesTotal, transfer.bytesTotal)
             }
         }
+        updateRunningBatches()
         try? modelContext.save()
+    }
+
+    private func statMatchesTransfer(_ stat: CoreStatsDTO.Transferring, transfer: Transfer) -> Bool {
+        let statName = stat.name
+        let statBase = (statName as NSString).lastPathComponent
+        let sourceBase = (transfer.sourcePath as NSString).lastPathComponent
+        let destinationBase = (transfer.destinationPath as NSString).lastPathComponent
+        let displayName = transfer.displayName ?? ""
+
+        let candidates = [
+            transfer.sourcePath,
+            transfer.destinationPath,
+            sourceBase,
+            destinationBase,
+            displayName,
+        ].filter { !$0.isEmpty }
+
+        return candidates.contains { candidate in
+            statName == candidate
+                || statBase == candidate
+                || statName.hasSuffix("/\(candidate)")
+                || candidate.hasSuffix("/\(statName)")
+        }
+    }
+
+    private func uniqueSizeFallback(
+        stats: CoreStatsDTO,
+        running: [Transfer],
+        transfer: Transfer
+    ) -> CoreStatsDTO.Transferring? {
+        guard transfer.bytesTotal > 0 else { return nil }
+        let sameSizeTransfers = running.filter { $0.bytesTotal == transfer.bytesTotal }
+        guard sameSizeTransfers.count == 1 else { return nil }
+        let sameSizeStats = stats.transferring.filter { $0.bytesTotal == transfer.bytesTotal }
+        guard sameSizeStats.count == 1 else { return nil }
+        return sameSizeStats.first
+    }
+
+    private func singleTransferFallback(
+        stats: CoreStatsDTO,
+        running: [Transfer]
+    ) -> CoreStatsDTO.Transferring? {
+        guard stats.transferring.count == 1, running.count == 1 else { return nil }
+        return stats.transferring.first
     }
 
     // MARK: - Cold start replay
@@ -291,5 +678,83 @@ public final class TransferQueue {
             transfer.finishedAt = .now
         }
         try? modelContext.save()
+    }
+
+    // MARK: - Batch helpers
+
+    private func updateBatch(_ batchID: String?, completedDelta: Int, failedDelta: Int) {
+        guard let batchID, let batch = fetchBatch(id: batchID) else { return }
+        batch.completedItems += completedDelta
+        batch.failedItems += failedDelta
+        if batch.completedItems + batch.failedItems >= batch.totalItems {
+            batch.status = batch.failedItems > 0 ? .failed : .completed
+            batch.finishedAt = .now
+        }
+        try? modelContext?.save()
+    }
+
+    private func updateRunningBatches() {
+        guard let modelContext else { return }
+        let descriptor = FetchDescriptor<TransferBatch>(
+            predicate: #Predicate { $0.statusRaw == "running" }
+        )
+        guard let batches = try? modelContext.fetch(descriptor), !batches.isEmpty else { return }
+        for batch in batches {
+            let id = batch.id
+            let transferDescriptor = FetchDescriptor<Transfer>(
+                predicate: #Predicate { $0.batchID == id }
+            )
+            guard let transfers = try? modelContext.fetch(transferDescriptor) else { continue }
+            batch.bytesTotal = transfers.reduce(0) { $0 + $1.bytesTotal }
+            batch.bytesTransferred = transfers.reduce(0) { $0 + $1.bytesTransferred }
+        }
+    }
+
+    private func fetchBatch(id: String) -> TransferBatch? {
+        guard let modelContext else { return nil }
+        let descriptor = FetchDescriptor<TransferBatch>(
+            predicate: #Predicate { $0.id == id }
+        )
+        return try? modelContext.fetch(descriptor).first
+    }
+
+    private func joinedRemotePath(_ folder: String, _ name: String) -> String {
+        let cleanFolder = folder.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        return cleanFolder.isEmpty ? name : "\(cleanFolder)/\(name)"
+    }
+
+    private func remoteBatchTitle(kind: TransferKind, count: Int) -> String {
+        let action: String
+        switch kind {
+        case .copy: action = "Copie"
+        case .move: action = "Déplacement"
+        case .sync: action = "Synchronisation"
+        default: action = "Transfert"
+        }
+        return count == 1 ? "\(action) d'un élément" : "\(action) de \(count) éléments"
+    }
+
+    private func isDirectory(_ url: URL) -> Bool {
+        var isDirectory: ObjCBool = false
+        FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory)
+        return isDirectory.boolValue
+    }
+
+    private func fileSize(at url: URL) -> Int64 {
+        let values = try? url.resourceValues(forKeys: [.fileSizeKey])
+        return Int64(values?.fileSize ?? 0)
+    }
+
+    private func directorySize(at url: URL) -> Int64 {
+        let fm = FileManager.default
+        guard let enumerator = fm.enumerator(at: url, includingPropertiesForKeys: [.fileSizeKey]) else { return 0 }
+        var total: Int64 = 0
+        for case let fileURL as URL in enumerator {
+            let values = try? fileURL.resourceValues(forKeys: [.fileSizeKey, .isDirectoryKey])
+            if values?.isDirectory != true {
+                total += Int64(values?.fileSize ?? 0)
+            }
+        }
+        return total
     }
 }

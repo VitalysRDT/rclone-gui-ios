@@ -7,8 +7,10 @@
 //  Phase C will add: download, upload, move, rename, delete.
 //
 
-import SwiftUI
 import SwiftData
+import SwiftUI
+import PhotosUI
+import UniformTypeIdentifiers
 
 struct FolderView: View {
     let remote: String
@@ -22,9 +24,22 @@ struct FolderView: View {
     @State private var renameTarget: RemoteEntryDTO?
     @State private var deleteTarget: RemoteEntryDTO?
     @State private var playTarget: RemoteEntryDTO?
+    @State private var previewTarget: RemoteEntryDTO?
+    @State private var externalOpenTarget: RemoteEntryDTO?
     @State private var moveTarget: RemoteEntryDTO?
+    @State private var downloadTarget: RemoteEntryDTO?
+    @State private var remoteTransferRequest: RemoteBatchTransferRequest?
     @State private var availableRemotes: [String] = []
     @State private var deleteIsRecursive = false
+    @State private var selectionMode = false
+    @State private var selectedEntryIDs: Set<String> = []
+    @State private var pendingDownloadEntries: [RemoteEntryDTO] = []
+    @State private var showingDestinationPicker = false
+    @State private var showingFileImporter = false
+    @State private var showingPhotoPicker = false
+    @State private var selectedPhotoItems: [PhotosPickerItem] = []
+    @State private var transientMessage: String?
+    @State private var openingEntryID: String?
 
     /// All transfers currently running. SwiftData refreshes this view
     /// whenever a status flips, so the inline row progress is live without
@@ -84,6 +99,38 @@ struct FolderView: View {
         return sort(dirs) + sort(files)
     }
 
+    private var folderCount: Int {
+        entries.filter { $0.isDirectory }.count
+    }
+
+    private var fileCount: Int {
+        entries.count - folderCount
+    }
+
+    private var displayedSectionTitle: String {
+        if query.isEmpty {
+            return "\(displayedEntries.count) élément\(displayedEntries.count > 1 ? "s" : "")"
+        }
+        return "\(displayedEntries.count) résultat\(displayedEntries.count > 1 ? "s" : "")"
+    }
+
+    private var selectedEntries: [RemoteEntryDTO] {
+        displayedRows
+            .filter { selectedEntryIDs.contains($0.id) }
+            .map(\.entry)
+    }
+
+    private var displayedRows: [DisplayedEntry] {
+        var countsByID: [String: Int] = [:]
+        return displayedEntries.enumerated().map { offset, entry in
+            let baseID = entry.id
+            let duplicateIndex = countsByID[baseID, default: 0]
+            countsByID[baseID] = duplicateIndex + 1
+            let rowID = duplicateIndex == 0 ? baseID : "\(baseID)#duplicate-\(duplicateIndex)-\(offset)"
+            return DisplayedEntry(id: rowID, entry: entry)
+        }
+    }
+
     private func sort(_ entries: [RemoteEntryDTO]) -> [RemoteEntryDTO] {
         let asc = !sortDescending
         return entries.sorted { a, b in
@@ -110,8 +157,16 @@ struct FolderView: View {
             .navigationTitle(displayTitle)
             .searchable(text: $query)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    if !displayedEntries.isEmpty {
+                        Button(selectionMode ? "OK" : "Sélectionner") {
+                            selectionMode.toggle()
+                            if !selectionMode { selectedEntryIDs.removeAll() }
+                        }
+                    }
+                }
                 ToolbarItem(placement: .primaryAction) {
-                    sortMenu
+                    actionsMenu
                 }
             }
             .task(id: TaskKey(remote: remote, path: path)) {
@@ -131,8 +186,20 @@ struct FolderView: View {
                 )
                 .onDisappear { Task { await load() } }
             }
-            .fullScreenCover(item: $playTarget) { entry in
+            .fullScreenCover(item: $playTarget, onDismiss: {
+                openingEntryID = nil
+            }) { entry in
                 MediaPlayerHost(remote: remote, entry: entry)
+            }
+            .sheet(item: $previewTarget, onDismiss: {
+                openingEntryID = nil
+            }) { entry in
+                RemotePreviewHost(remote: remote, entry: entry)
+            }
+            .sheet(item: $externalOpenTarget, onDismiss: {
+                openingEntryID = nil
+            }) { entry in
+                RemoteExternalOpenHost(remote: remote, entry: entry)
             }
             .sheet(item: $moveTarget) { entry in
                 MoveSheetView(
@@ -146,6 +213,57 @@ struct FolderView: View {
                 )
                 .onDisappear { Task { await load() } }
             }
+            .sheet(item: $remoteTransferRequest) { request in
+                RemoteBatchTransferSheet(
+                    sourceRemote: remote,
+                    sourcePath: path,
+                    entries: request.entries,
+                    initialKind: request.kind,
+                    availableRemotes: availableRemotes.isEmpty ? [remote] : availableRemotes,
+                    isPresented: Binding(
+                        get: { remoteTransferRequest != nil },
+                        set: { if !$0 { remoteTransferRequest = nil } }
+                    )
+                )
+                .onDisappear { Task { await load() } }
+            }
+            .sheet(isPresented: $showingDestinationPicker) {
+                LocalDirectoryPicker(
+                    onPicked: { url in
+                        let _ = url.startAccessingSecurityScopedResource()
+                        showingDestinationPicker = false
+                        let entries = pendingDownloadEntries
+                        pendingDownloadEntries = []
+                        Task { await download(entries, to: url) }
+                    },
+                    onCancelled: {
+                        showingDestinationPicker = false
+                        pendingDownloadEntries = []
+                    }
+                )
+            }
+            .fileImporter(
+                isPresented: $showingFileImporter,
+                allowedContentTypes: [.item, .folder],
+                allowsMultipleSelection: true
+            ) { result in
+                Task { await handleFileImport(result) }
+            }
+            .photosPicker(
+                isPresented: $showingPhotoPicker,
+                selection: $selectedPhotoItems,
+                matching: .any(of: [.images, .videos])
+            )
+            .onChange(of: selectedPhotoItems) { _, items in
+                guard !items.isEmpty else { return }
+                Task { await uploadPhotos(items) }
+            }
+            .onChange(of: downloadTarget) { _, entry in
+                guard let entry else { return }
+                pendingDownloadEntries = [entry]
+                downloadTarget = nil
+                showingDestinationPicker = true
+            }
             .confirmationDialog(
                 deleteDialogTitle,
                 isPresented: Binding(
@@ -154,16 +272,27 @@ struct FolderView: View {
                 ),
                 titleVisibility: .visible
             ) {
-                Button("Supprimer", role: .destructive) {
-                    Task { await performDelete() }
+                Button("Mettre à la corbeille") {
+                    Task { await performDelete(permanent: false) }
+                }
+                Button("Supprimer définitivement", role: .destructive) {
+                    Task { await performDelete(permanent: true) }
                 }
                 Button("Annuler", role: .cancel) { deleteTarget = nil }
             } message: {
                 if let target = deleteTarget {
                     Text(target.isDirectory
-                         ? "Le dossier et tout son contenu seront supprimés."
-                         : "Ce fichier sera supprimé du remote.")
+                         ? "Le dossier et tout son contenu peuvent être restaurés depuis la corbeille pendant 30 jours, ou supprimés définitivement."
+                         : "Le fichier peut être restauré depuis la corbeille pendant 30 jours, ou supprimé définitivement.")
                 }
+            }
+            .alert("Info", isPresented: Binding(
+                get: { transientMessage != nil },
+                set: { if !$0 { transientMessage = nil } }
+            )) {
+                Button("OK", role: .cancel) { transientMessage = nil }
+            } message: {
+                Text(transientMessage ?? "")
             }
 
         #if os(iOS)
@@ -177,23 +306,35 @@ struct FolderView: View {
         deleteTarget.map { "Supprimer « \($0.name) » ?" } ?? "Supprimer ?"
     }
 
-    private func performDelete() async {
+    private func performDelete(permanent: Bool) async {
         guard let target = deleteTarget else { return }
         deleteTarget = nil
         do {
-            try await TransferQueue.shared.enqueueDelete(
-                remote: remote,
-                path: target.pathInRemote,
-                isDirectory: target.isDirectory
-            )
+            if permanent {
+                try await TransferQueue.shared.enqueueDelete(
+                    remote: remote,
+                    path: target.pathInRemote,
+                    isDirectory: target.isDirectory
+                )
+            } else {
+                try await TransferQueue.shared.enqueueTrash(
+                    remote: remote,
+                    path: target.pathInRemote,
+                    name: target.name,
+                    isDirectory: target.isDirectory,
+                    sizeBytes: target.size
+                )
+                transientMessage = "« \(target.name) » est dans la corbeille (30 jours)."
+            }
             await load()
         } catch {
+            let action = permanent ? "suppression" : "mise à la corbeille"
             await LogService.shared.log(
                 .error,
                 category: "transfer",
-                message: "Échec suppression \(remote):\(target.pathInRemote) : \(error.localizedDescription)"
+                message: "Échec \(action) \(remote):\(target.pathInRemote) : \(error.localizedDescription)"
             )
-            loadState = .failed("Échec de la suppression : \(error.localizedDescription)")
+            loadState = .failed("Échec de la \(action) : \(error.localizedDescription)")
         }
     }
 
@@ -238,8 +379,23 @@ struct FolderView: View {
 
         case .loading, .loaded:
             let list = List {
-                ForEach(displayedEntries) { entry in
-                    rowView(for: entry)
+                Section {
+                    FolderOverviewCard(
+                        remote: remote,
+                        path: path,
+                        folderCount: folderCount,
+                        fileCount: fileCount
+                    )
+                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                    .listRowBackground(Color.clear)
+                }
+
+                Section {
+                    ForEach(displayedRows) { row in
+                        rowView(for: row)
+                    }
+                } header: {
+                    Text(displayedSectionTitle)
                 }
             }
             #if os(iOS)
@@ -251,35 +407,55 @@ struct FolderView: View {
     }
 
     @ViewBuilder
-    private func rowView(for entry: RemoteEntryDTO) -> some View {
+    private func rowView(for row: DisplayedEntry) -> some View {
+        let entry = row.entry
         let activeTransfer = activeTransferByPath[entry.pathInRemote]
 
         if entry.isDirectory {
-            NavigationLink(value: NavigationDestination.folder(
-                remote: remote,
-                path: entry.pathInRemote
-            )) {
-                EntryRowView(entry: entry, activeTransfer: activeTransfer)
-            }
-            .contextMenu {
-                EntryActionsMenu(
-                    entry: entry,
+            if selectionMode {
+                selectableRow(row: row, activeTransfer: activeTransfer)
+            } else {
+                NavigationLink(value: NavigationDestination.folder(
                     remote: remote,
-                    renameTarget: $renameTarget,
-                    deleteTarget: $deleteTarget,
-                    playTarget: $playTarget,
-                    moveTarget: $moveTarget
-                )
+                    path: entry.pathInRemote
+                )) {
+                    EntryRowView(entry: entry, activeTransfer: activeTransfer)
+                }
+                .contextMenu {
+                    EntryActionsMenu(
+                        entry: entry,
+                        remote: remote,
+                        renameTarget: $renameTarget,
+                        deleteTarget: $deleteTarget,
+                        playTarget: $playTarget,
+                        previewTarget: $previewTarget,
+                        moveTarget: $moveTarget,
+                        downloadTarget: $downloadTarget,
+                        externalOpenTarget: $externalOpenTarget
+                    )
+                }
             }
         } else {
             // Single-tap action: media → play, anything else → enqueue
             // download. Long-press still surfaces the full action menu.
             Button {
-                handleTap(on: entry)
+                selectionMode ? toggleSelection(row) : handleTap(on: row)
             } label: {
-                EntryRowView(entry: entry, activeTransfer: activeTransfer)
+                if selectionMode {
+                    HStack(spacing: 10) {
+                        selectionIcon(for: row)
+                        EntryRowView(entry: entry, activeTransfer: activeTransfer)
+                    }
+                    .contentShape(Rectangle())
+                } else {
+                    HStack(spacing: 0) {
+                        EntryRowView(entry: entry, activeTransfer: activeTransfer)
+                    }
+                    .contentShape(Rectangle())
+                }
             }
             .buttonStyle(.plain)
+            .disabled(openingEntryID != nil && openingEntryID != row.id)
             .contextMenu {
                 EntryActionsMenu(
                     entry: entry,
@@ -287,17 +463,57 @@ struct FolderView: View {
                     renameTarget: $renameTarget,
                     deleteTarget: $deleteTarget,
                     playTarget: $playTarget,
-                    moveTarget: $moveTarget
+                    previewTarget: $previewTarget,
+                    moveTarget: $moveTarget,
+                    downloadTarget: $downloadTarget,
+                    externalOpenTarget: $externalOpenTarget
                 )
             }
         }
     }
 
-    private func handleTap(on entry: RemoteEntryDTO) {
+    private func handleTap(on row: DisplayedEntry) {
+        guard openingEntryID == nil else { return }
+        openingEntryID = row.id
+        playTarget = nil
+        previewTarget = nil
+        externalOpenTarget = nil
+
+        let entry = row.entry
         if EntryActionsMenu.isMediaFile(entry.name) {
             playTarget = entry
         } else {
-            Task { await EntryActionsMenu.tapDownload(remote: remote, entry: entry) }
+            previewTarget = entry
+        }
+    }
+
+    @ViewBuilder
+    private func selectableRow(row: DisplayedEntry, activeTransfer: Transfer?) -> some View {
+        let entry = row.entry
+        Button {
+            toggleSelection(row)
+        } label: {
+            HStack(spacing: 10) {
+                selectionIcon(for: row)
+                EntryRowView(entry: entry, activeTransfer: activeTransfer)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func selectionIcon(for row: DisplayedEntry) -> some View {
+        Image(systemName: selectedEntryIDs.contains(row.id) ? "checkmark.circle.fill" : "circle")
+            .font(.title3)
+            .foregroundStyle(selectedEntryIDs.contains(row.id) ? .blue : .secondary)
+            .accessibilityHidden(true)
+    }
+
+    private func toggleSelection(_ row: DisplayedEntry) {
+        if selectedEntryIDs.contains(row.id) {
+            selectedEntryIDs.remove(row.id)
+        } else {
+            selectedEntryIDs.insert(row.id)
         }
     }
 
@@ -308,11 +524,83 @@ struct FolderView: View {
                     Text(mode.label).tag(mode)
                 }
             }
+            Divider()
             Toggle("Ordre décroissant", isOn: $sortDescending)
         } label: {
-            Image(systemName: "arrow.up.arrow.down.circle")
+            Label("Trier", systemImage: sortDescending ? "arrow.down.circle" : "arrow.up.circle")
         }
         .accessibilityLabel("Options de tri")
+    }
+
+    private var actionsMenu: some View {
+        Menu {
+            if selectionMode {
+                Button {
+                    pendingDownloadEntries = selectedEntries
+                    showingDestinationPicker = !pendingDownloadEntries.isEmpty
+                } label: {
+                    Label("Télécharger la sélection", systemImage: "arrow.down.circle")
+                }
+                .disabled(selectedEntryIDs.isEmpty)
+
+                Button {
+                    Task { await deleteSelected(permanent: false) }
+                } label: {
+                    Label("Mettre la sélection à la corbeille", systemImage: "trash")
+                }
+                .disabled(selectedEntryIDs.isEmpty)
+
+                Button(role: .destructive) {
+                    Task { await deleteSelected(permanent: true) }
+                } label: {
+                    Label("Supprimer définitivement la sélection", systemImage: "trash.slash")
+                }
+                .disabled(selectedEntryIDs.isEmpty)
+
+                Divider()
+
+                Button {
+                    remoteTransferRequest = RemoteBatchTransferRequest(kind: .copy, entries: selectedEntries)
+                } label: {
+                    Label("Copier vers…", systemImage: "doc.on.doc")
+                }
+                .disabled(selectedEntryIDs.isEmpty)
+
+                Button {
+                    remoteTransferRequest = RemoteBatchTransferRequest(kind: .move, entries: selectedEntries)
+                } label: {
+                    Label("Déplacer vers…", systemImage: "arrow.left.arrow.right")
+                }
+                .disabled(selectedEntryIDs.isEmpty)
+
+                Button {
+                    remoteTransferRequest = RemoteBatchTransferRequest(kind: .sync, entries: selectedEntries)
+                } label: {
+                    Label("Synchroniser vers…", systemImage: "arrow.triangle.2.circlepath")
+                }
+                .disabled(selectedEntryIDs.isEmpty)
+
+                Divider()
+            }
+
+            Button {
+                showingFileImporter = true
+            } label: {
+                Label("Uploader fichiers ou dossiers", systemImage: "arrow.up.doc")
+            }
+
+            Button {
+                showingPhotoPicker = true
+            } label: {
+                Label("Uploader depuis Photos", systemImage: "photo.on.rectangle")
+            }
+
+            Divider()
+            sortMenu
+        } label: {
+            Label("Actions", systemImage: "ellipsis.circle")
+        }
+        .accessibilityLabel("Actions du dossier")
     }
 
     private var displayTitle: String {
@@ -325,6 +613,7 @@ struct FolderView: View {
         do {
             entries = try await RemoteService.shared.list(remote: remote, path: path)
             loadState = .loaded
+            await FileProviderManager.shared.writeFolderManifest(remote: remote, path: path, entries: entries)
             await LogService.shared.log(
                 .debug,
                 category: "browse",
@@ -343,5 +632,199 @@ struct FolderView: View {
                 message: "Échec list \(remote):\(path) : \(error.localizedDescription)"
             )
         }
+    }
+
+    private func download(_ entries: [RemoteEntryDTO], to directory: URL) async {
+        guard !entries.isEmpty else { return }
+        do {
+            try await TransferQueue.shared.enqueueDownloadBatch(
+                remote: remote,
+                entries: entries,
+                to: directory,
+                conflictPolicy: .keepBoth
+            )
+            transientMessage = "Téléchargement ajouté à la file."
+            selectedEntryIDs.removeAll()
+            selectionMode = false
+        } catch {
+            transientMessage = "Échec de téléchargement : \(error.localizedDescription)"
+            await LogService.shared.log(.error, category: "transfer", message: "Download batch impossible : \(error.localizedDescription)")
+        }
+    }
+
+    private func handleFileImport(_ result: Result<[URL], Error>) async {
+        do {
+            let urls = try result.get()
+            let staged = try stageForUpload(urls)
+            try await TransferQueue.shared.enqueueUploadBatch(
+                localURLs: staged,
+                remote: remote,
+                destinationFolder: path,
+                sourceKind: .fileProvider
+            )
+            transientMessage = "Upload ajouté à la file."
+        } catch {
+            transientMessage = "Échec upload : \(error.localizedDescription)"
+        }
+    }
+
+    private func stageForUpload(_ urls: [URL]) throws -> [URL] {
+        let root = try FileManager.default.url(
+            for: .cachesDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: true
+        )
+        .appending(path: "UploadStaging", directoryHint: .isDirectory)
+        .appending(path: UUID().uuidString, directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+
+        return try urls.map { url in
+            let didStart = url.startAccessingSecurityScopedResource()
+            defer { if didStart { url.stopAccessingSecurityScopedResource() } }
+            let destination = root.appending(path: url.lastPathComponent)
+            if FileManager.default.fileExists(atPath: destination.path) {
+                try FileManager.default.removeItem(at: destination)
+            }
+            try FileManager.default.copyItem(at: url, to: destination)
+            return destination
+        }
+    }
+
+    private func uploadPhotos(_ items: [PhotosPickerItem]) async {
+        defer { selectedPhotoItems = [] }
+        do {
+            let root = try FileManager.default.url(
+                for: .cachesDirectory,
+                in: .userDomainMask,
+                appropriateFor: nil,
+                create: true
+            )
+            .appending(path: "PhotoPickerUpload", directoryHint: .isDirectory)
+            .appending(path: UUID().uuidString, directoryHint: .isDirectory)
+            try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+
+            var urls: [URL] = []
+            for item in items {
+                guard let data = try await item.loadTransferable(type: Data.self) else { continue }
+                let ext = item.supportedContentTypes.first?.preferredFilenameExtension ?? "dat"
+                let url = root.appending(path: "\(UUID().uuidString).\(ext)")
+                try data.write(to: url, options: [.atomic])
+                urls.append(url)
+            }
+
+            guard !urls.isEmpty else { return }
+            try await TransferQueue.shared.enqueueUploadBatch(
+                localURLs: urls,
+                remote: remote,
+                destinationFolder: path,
+                sourceKind: .photoLibrary
+            )
+            transientMessage = "Upload Photos ajouté à la file."
+        } catch {
+            transientMessage = "Échec upload Photos : \(error.localizedDescription)"
+        }
+    }
+
+    private func deleteSelected(permanent: Bool) async {
+        let entries = selectedEntries
+        guard !entries.isEmpty else { return }
+        var trashedCount = 0
+        for entry in entries {
+            do {
+                if permanent {
+                    try await TransferQueue.shared.enqueueDelete(
+                        remote: remote,
+                        path: entry.pathInRemote,
+                        isDirectory: entry.isDirectory
+                    )
+                } else {
+                    try await TransferQueue.shared.enqueueTrash(
+                        remote: remote,
+                        path: entry.pathInRemote,
+                        name: entry.name,
+                        isDirectory: entry.isDirectory,
+                        sizeBytes: entry.size
+                    )
+                    trashedCount += 1
+                }
+            } catch {
+                let action = permanent ? "suppression" : "mise à la corbeille"
+                await LogService.shared.log(
+                    .error,
+                    category: "transfer",
+                    message: "\(action) batch impossible : \(error.localizedDescription)"
+                )
+            }
+        }
+        if !permanent && trashedCount > 0 {
+            transientMessage = "\(trashedCount) élément\(trashedCount > 1 ? "s" : "") déplacé\(trashedCount > 1 ? "s" : "") à la corbeille."
+        }
+        selectedEntryIDs.removeAll()
+        selectionMode = false
+        await load()
+    }
+}
+
+private struct RemoteBatchTransferRequest: Identifiable {
+    let id = UUID()
+    let kind: TransferKind
+    let entries: [RemoteEntryDTO]
+}
+
+private struct DisplayedEntry: Identifiable {
+    let id: String
+    let entry: RemoteEntryDTO
+}
+
+private struct FolderOverviewCard: View {
+    let remote: String
+    let path: String
+    let folderCount: Int
+    let fileCount: Int
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 12) {
+                AppIconTile(systemImage: path.isEmpty ? "externaldrive.fill" : "folder.fill", tint: .blue, size: 52)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(.headline)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Text(remote)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 8)
+            }
+
+            HStack(spacing: 10) {
+                AppMetricPill(
+                    value: "\(folderCount)",
+                    label: folderCount == 1 ? "dossier" : "dossiers",
+                    systemImage: "folder",
+                    tint: .blue
+                )
+                AppMetricPill(
+                    value: "\(fileCount)",
+                    label: fileCount == 1 ? "fichier" : "fichiers",
+                    systemImage: "doc",
+                    tint: .teal
+                )
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.background, in: .rect(cornerRadius: 16, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(.quaternary)
+        }
+    }
+
+    private var title: String {
+        path.isEmpty ? "Racine du remote" : path
     }
 }
