@@ -41,6 +41,14 @@ struct FolderView: View {
     @State private var transientMessage: String?
     @State private var openingEntryID: String?
 
+    // Haptic triggers — bumped each time an action of the matching kind fires.
+    // We use Int counters because SwiftUI's .sensoryFeedback(_:trigger:) needs
+    // an Equatable trigger that *changes* to fire; toggling Bool would clamp
+    // back-to-back actions.
+    @State private var hapticSuccessTrigger = 0
+    @State private var hapticWarningTrigger = 0
+    @State private var hapticImpactTrigger = 0
+
     /// All transfers currently running. SwiftData refreshes this view
     /// whenever a status flips, so the inline row progress is live without
     /// a manual timer.
@@ -162,6 +170,7 @@ struct FolderView: View {
                         Button(selectionMode ? "OK" : "Sélectionner") {
                             selectionMode.toggle()
                             if !selectionMode { selectedEntryIDs.removeAll() }
+                            hapticImpactTrigger &+= 1
                         }
                     }
                 }
@@ -294,6 +303,9 @@ struct FolderView: View {
             } message: {
                 Text(transientMessage ?? "")
             }
+            .sensoryFeedback(.success, trigger: hapticSuccessTrigger)
+            .sensoryFeedback(.warning, trigger: hapticWarningTrigger)
+            .sensoryFeedback(.selection, trigger: hapticImpactTrigger)
 
         #if os(iOS)
         main.navigationBarTitleDisplayMode(.inline)
@@ -316,6 +328,7 @@ struct FolderView: View {
                     path: target.pathInRemote,
                     isDirectory: target.isDirectory
                 )
+                hapticWarningTrigger &+= 1
             } else {
                 try await TransferQueue.shared.enqueueTrash(
                     remote: remote,
@@ -325,6 +338,7 @@ struct FolderView: View {
                     sizeBytes: target.size
                 )
                 transientMessage = "« \(target.name) » est dans la corbeille (30 jours)."
+                hapticSuccessTrigger &+= 1
             }
             await load()
         } catch {
@@ -410,7 +424,14 @@ struct FolderView: View {
     private func rowView(for row: DisplayedEntry) -> some View {
         let entry = row.entry
         let activeTransfer = activeTransferByPath[entry.pathInRemote]
+        let isCutStaged = FilesClipboard.shared.isStagedCut(remote: remote, path: entry.pathInRemote)
 
+        rowViewBase(row: row, entry: entry, activeTransfer: activeTransfer)
+            .opacity(isCutStaged ? 0.45 : 1)
+    }
+
+    @ViewBuilder
+    private func rowViewBase(row: DisplayedEntry, entry: RemoteEntryDTO, activeTransfer: Transfer?) -> some View {
         if entry.isDirectory {
             if selectionMode {
                 selectableRow(row: row, activeTransfer: activeTransfer)
@@ -515,6 +536,7 @@ struct FolderView: View {
         } else {
             selectedEntryIDs.insert(row.id)
         }
+        hapticImpactTrigger &+= 1
     }
 
     private var sortMenu: some View {
@@ -544,6 +566,28 @@ struct FolderView: View {
                 .disabled(selectedEntryIDs.isEmpty)
 
                 Button {
+                    FilesClipboard.shared.stage(entries: selectedEntries, remote: remote, operation: .cut)
+                    transientMessage = "\(selectedEntries.count) élément(s) coupé(s) — collez-les dans un autre dossier."
+                    selectedEntryIDs.removeAll()
+                    selectionMode = false
+                    hapticImpactTrigger &+= 1
+                } label: {
+                    Label("Couper la sélection", systemImage: "scissors")
+                }
+                .disabled(selectedEntryIDs.isEmpty)
+
+                Button {
+                    FilesClipboard.shared.stage(entries: selectedEntries, remote: remote, operation: .copy)
+                    transientMessage = "\(selectedEntries.count) élément(s) copié(s) — collez-les dans un autre dossier."
+                    selectedEntryIDs.removeAll()
+                    selectionMode = false
+                    hapticImpactTrigger &+= 1
+                } label: {
+                    Label("Copier la sélection", systemImage: "doc.on.doc")
+                }
+                .disabled(selectedEntryIDs.isEmpty)
+
+                Button {
                     Task { await deleteSelected(permanent: false) }
                 } label: {
                     Label("Mettre la sélection à la corbeille", systemImage: "trash")
@@ -562,7 +606,7 @@ struct FolderView: View {
                 Button {
                     remoteTransferRequest = RemoteBatchTransferRequest(kind: .copy, entries: selectedEntries)
                 } label: {
-                    Label("Copier vers…", systemImage: "doc.on.doc")
+                    Label("Copier vers… (autre dossier)", systemImage: "square.and.arrow.up.on.square")
                 }
                 .disabled(selectedEntryIDs.isEmpty)
 
@@ -580,6 +624,13 @@ struct FolderView: View {
                 }
                 .disabled(selectedEntryIDs.isEmpty)
 
+                Divider()
+            } else if FilesClipboard.shared.canPaste(into: remote, folder: path) {
+                Button {
+                    Task { await pasteFromClipboard() }
+                } label: {
+                    Label(pasteMenuLabel, systemImage: "doc.on.clipboard")
+                }
                 Divider()
             }
 
@@ -726,6 +777,32 @@ struct FolderView: View {
         }
     }
 
+    private var pasteMenuLabel: String {
+        let clip = FilesClipboard.shared
+        let count = clip.count
+        let suffix = count > 1 ? "\(count) éléments" : "1 élément"
+        return clip.operation == .cut
+            ? "Coller (\(suffix), déplacer)"
+            : "Coller (\(suffix), copier)"
+    }
+
+    private func pasteFromClipboard() async {
+        do {
+            _ = try await FilesClipboard.shared.paste(into: remote, folder: path)
+            transientMessage = "Collage en cours dans la file de transferts."
+            hapticSuccessTrigger &+= 1
+            await load()
+        } catch {
+            transientMessage = "Échec du collage : \(error.localizedDescription)"
+            hapticWarningTrigger &+= 1
+            await LogService.shared.log(
+                .error,
+                category: "transfer",
+                message: "Paste from clipboard failed: \(error.localizedDescription)"
+            )
+        }
+    }
+
     private func deleteSelected(permanent: Bool) async {
         let entries = selectedEntries
         guard !entries.isEmpty else { return }
@@ -759,6 +836,9 @@ struct FolderView: View {
         }
         if !permanent && trashedCount > 0 {
             transientMessage = "\(trashedCount) élément\(trashedCount > 1 ? "s" : "") déplacé\(trashedCount > 1 ? "s" : "") à la corbeille."
+            hapticSuccessTrigger &+= 1
+        } else if permanent {
+            hapticWarningTrigger &+= 1
         }
         selectedEntryIDs.removeAll()
         selectionMode = false

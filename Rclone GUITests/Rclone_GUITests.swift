@@ -374,3 +374,110 @@ struct TrashEntryTests {
         #expect(a.id != b.id)
     }
 }
+
+// MARK: - FilesClipboard (Cut/Copy/Paste pattern)
+
+@Suite("FilesClipboard staging and paste eligibility")
+@MainActor
+struct FilesClipboardTests {
+
+    private func sampleItem(name: String, parent: String = "Documents", isDir: Bool = false) -> FilesClipboard.Item {
+        let path = parent.isEmpty ? name : "\(parent)/\(name)"
+        return FilesClipboard.Item(
+            remote: "drive",
+            path: path,
+            name: name,
+            isDirectory: isDir,
+            size: 1024
+        )
+    }
+
+    @Test("stage replaces, never appends")
+    func stageReplacesPriorContents() {
+        let clip = FilesClipboard.shared
+        clip.clear()
+        defer { clip.clear() }
+
+        clip.stage(items: [sampleItem(name: "a.pdf")], operation: .copy)
+        #expect(clip.count == 1)
+        #expect(clip.operation == .copy)
+
+        clip.stage(items: [sampleItem(name: "b.pdf"), sampleItem(name: "c.pdf")], operation: .cut)
+        #expect(clip.count == 2)
+        #expect(clip.operation == .cut)
+        #expect(clip.items.map(\.name) == ["b.pdf", "c.pdf"])
+    }
+
+    @Test("clear empties the clipboard")
+    func clearEmpties() {
+        let clip = FilesClipboard.shared
+        clip.stage(items: [sampleItem(name: "a")], operation: .cut)
+        clip.clear()
+        #expect(clip.isEmpty)
+        #expect(clip.count == 0)
+        #expect(clip.sourceRemote == nil)
+    }
+
+    @Test("canPaste is false when the clipboard is empty")
+    func cannotPasteEmpty() {
+        let clip = FilesClipboard.shared
+        clip.clear()
+        #expect(!clip.canPaste(into: "drive", folder: "Documents"))
+    }
+
+    @Test("canPaste refuses cut into the source folder (no-op)")
+    func cannotPasteCutIntoSource() {
+        let clip = FilesClipboard.shared
+        defer { clip.clear() }
+        clip.stage(items: [sampleItem(name: "a.pdf", parent: "Documents")], operation: .cut)
+        #expect(!clip.canPaste(into: "drive", folder: "Documents"))
+        #expect(clip.canPaste(into: "drive", folder: "Photos"))
+        #expect(clip.canPaste(into: "other", folder: "Documents"))
+    }
+
+    @Test("canPaste allows copy into any folder including source")
+    func canPasteCopyAnywhere() {
+        let clip = FilesClipboard.shared
+        defer { clip.clear() }
+        clip.stage(items: [sampleItem(name: "a.pdf", parent: "Documents")], operation: .copy)
+        #expect(clip.canPaste(into: "drive", folder: "Documents"))
+        #expect(clip.canPaste(into: "drive", folder: "Photos"))
+    }
+
+    @Test("isStagedCut only returns true for items staged in cut mode")
+    func isStagedCutTracksItemsAndOperation() {
+        let clip = FilesClipboard.shared
+        defer { clip.clear() }
+
+        clip.stage(items: [sampleItem(name: "a.pdf")], operation: .cut)
+        #expect(clip.isStagedCut(remote: "drive", path: "Documents/a.pdf"))
+        #expect(!clip.isStagedCopy(remote: "drive", path: "Documents/a.pdf"))
+        #expect(!clip.isStagedCut(remote: "drive", path: "Documents/b.pdf"))
+
+        clip.stage(items: [sampleItem(name: "a.pdf")], operation: .copy)
+        #expect(!clip.isStagedCut(remote: "drive", path: "Documents/a.pdf"))
+        #expect(clip.isStagedCopy(remote: "drive", path: "Documents/a.pdf"))
+    }
+
+    @Test("sourceRemote reflects first staged item")
+    func sourceRemoteIsFirstItem() {
+        let clip = FilesClipboard.shared
+        defer { clip.clear() }
+        clip.stage(items: [sampleItem(name: "a")], operation: .copy)
+        #expect(clip.sourceRemote == "drive")
+        clip.clear()
+        #expect(clip.sourceRemote == nil)
+    }
+
+    @Test("Item id encodes remote and path uniquely")
+    func itemIdIsRemoteColonPath() {
+        let item = FilesClipboard.Item(
+            remote: "s3-prod",
+            path: "uploads/q4-2026.pdf",
+            name: "q4-2026.pdf",
+            isDirectory: false,
+            size: 99
+        )
+        #expect(item.id == "s3-prod:uploads/q4-2026.pdf")
+    }
+}

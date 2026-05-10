@@ -87,12 +87,26 @@ struct EntryActionsMenu: View {
                 Label("Déplacer", systemImage: "arrow.left.arrow.right")
             }
 
+            Divider()
+
+            Button {
+                FilesClipboard.shared.stage(entries: [entry], remote: remote, operation: .cut)
+            } label: {
+                Label("Couper", systemImage: "scissors")
+            }
+
+            Button {
+                FilesClipboard.shared.stage(entries: [entry], remote: remote, operation: .copy)
+            } label: {
+                Label("Copier", systemImage: "doc.on.doc")
+            }
+
             Button {
                 #if canImport(UIKit)
                 UIPasteboard.general.string = entry.pathInRemote
                 #endif
             } label: {
-                Label("Copier le chemin", systemImage: "doc.on.doc")
+                Label("Copier le chemin (texte)", systemImage: "text.quote")
             }
 
             Divider()

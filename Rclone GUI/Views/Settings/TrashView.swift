@@ -20,6 +20,9 @@ struct TrashView: View {
     @State private var transientMessage: String?
     @State private var workingEntryID: String?
 
+    @State private var hapticSuccessTrigger = 0
+    @State private var hapticWarningTrigger = 0
+
     var body: some View {
         Group {
             if entries.isEmpty {
@@ -139,6 +142,8 @@ struct TrashView: View {
         } message: {
             Text(transientMessage ?? "")
         }
+        .sensoryFeedback(.success, trigger: hapticSuccessTrigger)
+        .sensoryFeedback(.warning, trigger: hapticWarningTrigger)
     }
 
     // MARK: - Actions
@@ -149,8 +154,10 @@ struct TrashView: View {
         do {
             try await TrashService.shared.restore(entry)
             transientMessage = "« \(entry.originalName) » restauré."
+            hapticSuccessTrigger &+= 1
         } catch {
             transientMessage = "Échec de restauration : \(error.localizedDescription)"
+            hapticWarningTrigger &+= 1
         }
     }
 
@@ -159,8 +166,10 @@ struct TrashView: View {
         defer { workingEntryID = nil }
         do {
             try await TrashService.shared.permanentlyDelete(entry)
+            hapticWarningTrigger &+= 1
         } catch {
             transientMessage = "Échec de suppression : \(error.localizedDescription)"
+            hapticWarningTrigger &+= 1
         }
     }
 
@@ -169,6 +178,7 @@ struct TrashView: View {
         transientMessage = purged > 0
             ? "\(purged) élément\(purged > 1 ? "s" : "") supprimé\(purged > 1 ? "s" : "") définitivement."
             : "Aucun élément n'a pu être supprimé."
+        hapticWarningTrigger &+= 1
     }
 }
 
