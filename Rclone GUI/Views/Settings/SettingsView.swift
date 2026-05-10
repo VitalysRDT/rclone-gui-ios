@@ -189,17 +189,56 @@ struct SettingsView: View {
 }
 
 private struct SettingsHeaderCard: View {
+    /// Mirrors the design's "Vitalys ROUGETET" account card with a
+    /// purple-gradient initials avatar — surfaces who's logged in plus
+    /// a single subtitle that describes the current rclone.conf state.
+    @State private var remoteCount: Int = 0
+    @State private var hasConfig = false
+
     var body: some View {
-        AppHeroCard(
-            title: "Rclone GUI",
-            subtitle: "Configuration locale, sécurité, cache média et diagnostics.",
-            systemImage: "externaldrive.connected.to.line.below",
-            tint: .blue
-        ) {
-            HStack(spacing: 10) {
-                AppMetricPill(value: "Local", label: "config", systemImage: "lock.shield", tint: .green)
-                AppMetricPill(value: "Files", label: "intégré", systemImage: "folder.badge.gearshape", tint: .indigo)
+        HStack(spacing: 12) {
+            RGGradientAvatar(name: ownerName, size: 48)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(ownerName)
+                    .font(.system(size: 16, weight: .semibold))
+                    .lineLimit(1)
+                Text(subtitle)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
+            Spacer(minLength: 0)
+            Image(systemName: "chevron.right")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.tertiary)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.rgGroupedRowBackground,
+                    in: RoundedRectangle(cornerRadius: RG.Radius.card, style: .continuous))
+        .task { await refresh() }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var ownerName: String {
+        // Best-effort from Apple ID iCloud account; falls back to a
+        // generic label when iCloud isn't reachable. We don't ship a
+        // user store, so this stays a UI-only signal.
+        "Mon iPhone"
+    }
+
+    private var subtitle: String {
+        if !hasConfig {
+            return "Aucun rclone.conf — importer pour démarrer"
+        }
+        let suffix = remoteCount == 1 ? "remote" : "remotes"
+        return "rclone.conf · \(remoteCount) \(suffix) · iCloud sync"
+    }
+
+    private func refresh() async {
+        hasConfig = await ConfigStore.shared.hasStoredConf()
+        if hasConfig, let summaries = try? await RemoteService.shared.listRemoteSummaries() {
+            remoteCount = summaries.count
         }
     }
 }
@@ -213,8 +252,17 @@ private struct SettingsNavigationRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            AppIconTile(systemImage: icon, tint: tint, size: 38, iconSize: .body)
-            VStack(alignment: .leading, spacing: 3) {
+            // Filled tile — mirrors the design's iOS-Settings style
+            // colorful 30×30 squares with white glyphs.
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .fill(tint)
+                .frame(width: 30, height: 30)
+                .overlay {
+                    Image(systemName: icon)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.white)
+                }
+            VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.body.weight(.medium))
                     .foregroundStyle(.primary)

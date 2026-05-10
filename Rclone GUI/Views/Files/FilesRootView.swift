@@ -15,6 +15,11 @@ struct FilesRootView: View {
     @Query(sort: \SavedLocation.lastOpenedAt, order: .reverse)
     private var savedLocations: [SavedLocation]
 
+    /// Active transfers — surfaces the "3 transferts en cours" banner from
+    /// the design at the top of the remotes dashboard.
+    @Query(filter: #Predicate<Transfer> { $0.statusRaw == "running" })
+    private var runningTransfers: [Transfer]
+
     @State private var remotes: [RemoteSummaryDTO] = []
     @State private var remoteSpaces: [String: String] = [:]
     @State private var loadState: LoadState = .idle
@@ -168,6 +173,14 @@ struct FilesRootView: View {
                 )
                 .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                 .listRowBackground(Color.clear)
+            }
+
+            if !runningTransfers.isEmpty {
+                Section {
+                    ActiveTransfersBanner(transfers: runningTransfers)
+                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 8, trailing: 16))
+                        .listRowBackground(Color.clear)
+                }
             }
 
             if isMockEngine {
@@ -353,18 +366,22 @@ private struct FilesRemoteRow: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            AppIconTile(systemImage: iconName, tint: iconColor, size: 46)
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 7) {
+            BackendChip(
+                backend: RGBackend.from(rcloneType: remote.type),
+                cryptOverlay: remote.isCrypt && remote.type != "crypt",
+                size: 36
+            )
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 6) {
                     Text(remote.name)
-                        .font(.body.weight(.semibold))
+                        .font(.system(size: 16, weight: .medium))
                         .lineLimit(1)
-                    if remote.isCrypt {
-                        AppStatusBadge(title: "Crypt", systemImage: "lock.fill", tint: .green)
+                    if remote.type == "crypt" {
+                        CryptBadge()
                     }
                 }
                 Text(spaceText ?? humanType)
-                    .font(.caption)
+                    .font(.system(size: 13))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
@@ -372,38 +389,14 @@ private struct FilesRemoteRow: View {
             if spaceText == nil {
                 ProgressView()
                     .controlSize(.small)
+            } else {
+                Circle()
+                    .fill(Color.green)
+                    .frame(width: 8, height: 8)
             }
         }
         .padding(.vertical, 6)
         .accessibilityElement(children: .combine)
-    }
-
-    private var iconName: String {
-        switch remote.type {
-        case "s3": return "externaldrive.fill"
-        case "b2": return "externaldrive.fill.badge.checkmark"
-        case "sftp", "ftp": return "server.rack"
-        case "webdav": return "network"
-        case "drive", "onedrive": return "icloud.fill"
-        case "dropbox", "box": return "shippingbox.fill"
-        case "crypt": return "lock.shield"
-        case "alias", "union", "combine": return "link.circle.fill"
-        case "local": return "internaldrive.fill"
-        default: return "questionmark.circle"
-        }
-    }
-
-    private var iconColor: Color {
-        switch remote.type {
-        case "crypt": return .green
-        case "s3", "b2": return .orange
-        case "sftp", "ftp": return .indigo
-        case "webdav": return .teal
-        case "drive", "onedrive": return .blue
-        case "dropbox", "box": return .cyan
-        case "local": return .gray
-        default: return .accentColor
-        }
     }
 
     private var humanType: String {
@@ -424,6 +417,69 @@ private struct FilesRemoteRow: View {
         case "local": return "Local"
         default: return remote.type
         }
+    }
+}
+
+/// Inline banner above the remotes list — surfaces the global progress
+/// of currently-running transfers, mirroring the design's "3 transferts
+/// en cours · 12.4 MB/s · ~1m45" card.
+private struct ActiveTransfersBanner: View {
+    let transfers: [Transfer]
+
+    var body: some View {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(RG.accentSoft)
+                Image(systemName: "arrow.up.arrow.down")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(RG.accent)
+            }
+            .frame(width: 34, height: 34)
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text(headlineText)
+                    .font(.system(size: 14, weight: .semibold))
+                ProgressView(value: progress)
+                    .tint(RG.accent)
+                    .frame(height: 3)
+                Text(subtitleText)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(Color.rgGroupedRowBackground,
+                    in: RoundedRectangle(cornerRadius: RG.Radius.group, style: .continuous))
+        .accessibilityElement(children: .combine)
+    }
+
+    private var headlineText: String {
+        let n = transfers.count
+        return n == 1 ? "1 transfert en cours" : "\(n) transferts en cours"
+    }
+
+    private var subtitleText: String {
+        let totalDone = transfers.reduce(Int64(0)) { $0 + max($1.bytesTransferred, 0) }
+        let totalAll = transfers.reduce(Int64(0)) { $0 + max($1.bytesTotal, 0) }
+        if totalAll > 0 {
+            return "\(formatted(totalDone)) / \(formatted(totalAll))"
+        }
+        return "Préparation…"
+    }
+
+    private var progress: Double {
+        let totalDone = transfers.reduce(Int64(0)) { $0 + max($1.bytesTransferred, 0) }
+        let totalAll = transfers.reduce(Int64(0)) { $0 + max($1.bytesTotal, 0) }
+        guard totalAll > 0 else { return 0 }
+        return Double(totalDone) / Double(totalAll)
+    }
+
+    private func formatted(_ bytes: Int64) -> String {
+        ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
     }
 }
 

@@ -292,18 +292,81 @@ private struct TransferOverviewCard: View {
     let transfers: [Transfer]
 
     var body: some View {
-        AppHeroCard(
-            title: "Activité des transferts",
-            subtitle: summary,
-            systemImage: "arrow.up.arrow.down.circle.fill",
-            tint: .indigo
-        ) {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: 10)], spacing: 10) {
-                AppMetricPill(value: "\(activeCount)", label: "actifs", systemImage: "bolt.fill", tint: .blue)
-                AppMetricPill(value: "\(completedCount)", label: "terminés", systemImage: "checkmark.circle", tint: .green)
-                AppMetricPill(value: "\(failedCount)", label: "échecs", systemImage: "exclamationmark.triangle", tint: .red)
+        HStack(spacing: 14) {
+            // Aggregate progress ring — same shape as the design's
+            // "58%" purple ring on the Transfers artboard.
+            ZStack {
+                Circle()
+                    .stroke(Color.secondary.opacity(0.20), lineWidth: 4)
+                Circle()
+                    .trim(from: 0, to: aggregateProgress)
+                    .stroke(RG.accent, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                Text(percentLabel)
+                    .font(.system(size: 13, weight: .bold))
+                    .monospacedDigit()
             }
+            .frame(width: 52, height: 52)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(headlineText)
+                    .font(.system(size: 15, weight: .semibold))
+                Text(byteText)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Text(metaText)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 0)
         }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.rgGroupedRowBackground,
+                    in: RoundedRectangle(cornerRadius: RG.Radius.card, style: .continuous))
+        .accessibilityElement(children: .combine)
+    }
+
+    private var aggregateProgress: Double {
+        let active = transfers.filter { $0.status == .running || $0.status == .paused }
+        let totalDone = active.reduce(Int64(0)) { $0 + max($1.bytesTransferred, 0) }
+        let totalAll = active.reduce(Int64(0)) { $0 + max($1.bytesTotal, 0) }
+        guard totalAll > 0 else { return 0 }
+        return Double(totalDone) / Double(totalAll)
+    }
+
+    private var percentLabel: String {
+        "\(Int(aggregateProgress * 100))%"
+    }
+
+    private var headlineText: String {
+        let n = activeCount
+        if n == 0 { return summary }
+        return n == 1 ? "1 transfert en cours" : "\(n) transferts en cours"
+    }
+
+    private var byteText: String {
+        let active = transfers.filter { $0.status == .running || $0.status == .paused }
+        let totalDone = active.reduce(Int64(0)) { $0 + max($1.bytesTransferred, 0) }
+        let totalAll = active.reduce(Int64(0)) { $0 + max($1.bytesTotal, 0) }
+        if totalAll == 0 { return summary }
+        return "\(format(totalDone)) / \(format(totalAll))"
+    }
+
+    private var metaText: String {
+        let parts = [
+            "\(activeCount) actif\(activeCount > 1 ? "s" : "")",
+            "\(completedCount) terminé\(completedCount > 1 ? "s" : "")",
+            "\(failedCount) échec\(failedCount > 1 ? "s" : "")",
+        ]
+        return parts.joined(separator: " · ")
+    }
+
+    private func format(_ bytes: Int64) -> String {
+        ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
     }
 
     private var activeCount: Int {

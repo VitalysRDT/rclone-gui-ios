@@ -2,10 +2,10 @@
 //  OnboardingView.swift
 //  Rclone GUI — Views/Onboarding
 //
-//  3-step onboarding shown on first launch (controlled via
-//  @AppStorage("hasCompletedOnboarding")). Implements FR-002 of the PRD :
-//  crypt-first design — the second step nudges (but doesn't force) the
-//  user to create a Crypt Passport.
+//  First-launch onboarding (controlled via @AppStorage("hasCompletedOnboarding")).
+//  Implements FR-002 of the PRD with the crypt-first walkthrough design:
+//  hero seal → 3 feature bullets → primary "Import rclone.conf" CTA →
+//  secondary "Create Crypt Passport" CTA → privacy footer.
 //
 
 import SwiftUI
@@ -18,23 +18,16 @@ struct OnboardingView: View {
 
     enum Step: Hashable {
         case welcome
-        case configChoice
         case done
     }
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                stepContent
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding()
-                navigationFooter
-                    .padding()
-            }
-            .navigationTitle(navigationTitle)
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            content
+                .navigationBarBackButtonHidden(true)
+                #if os(iOS)
+                .toolbar(.hidden, for: .navigationBar)
+                #endif
         }
         .sheet(isPresented: $showImportPicker) {
             ImportConfigView(onImported: {
@@ -44,191 +37,156 @@ struct OnboardingView: View {
         }
     }
 
-    private var navigationTitle: String {
-        switch step {
-        case .welcome:      return "Bienvenue"
-        case .configChoice: return "Configuration"
-        case .done:         return "C'est prêt"
-        }
-    }
-
     @ViewBuilder
-    private var stepContent: some View {
+    private var content: some View {
         switch step {
         case .welcome: welcomeView
-        case .configChoice: configChoiceView
-        case .done: doneView
+        case .done:    doneView
         }
     }
 
-    // MARK: - Welcome
+    // MARK: - Welcome (mirrors `01 · Bienvenue` from the design)
 
     private var welcomeView: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Image(systemName: "externaldrive.connected.to.line.below")
-                .font(.system(size: 64))
-                .foregroundStyle(.tint)
-                .frame(maxWidth: .infinity)
-                .padding(.bottom)
+        VStack(spacing: 0) {
+            Spacer(minLength: 24)
 
-            Text("Rclone GUI")
-                .font(.largeTitle.bold())
-
-            Text("Le client iOS natif pour rclone : tous tes remotes, navigation native Files.app, support transparent des remotes chiffrés `crypt`.")
-                .font(.body)
-                .foregroundStyle(.secondary)
-
-            Spacer().frame(height: 24)
-
-            featureRow("externaldrive", "Tous les backends",
-                       "S3, R2, Bunny, B2, SFTP, WebDAV, Drive, Dropbox, OneDrive…")
-            featureRow("lock.shield", "Crypt natif",
-                       "Décryptage transparent des remotes `crypt` rclone")
-            featureRow("arrow.up.arrow.down.circle", "Transferts robustes",
-                       "Reprise après kill, queue persistante, opérations server-side")
-        }
-    }
-
-    private func featureRow(_ icon: String, _ title: String, _ description: String) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon)
-                .foregroundStyle(.tint)
-                .frame(width: 36, height: 36)
-                .font(.title3)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.subheadline.weight(.semibold))
-                Text(description).font(.caption).foregroundStyle(.secondary)
+            // Hero crypt seal
+            VStack(spacing: 18) {
+                RGCryptSeal(size: 120)
+                VStack(spacing: 6) {
+                    Text("Bienvenue dans Rclone")
+                        .font(.system(size: 30, weight: .bold))
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                    Text("Welcome to Rclone")
+                        .font(.system(size: 14))
+                        .foregroundStyle(.secondary)
+                }
+                Text("Tous tes remotes — y compris chiffrés — accessibles depuis Fichiers, en streaming et hors-ligne.")
+                    .font(.system(size: 16))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 320)
+                    .lineSpacing(2)
             }
-            Spacer()
-        }
-    }
+            .padding(.horizontal, 24)
 
-    // MARK: - Config choice
+            Spacer(minLength: 28).frame(maxHeight: 28)
 
-    private var configChoiceView: some View {
-        VStack(alignment: .leading, spacing: 24) {
-            Text("Comment veux-tu commencer ?")
-                .font(.title2.bold())
+            // Feature bullets
+            VStack(spacing: 14) {
+                featureRow(
+                    icon: "lock.fill",
+                    tint: RG.accent,
+                    title: "Crypt rclone natif",
+                    subtitle: "AES-256, noms déchiffrés à la volée"
+                )
+                featureRow(
+                    icon: "cloud.fill",
+                    tint: .blue,
+                    title: "80+ backends",
+                    subtitle: "S3, R2, Drive, Dropbox, SFTP, B2…"
+                )
+                featureRow(
+                    icon: "folder.fill",
+                    tint: .orange,
+                    title: "Intégration Fichiers",
+                    subtitle: "Chaque remote = un emplacement natif"
+                )
+            }
+            .padding(.horizontal, 28)
 
-            VStack(spacing: 12) {
+            Spacer(minLength: 0)
+
+            // CTAs
+            VStack(spacing: 10) {
                 Button {
                     showImportPicker = true
                 } label: {
-                    OnboardingChoiceCard(
-                        icon: "square.and.arrow.down",
-                        title: "Importer mon rclone.conf",
-                        subtitle: "Chiffré ou non, depuis Files / iCloud / AirDrop",
-                        isPrimary: true
-                    )
+                    Text("Importer un rclone.conf")
+                        .font(.system(size: 17, weight: .semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 15)
+                        .background(RG.accent, in: RoundedRectangle(cornerRadius: RG.Radius.card, style: .continuous))
+                        .foregroundStyle(.white)
+                        .shadow(color: RG.accent.opacity(0.30), radius: 12, x: 0, y: 6)
                 }
                 .buttonStyle(.plain)
 
                 Button {
+                    // Crypt passport flow lives in Phase E2; for now we just
+                    // skip onboarding and let the user reach the empty
+                    // remotes state inside the app.
                     step = .done
                 } label: {
-                    OnboardingChoiceCard(
-                        icon: "lock.shield",
-                        title: "Créer un Passeport Crypt",
-                        subtitle: "Identité chiffrée + premier remote crypt (Phase E2)",
-                        isPrimary: false,
-                        isDisabled: true
-                    )
+                    Text("Créer un Passeport Crypt")
+                        .font(.system(size: 17, weight: .medium))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .foregroundStyle(RG.accent)
                 }
                 .buttonStyle(.plain)
-                .disabled(true)
 
-                Button {
-                    step = .done
-                } label: {
-                    OnboardingChoiceCard(
-                        icon: "questionmark.circle",
-                        title: "Continuer sans configuration",
-                        subtitle: "Tu pourras importer ou créer plus tard",
-                        isPrimary: false
-                    )
-                }
-                .buttonStyle(.plain)
+                Text("Tes clés ne quittent jamais l’iPhone")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 4)
             }
+            .padding(.horizontal, 28)
+            .padding(.bottom, 36)
+        }
+    }
+
+    private func featureRow(icon: String, tint: Color, title: String, subtitle: String) -> some View {
+        HStack(spacing: 14) {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(tint.opacity(0.18))
+                .frame(width: 38, height: 38)
+                .overlay {
+                    Image(systemName: icon)
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(tint)
+                }
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(.system(size: 15, weight: .semibold))
+                Text(subtitle)
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
         }
     }
 
     // MARK: - Done
 
     private var doneView: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 64))
-                .foregroundStyle(.green)
-            Text("C'est prêt")
-                .font(.title.bold())
-            Text("Tu peux maintenant naviguer dans tes remotes, télécharger, et lire tes médias depuis l'onglet Remotes.")
-                .multilineTextAlignment(.center)
+        VStack(spacing: 20) {
+            Spacer(minLength: 0)
+            RGCryptSeal(size: 96)
+            Text("C’est prêt")
+                .font(.system(size: 28, weight: .bold))
+            Text("Tu peux maintenant parcourir tes remotes, transférer des fichiers et lire tes médias depuis Fichiers.")
+                .font(.system(size: 15))
                 .foregroundStyle(.secondary)
-                .padding(.horizontal)
-        }
-    }
-
-    // MARK: - Footer
-
-    @ViewBuilder
-    private var navigationFooter: some View {
-        switch step {
-        case .welcome:
-            Button {
-                step = .configChoice
-            } label: {
-                Text("Commencer").frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-        case .configChoice:
-            Button("Plus tard") { step = .done }
-                .controlSize(.large)
-        case .done:
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 320)
+            Spacer(minLength: 0)
             Button {
                 isPresented = false
             } label: {
-                Text("Aller aux remotes").frame(maxWidth: .infinity)
+                Text("Aller à l’app")
+                    .font(.system(size: 17, weight: .semibold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 15)
+                    .background(RG.accent, in: RoundedRectangle(cornerRadius: RG.Radius.card, style: .continuous))
+                    .foregroundStyle(.white)
+                    .shadow(color: RG.accent.opacity(0.30), radius: 12, x: 0, y: 6)
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
+            .buttonStyle(.plain)
+            .padding(.horizontal, 28)
+            .padding(.bottom, 36)
         }
-    }
-}
-
-private struct OnboardingChoiceCard: View {
-    let icon: String
-    let title: String
-    let subtitle: String
-    var isPrimary: Bool = false
-    var isDisabled: Bool = false
-
-    var body: some View {
-        HStack(spacing: 16) {
-            Image(systemName: icon)
-                .font(.title)
-                .foregroundStyle(isDisabled ? AnyShapeStyle(.secondary) : (isPrimary ? AnyShapeStyle(Color.white) : AnyShapeStyle(.tint)))
-                .frame(width: 56, height: 56)
-                .background(isPrimary ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.thinMaterial))
-                .clipShape(.rect(cornerRadius: 12))
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title).font(.headline)
-                Text(subtitle).font(.caption).foregroundStyle(.secondary)
-            }
-            Spacer()
-
-            if !isDisabled {
-                Image(systemName: "chevron.right")
-                    .foregroundStyle(.secondary)
-            } else {
-                Text("Bientôt")
-                    .font(.caption2.weight(.semibold))
-                    .padding(.horizontal, 6).padding(.vertical, 3)
-                    .background(.ultraThinMaterial, in: .capsule)
-            }
-        }
-        .padding()
-        .background(.thinMaterial, in: .rect(cornerRadius: 14))
     }
 }

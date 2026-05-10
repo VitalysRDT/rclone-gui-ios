@@ -13,6 +13,8 @@ import PhotosUI
 import UniformTypeIdentifiers
 
 struct FolderView: View {
+    @Environment(\.modelContext) private var modelContext
+
     let remote: String
     let path: String
 
@@ -40,6 +42,10 @@ struct FolderView: View {
     @State private var selectedPhotoItems: [PhotosPickerItem] = []
     @State private var transientMessage: String?
     @State private var openingEntryID: String?
+    @State private var currentFolderIsPinned = false
+    /// Whether the remote at the top of the navigation stack is a `crypt`
+    /// remote — drives the small purple lock indicator on each row.
+    @State private var currentRemoteIsCrypt = false
 
     // Conflict resolution for paste — surfaced when FilesClipboardError.destinationConflict
     // is thrown by the pre-flight stat check. Holds the list of conflicting
@@ -186,6 +192,14 @@ struct FolderView: View {
                     }
                 }
                 ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        Task { await togglePinCurrentFolder() }
+                    } label: {
+                        Image(systemName: currentFolderIsPinned ? "pin.fill" : "pin")
+                    }
+                    .accessibilityLabel(currentFolderIsPinned ? "Retirer ce dossier des favoris" : "Épingler ce dossier")
+                }
+                ToolbarItem(placement: .primaryAction) {
                     actionsMenu
                 }
             }
@@ -195,6 +209,11 @@ struct FolderView: View {
             }
             .refreshable {
                 await load()
+            }
+            .safeAreaInset(edge: .bottom) {
+                if selectionMode {
+                    selectionActionBar
+                }
             }
             // Recompute le mapping path → Transfer uniquement quand
             // l'ensemble des running transfers change réellement (arrival,
@@ -474,9 +493,15 @@ struct FolderView: View {
                     remote: remote,
                     path: entry.pathInRemote
                 )) {
-                    EntryRowView(entry: entry, activeTransfer: activeTransfer)
+                    EntryRowView(entry: entry, activeTransfer: activeTransfer, isInsideCrypt: currentRemoteIsCrypt)
                 }
                 .contextMenu {
+                    Button {
+                        Task { await togglePin(entry) }
+                    } label: {
+                        Label("Épingler", systemImage: "pin")
+                    }
+                    Divider()
                     EntryActionsMenu(
                         entry: entry,
                         remote: remote,
@@ -499,12 +524,12 @@ struct FolderView: View {
                 if selectionMode {
                     HStack(spacing: 10) {
                         selectionIcon(for: row)
-                        EntryRowView(entry: entry, activeTransfer: activeTransfer)
+                        EntryRowView(entry: entry, activeTransfer: activeTransfer, isInsideCrypt: currentRemoteIsCrypt)
                     }
                     .contentShape(Rectangle())
                 } else {
                     HStack(spacing: 0) {
-                        EntryRowView(entry: entry, activeTransfer: activeTransfer)
+                        EntryRowView(entry: entry, activeTransfer: activeTransfer, isInsideCrypt: currentRemoteIsCrypt)
                     }
                     .contentShape(Rectangle())
                 }
@@ -550,7 +575,7 @@ struct FolderView: View {
         } label: {
             HStack(spacing: 10) {
                 selectionIcon(for: row)
-                EntryRowView(entry: entry, activeTransfer: activeTransfer)
+                EntryRowView(entry: entry, activeTransfer: activeTransfer, isInsideCrypt: currentRemoteIsCrypt)
             }
             .contentShape(Rectangle())
         }
@@ -570,6 +595,54 @@ struct FolderView: View {
         } else {
             selectedEntryIDs.insert(row.id)
         }
+        hapticImpactTrigger &+= 1
+    }
+
+    private var selectionActionBar: some View {
+        AppFloatingActionBar {
+            Button {
+                downloadSelected()
+            } label: {
+                Label("Télécharger", systemImage: "arrow.down.circle")
+            }
+            .disabled(selectedEntryIDs.isEmpty)
+
+            Button {
+                stageSelected(.copy)
+            } label: {
+                Label("Copier", systemImage: "doc.on.doc")
+            }
+            .disabled(selectedEntryIDs.isEmpty)
+
+            Button {
+                remoteTransferRequest = RemoteBatchTransferRequest(kind: .move, entries: selectedEntries)
+            } label: {
+                Label("Déplacer", systemImage: "arrow.left.arrow.right")
+            }
+            .disabled(selectedEntryIDs.isEmpty)
+
+            Button(role: .destructive) {
+                Task { await deleteSelected(permanent: false) }
+            } label: {
+                Label("Corbeille", systemImage: "trash")
+            }
+            .disabled(selectedEntryIDs.isEmpty)
+        }
+        .labelStyle(.iconOnly)
+        .font(.headline)
+    }
+
+    private func downloadSelected() {
+        pendingDownloadEntries = selectedEntries
+        showingDestinationPicker = !pendingDownloadEntries.isEmpty
+    }
+
+    private func stageSelected(_ operation: FilesClipboard.Operation) {
+        FilesClipboard.shared.stage(entries: selectedEntries, remote: remote, operation: operation)
+        let verb = operation == .copy ? "copié" : "coupé"
+        transientMessage = "\(selectedEntries.count) élément(s) \(verb)(s) — colle-les dans un autre dossier."
+        selectedEntryIDs.removeAll()
+        selectionMode = false
         hapticImpactTrigger &+= 1
     }
 
@@ -698,6 +771,13 @@ struct FolderView: View {
         do {
             entries = try await RemoteService.shared.list(remote: remote, path: path)
             loadState = .loaded
+            try? SavedLocationStore.recordOpen(
+                remote: remote,
+                path: path,
+                displayName: displayTitle,
+                in: modelContext
+            )
+            currentFolderIsPinned = (try? SavedLocationStore.isPinned(remote: remote, path: path, in: modelContext)) ?? false
             await FileProviderManager.shared.writeFolderManifest(remote: remote, path: path, entries: entries)
             await LogService.shared.log(
                 .debug,
@@ -709,6 +789,13 @@ struct FolderView: View {
             if let names = try? await RemoteService.shared.listRemoteNames() {
                 availableRemotes = names
             }
+            // Detect whether the remote we're inside is a crypt remote.
+            // Drives the small purple lock indicator shown next to each
+            // entry name on screen (`crypt-forward` design language).
+            if let summaries = try? await RemoteService.shared.listRemoteSummaries(),
+               let summary = summaries.first(where: { $0.name == remote }) {
+                currentRemoteIsCrypt = (summary.type == "crypt")
+            }
         } catch {
             loadState = .failed(error.localizedDescription)
             await LogService.shared.log(
@@ -716,6 +803,32 @@ struct FolderView: View {
                 category: "browse",
                 message: "Échec list \(remote):\(path) : \(error.localizedDescription)"
             )
+        }
+    }
+
+    private func togglePinCurrentFolder() async {
+        await togglePin(remote: remote, path: path, displayName: displayTitle)
+        currentFolderIsPinned = (try? SavedLocationStore.isPinned(remote: remote, path: path, in: modelContext)) ?? false
+    }
+
+    private func togglePin(_ entry: RemoteEntryDTO) async {
+        guard entry.isDirectory else { return }
+        await togglePin(remote: remote, path: entry.pathInRemote, displayName: entry.name)
+    }
+
+    private func togglePin(remote: String, path: String, displayName: String) async {
+        do {
+            let isPinned = try SavedLocationStore.togglePinned(
+                remote: remote,
+                path: path,
+                displayName: displayName,
+                in: modelContext
+            )
+            transientMessage = isPinned ? "Ajouté aux favoris." : "Retiré des favoris."
+            hapticSuccessTrigger &+= 1
+        } catch {
+            transientMessage = "Favori impossible : \(error.localizedDescription)"
+            hapticWarningTrigger &+= 1
         }
     }
 

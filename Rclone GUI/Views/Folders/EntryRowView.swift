@@ -11,6 +11,14 @@ import SwiftUI
 struct EntryRowView: View {
     let entry: RemoteEntryDTO
     var activeTransfer: Transfer? = nil
+    /// True when this row sits inside a `crypt` remote. Surfaces a small
+    /// purple lock glyph next to the filename — mirrors the design's
+    /// `<lock>` prefix that signals "decrypted on the fly".
+    var isInsideCrypt: Bool = false
+    /// Optional file-state pill rendered on the trailing edge:
+    /// cloud / local / syncing / downloading. Falls back to a kind badge
+    /// or a transfer spinner when nil.
+    var fileState: RGFileState? = nil
 
     // Formatters partagés : évitent ~200 allocations inutiles par re-render
     // d'une liste de 100 fichiers (RelativeDateTimeFormatter + DateFormatter
@@ -33,10 +41,18 @@ struct EntryRowView: View {
             AppIconTile(systemImage: iconName, tint: iconColor, size: 44)
 
             VStack(alignment: .leading, spacing: 5) {
-                Text(entry.name)
-                    .font(.body.weight(.medium))
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+                HStack(spacing: 6) {
+                    if isInsideCrypt {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(RG.accent)
+                            .accessibilityHidden(true)
+                    }
+                    Text(entry.name)
+                        .font(.body.weight(.medium))
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
 
                 if let active = activeTransfer {
                     transferProgressLine(for: active)
@@ -55,9 +71,15 @@ struct EntryRowView: View {
 
             Spacer(minLength: 4)
 
-            if activeTransfer != nil {
-                ProgressView()
-                    .controlSize(.small)
+            if let activeTransfer {
+                if activeTransfer.bytesTotal > 0 {
+                    let p = Double(activeTransfer.bytesTransferred) / Double(max(activeTransfer.bytesTotal, 1))
+                    FileStateGlyph(state: .downloading(progress: p))
+                } else {
+                    FileStateGlyph(state: .syncing)
+                }
+            } else if let fileState {
+                FileStateGlyph(state: fileState)
             }
         }
         .padding(.vertical, 6)

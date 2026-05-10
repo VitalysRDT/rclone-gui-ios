@@ -12,32 +12,55 @@ struct TransferRowView: View {
     let transfer: Transfer
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 10) {
-                Image(systemName: kindIcon)
-                    .foregroundStyle(kindColor)
-                    .font(.title3)
-                    .frame(width: 28)
+        VStack(alignment: .leading, spacing: 9) {
+            HStack(spacing: 14) {
+                AppIconTile(systemImage: kindIcon, tint: kindColor, size: 44)
 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(displayTitle)
+                        .font(.body.weight(.medium))
                         .lineLimit(1)
                         .truncationMode(.middle)
-                        .font(.body)
-                    Text(displaySubtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                    HStack(spacing: 6) {
+                        Text(displaySubtitle)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                        // Class badge — Class 1 = URLSession transport
+                        // (survives a kill); Class 2 = in-process librclone
+                        // job (resumed on cold start via the manifest).
+                        // Mirrors the design's "CLS 1" / "CLS 2" pill.
+                        Text("CLS \(transportClass)")
+                            .font(.system(size: 9, weight: .bold))
+                            .tracking(0.4)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 1)
+                            .background(Color.secondary.opacity(0.15),
+                                        in: RoundedRectangle(cornerRadius: 3, style: .continuous))
+                    }
                 }
 
                 Spacer(minLength: 8)
 
-                statusView
+                statusBadge
             }
 
             if transfer.status == .running, transfer.bytesTotal > 0 {
-                ProgressView(value: Double(transfer.bytesTransferred), total: Double(transfer.bytesTotal))
-                    .progressViewStyle(.linear)
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text(progressText)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Text(progressPercent)
+                            .font(.caption2.monospacedDigit().weight(.semibold))
+                            .foregroundStyle(kindColor)
+                    }
+                    ProgressView(value: progressValue, total: progressTotal)
+                        .progressViewStyle(.linear)
+                        .tint(kindColor)
+                }
             }
 
             if let error = transfer.lastError, transfer.status == .failed {
@@ -55,23 +78,30 @@ struct TransferRowView: View {
     // MARK: - Status badge
 
     @ViewBuilder
-    private var statusView: some View {
+    private var statusBadge: some View {
         switch transfer.status {
         case .running:
-            ProgressView()
-                .controlSize(.small)
+            AppStatusBadge(title: "En cours", systemImage: "bolt.fill", tint: .blue)
+        case .enqueued:
+            AppStatusBadge(title: "En file", systemImage: "tray.and.arrow.up.fill", tint: .indigo)
         case .pending:
-            Image(systemName: "hourglass")
-                .foregroundStyle(.secondary)
+            AppStatusBadge(title: "Attente", systemImage: "hourglass", tint: .gray)
         case .paused:
-            Image(systemName: "pause.circle")
-                .foregroundStyle(.orange)
+            AppStatusBadge(title: "Pause", systemImage: "pause.fill", tint: .orange)
         case .completed:
-            Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(.green)
+            AppStatusBadge(title: "Terminé", systemImage: "checkmark", tint: .green)
         case .failed:
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.red)
+            AppStatusBadge(title: "Échec", systemImage: "exclamationmark", tint: .red)
+        }
+    }
+
+    /// Surfaces the transport "class" used by the design's
+    /// `CLS 1` / `CLS 2` pill — a small visual cue about
+    /// what survives an app kill.
+    private var transportClass: Int {
+        switch transfer.kind {
+        case .download, .upload: return 1
+        case .copy, .move, .sync, .delete: return 2
         }
     }
 
@@ -98,23 +128,51 @@ struct TransferRowView: View {
     }
 
     private var displayTitle: String {
+        if let displayName = transfer.displayName, !displayName.isEmpty {
+            return displayName
+        }
         let basename = (transfer.destinationPath.isEmpty ? transfer.sourcePath : transfer.destinationPath) as NSString
-        return basename.lastPathComponent
+        let title = basename.lastPathComponent
+        return title.isEmpty ? "Transfert" : title
     }
 
     private var displaySubtitle: String {
+        let route: String
         switch transfer.kind {
         case .download:
-            return "\(transfer.sourceRemote ?? "?") → local"
+            route = "\(transfer.sourceRemote ?? "?") → local"
         case .upload:
-            return "local → \(transfer.destinationRemote ?? "?")"
+            route = "\(sourceLabel) → \(transfer.destinationRemote ?? "?")"
         case .move, .copy, .sync:
             let src = transfer.sourceRemote ?? "?"
             let dst = transfer.destinationRemote ?? "?"
-            return "\(src) → \(dst)"
+            route = "\(src) → \(dst)"
         case .delete:
-            return "Supprimer dans \(transfer.sourceRemote ?? "?")"
+            route = "Supprimer dans \(transfer.sourceRemote ?? "?")"
         }
+        return "\(route) · \(relativeDate(transfer.startedAt))"
+    }
+
+    private var progressPercent: String {
+        guard transfer.bytesTotal > 0 else { return "" }
+        let pct = Int(progressValue / progressTotal * 100)
+        return "\(pct)%"
+    }
+
+    private var progressText: String {
+        "\(formatBytes(clampedBytesTransferred)) sur \(formatBytes(transfer.bytesTotal))"
+    }
+
+    private var clampedBytesTransferred: Int64 {
+        min(max(transfer.bytesTransferred, 0), max(transfer.bytesTotal, 0))
+    }
+
+    private var progressValue: Double {
+        Double(clampedBytesTransferred)
+    }
+
+    private var progressTotal: Double {
+        Double(max(transfer.bytesTotal, 1))
     }
 
     private var accessibilityText: String {
@@ -128,5 +186,31 @@ struct TransferRowView: View {
         case .delete: action = "Suppression"
         }
         return "\(action) de \(displayTitle), \(transfer.status.rawValue)"
+    }
+
+    private var sourceLabel: String {
+        switch transfer.sourceKind {
+        case .remote:
+            return "remote"
+        case .localFile:
+            return "fichier local"
+        case .localFolder:
+            return "dossier local"
+        case .photoLibrary:
+            return "photothèque"
+        case .fileProvider:
+            return "Files"
+        }
+    }
+
+    private func formatBytes(_ bytes: Int64) -> String {
+        ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
+    }
+
+    private func relativeDate(_ date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .short
+        formatter.dateTimeStyle = .named
+        return formatter.localizedString(for: date, relativeTo: .now)
     }
 }

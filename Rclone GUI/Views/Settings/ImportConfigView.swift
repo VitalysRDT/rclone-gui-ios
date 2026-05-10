@@ -23,52 +23,82 @@ struct ImportConfigView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 24) {
-                Image(systemName: "doc.badge.gearshape")
-                    .font(.system(size: 56))
-                    .foregroundStyle(.tint)
-                    .padding(.top, 40)
+            Form {
+                Section {
+                    importHeader
+                        .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 8, trailing: 0))
+                        .listRowBackground(Color.clear)
+                }
 
-                Text("Importer rclone.conf")
-                    .font(.title2.bold())
+                Section {
+                    Button {
+                        importing = true
+                    } label: {
+                        importSourceRow(
+                            icon: "folder.fill",
+                            tint: .blue,
+                            title: "Depuis Fichiers",
+                            subtitle: "rclone.conf"
+                        )
+                    }
+                    .buttonStyle(.plain)
 
-                Text("Choisis le fichier `rclone.conf` que tu utilises sur Mac, Linux, ou ton NAS. Il sera chiffré et stocké localement.")
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal)
+                    importSourceRow(
+                        icon: "qrcode",
+                        tint: .green,
+                        title: "Scanner depuis Mac",
+                        subtitle: "rclone config dump | qrencode",
+                        disabled: true
+                    )
 
-                Spacer()
+                    importSourceRow(
+                        icon: "globe",
+                        tint: .indigo,
+                        title: "URL / iCloud",
+                        subtitle: "Bientôt",
+                        disabled: true
+                    )
+                } header: {
+                    Text("Source")
+                } footer: {
+                    Text("Le fichier sera chiffré et stocké localement. Tes clés ne quittent jamais l’iPhone.")
+                }
+
+                Section {
+                    HStack(spacing: 8) {
+                        Image(systemName: "lock")
+                            .foregroundStyle(.secondary)
+                        Text("Mot de passe rclone (optionnel)")
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 6)
+                } header: {
+                    Text("Mot de passe rclone")
+                } footer: {
+                    Text("Si ton rclone.conf est protégé par un mot de passe rclone, il sera demandé à la lecture. Stocké en Keychain et protégé par Face ID.")
+                }
 
                 if let success {
-                    Label(success, systemImage: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                        .padding(.horizontal)
-                        .multilineTextAlignment(.center)
+                    Section {
+                        AppInlineMessage(title: "Configuration importée", message: success, systemImage: "checkmark.circle.fill", tint: .green)
+                            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                            .listRowBackground(Color.clear)
+                    }
                 } else if let error {
-                    Label(error, systemImage: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.red)
-                        .padding(.horizontal)
-                        .multilineTextAlignment(.center)
+                    Section {
+                        AppInlineMessage(title: "Import impossible", message: error, systemImage: "exclamationmark.triangle.fill", tint: .red)
+                            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                            .listRowBackground(Color.clear)
+                    }
                 }
-
-                Button {
-                    importing = true
-                } label: {
-                    Label("Choisir un fichier", systemImage: "folder")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .padding(.horizontal)
-                .padding(.bottom, 24)
             }
-            .navigationTitle("Import")
+            .navigationTitle("Importer")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Fermer") { dismiss() }
+                    Button("Annuler") { dismiss() }
                 }
             }
             .sheet(isPresented: $importing) {
@@ -84,6 +114,59 @@ struct ImportConfigView: View {
                 )
             }
         }
+    }
+
+    private var importHeader: some View {
+        HStack(spacing: 14) {
+            RGCryptSeal(size: 64)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Import rclone.conf")
+                    .font(.system(size: 20, weight: .bold))
+                Text("Chiffré localement par Face ID + Secure Enclave")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 16)
+    }
+
+    private func importSourceRow(
+        icon: String,
+        tint: Color,
+        title: String,
+        subtitle: String,
+        disabled: Bool = false
+    ) -> some View {
+        HStack(spacing: 12) {
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(tint)
+                .frame(width: 28, height: 28)
+                .overlay {
+                    Image(systemName: icon)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.white)
+                }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 16))
+                    .foregroundStyle(disabled ? .secondary : .primary)
+                Text(subtitle)
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 0)
+            if !disabled {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .padding(.vertical, 4)
+        .opacity(disabled ? 0.55 : 1)
+        .accessibilityElement(children: .combine)
     }
 
     private static let allowedContentTypes: [UTType] = [
@@ -103,6 +186,8 @@ struct ImportConfigView: View {
 
             let data = try Data(contentsOf: url)
             try await ConfigStore.shared.save(data)
+            try await ConfigStore.shared.migrateMasterKeyToSharedAccessGroupIfNeeded()
+            await RcloneConfigEditor.refreshRuntimeAndNotify()
 
             success = "Configuration importée et chiffrée (\(data.count) octets)."
             error = nil

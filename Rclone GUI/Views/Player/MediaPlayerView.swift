@@ -92,36 +92,96 @@ struct MediaPlayerHost: View {
     var body: some View {
         Group {
             if preparing {
-                VStack(spacing: 12) {
-                    ProgressView().controlSize(.large)
-                    Text("Préparation de la lecture…")
-                        .foregroundStyle(.secondary)
-                    if let sizeText = entrySizeText {
-                        Text(sizeText).font(.caption).foregroundStyle(.tertiary)
-                    }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                preparingState
             } else if let session {
                 MediaPlayerView(url: session.url, title: entry.name, sizeHint: entry.size)
                     .ignoresSafeArea()
             } else if let error {
-                VStack(spacing: 12) {
-                    Image(systemName: "exclamationmark.triangle")
-                        .font(.largeTitle)
-                        .foregroundStyle(.red)
-                    Text("Lecture impossible").font(.headline)
-                    Text(error).font(.caption).foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-                    Button("Fermer") { dismiss() }
-                        .buttonStyle(.borderedProminent)
-                }
+                errorState(error)
             }
         }
         .task { await prepare() }
         .onDisappear {
             if let session {
                 Task { await RcloneStreamingService.shared.stop(session) }
+            }
+        }
+    }
+
+    /// Crypt-forward "préparation de la lecture" surface — mirrors the
+    /// design's player loading idiom (purple seal + STREAM badge while we
+    /// resolve a local URL or set up the streaming session).
+    private var preparingState: some View {
+        ZStack {
+            LinearGradient(
+                colors: [
+                    Color(red: 0.10, green: 0.10, blue: 0.18),
+                    Color(red: 0.18, green: 0.11, blue: 0.31),
+                    Color(red: 0.36, green: 0.13, blue: 0.71),
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+
+            VStack(spacing: 18) {
+                RGCryptSeal(size: 88)
+
+                VStack(spacing: 6) {
+                    Text("Préparation de la lecture")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(.white)
+                    Text(entry.name)
+                        .font(.system(size: 13))
+                        .foregroundStyle(.white.opacity(0.65))
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+                .padding(.horizontal, 24)
+
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(Color.red)
+                        .frame(width: 6, height: 6)
+                    Text("STREAM")
+                        .font(.system(size: 11, weight: .bold))
+                        .tracking(0.6)
+                        .foregroundStyle(.white.opacity(0.85))
+                    if let sizeText = entrySizeText {
+                        Text("· \(sizeText)")
+                            .font(RG.mono)
+                            .foregroundStyle(.white.opacity(0.55))
+                    }
+                }
+                .padding(.top, 4)
+
+                ProgressView()
+                    .progressViewStyle(.circular)
+                    .tint(.white)
+                    .padding(.top, 8)
+            }
+        }
+    }
+
+    private func errorState(_ message: String) -> some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+            VStack(spacing: 14) {
+                Image(systemName: "exclamationmark.triangle")
+                    .font(.largeTitle)
+                    .foregroundStyle(.red)
+                Text("Lecture impossible")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(.white)
+                Text(message)
+                    .font(.system(size: 13))
+                    .foregroundStyle(.white.opacity(0.7))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 28)
+                Button("Fermer") { dismiss() }
+                    .buttonStyle(.borderedProminent)
+                    .tint(RG.accent)
+                    .padding(.top, 4)
             }
         }
     }
