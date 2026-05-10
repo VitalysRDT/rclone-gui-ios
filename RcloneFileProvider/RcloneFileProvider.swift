@@ -156,12 +156,22 @@ public final class RcloneFileProvider: NSObject, NSFileProviderReplicatedExtensi
             return progress
         }
 
-        let tempDir = fetchTemporaryDirectory()
         let ext = (decoded.path as NSString).pathExtension
         let requestID = UUID().uuidString
-        var destination = tempDir.appending(path: requestID)
+
+        // Destination partagée : l'app principale ecrit dans l'App Group, qui est
+        // lisible/ecrivable depuis les deux sandboxes. temporaryDirectoryURL() de
+        // l'extension n'est PAS accessible a l'app principale (sandbox different).
+        var sharedDestination = FileProviderBridge.fetchedFilesDir.appending(path: requestID)
         if !ext.isEmpty {
-            destination = destination.appendingPathExtension(ext)
+            sharedDestination = sharedDestination.appendingPathExtension(ext)
+        }
+
+        // Destination finale Apple-managed : ce path-la est ce qu'on retourne a
+        // iOS. Apple bouge ensuite le fichier dans son replica.
+        var appleDestination = fetchTemporaryDirectory().appending(path: requestID)
+        if !ext.isEmpty {
+            appleDestination = appleDestination.appendingPathExtension(ext)
         }
 
         Task {
@@ -172,11 +182,27 @@ public final class RcloneFileProvider: NSObject, NSFileProviderReplicatedExtensi
                     requestID: requestID,
                     remote: decoded.remote,
                     path: decoded.path,
-                    destination: destination,
+                    destination: sharedDestination,
                     timeout: 120
                 )
+
+                // App principale a ecrit dans sharedDestination. On bouge le fichier
+                // vers Apple-managed tempDir avant de rendre la main a iOS.
+                try FileManager.default.createDirectory(
+                    at: appleDestination.deletingLastPathComponent(),
+                    withIntermediateDirectories: true
+                )
+                try? FileManager.default.removeItem(at: appleDestination)
+                do {
+                    try FileManager.default.moveItem(at: sharedDestination, to: appleDestination)
+                } catch {
+                    // Volumes potentiellement differents : fallback copy + remove.
+                    try FileManager.default.copyItem(at: sharedDestination, to: appleDestination)
+                    try? FileManager.default.removeItem(at: sharedDestination)
+                }
+
                 let downloadedSize = (try? FileManager.default
-                    .attributesOfItem(atPath: destination.path)[.size] as? Int64) ?? 0
+                    .attributesOfItem(atPath: appleDestination.path)[.size] as? Int64) ?? 0
                 let item = RcloneItem(
                     id: itemIdentifier,
                     parentID: parentIdentifier(remote: decoded.remote, path: decoded.path),
@@ -185,10 +211,11 @@ public final class RcloneFileProvider: NSObject, NSFileProviderReplicatedExtensi
                     size: downloadedSize,
                     modTime: .now
                 )
-                FileProviderBridge.appendDiagnostic("fetchContents done id=\(itemIdentifier.rawValue) size=\(downloadedSize) at=\(destination.path)")
+                FileProviderBridge.appendDiagnostic("fetchContents done id=\(itemIdentifier.rawValue) size=\(downloadedSize) at=\(appleDestination.path)")
                 progress.completedUnitCount = 100
-                completionHandler(destination, item, nil)
+                completionHandler(appleDestination, item, nil)
             } catch {
+                try? FileManager.default.removeItem(at: sharedDestination)
                 FileProviderBridge.appendDiagnostic("fetchContents failed id=\(itemIdentifier.rawValue) error=\(error.localizedDescription)")
                 completionHandler(nil, nil, error)
             }
