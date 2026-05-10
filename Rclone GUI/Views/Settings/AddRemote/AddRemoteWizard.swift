@@ -53,9 +53,9 @@ struct AddRemoteWizard: View {
         case .formFields:
             DynamicRemoteFormView(state: state, onNext: { state.advance() })
         case .oauth:
-            OAuthStep(state: state)
+            OAuthView(state: state, onNext: { state.advance() })
         case .recapAndTest:
-            RecapAndTestStep(state: state, onCreated: handleCreated)
+            RecapAndTestView(state: state, onCreated: handleCreated)
         }
     }
 
@@ -110,78 +110,6 @@ struct AddRemoteWizard: View {
     private func handleCreated() {
         onSaved()
         dismiss()
-    }
-}
-
-// MARK: - Step placeholders (Sprint A skeleton)
-//
-// Each placeholder shows enough context to verify the wiring before
-// the full UI lands in Sprint B/C. They share the same minimalist
-// layout: a label saying which step we're on, plus a "Suivant"
-// button that advances the state machine.
-
-private struct StepPlaceholder: View {
-    let title: String
-    let state: WizardState
-    var canProceed: Bool = true
-
-    var body: some View {
-        VStack(spacing: 24) {
-            Image(systemName: "wand.and.stars")
-                .font(.system(size: 48))
-                .foregroundStyle(.tint)
-            Text(title)
-                .font(.title2.bold())
-            Text("Skeleton — implémentation Sprint B/C.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal)
-
-            HStack {
-                if state.step != .nameAndBackend {
-                    Button("Retour") { state.goBack() }
-                        .buttonStyle(.bordered)
-                }
-                Button("Suivant") { state.advance() }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(!canProceed)
-            }
-        }
-        .padding()
-    }
-}
-
-private struct OAuthStep: View {
-    let state: WizardState
-    var body: some View {
-        StepPlaceholder(title: "Étape 3 — OAuth", state: state)
-    }
-}
-
-private struct RecapAndTestStep: View {
-    let state: WizardState
-    let onCreated: () -> Void
-
-    var body: some View {
-        VStack(spacing: 24) {
-            Image(systemName: "checkmark.seal.fill")
-                .font(.system(size: 48))
-                .foregroundStyle(.green)
-            Text("Étape 4 — Récap & Test")
-                .font(.title2.bold())
-            Text("Skeleton — implémentation Sprint B/C.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-
-            HStack {
-                Button("Retour") { state.goBack() }
-                    .buttonStyle(.bordered)
-                Button("Créer") { onCreated() }
-                    .buttonStyle(.borderedProminent)
-            }
-        }
-        .padding()
     }
 }
 

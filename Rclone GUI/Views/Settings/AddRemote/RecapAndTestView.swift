@@ -1,0 +1,310 @@
+//
+//  RecapAndTestView.swift
+//  Rclone GUI — Views/Settings/AddRemote
+//
+//  Step 4: shows a recap of all the values the user is about to write
+//  to rclone.conf, runs a connection test, then commits.
+//
+//  Flow:
+//  1. "Tester la connexion" calls `config/create` (writing the section
+//     to rclone.conf) followed by `operations/list`. We mark
+//     `state.remoteWasPreCreated = true` so a Cancel later cleans up
+//     via `config/delete`.
+//  2. "Créer le remote" calls `RcloneConfigEditor.refreshRuntimeAndNotify`
+//     which re-encrypts ConfigStore + reloads engine + posts the
+//     `rcloneConfigurationDidChange` notification, then dismisses.
+//
+
+import SwiftUI
+
+struct RecapAndTestView: View {
+
+    @Bindable var state: WizardState
+
+    let onCreated: () -> Void
+
+    @State private var isTesting = false
+    @State private var isFinalizing = false
+
+    var body: some View {
+        Form {
+            if let backend = state.selectedBackend {
+                summarySection(for: backend)
+                parametersSection(for: backend)
+                testSection
+                actionsSection
+            } else {
+                Section {
+                    Label("Aucun backend sélectionné.", systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.red)
+                }
+            }
+        }
+        .scrollDismissesKeyboard(.interactively)
+    }
+
+    // MARK: - Sections
+
+    private func summarySection(for backend: BackendSchema) -> some View {
+        Section {
+            HStack(spacing: 14) {
+                AppIconTile(systemImage: backend.icon, size: 48)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(state.name)
+                        .font(.headline)
+                    Text(backend.displayName)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    if backend.requiresOAuth {
+                        Label(state.oauthCompleted ? "Authentifié" : "Authentification requise",
+                              systemImage: state.oauthCompleted ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
+                            .font(.caption)
+                            .foregroundStyle(state.oauthCompleted ? .green : .red)
+                    }
+                }
+            }
+        }
+    }
+
+    private func parametersSection(for backend: BackendSchema) -> some View {
+        let entries = nonSecretParameters(for: backend)
+        return Section("Paramètres") {
+            if entries.isEmpty {
+                Text("Aucun paramètre à afficher.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(entries, id: \.0) { key, value in
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(key)
+                            .font(.caption.weight(.semibold))
+                            .frame(maxWidth: 140, alignment: .leading)
+                        Text(value)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
+                }
+                if hasMaskedSecrets(for: backend) {
+                    Label("Champs sensibles masqués", systemImage: "lock.fill")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
+    private var testSection: some View {
+        Section {
+            Button {
+                Task { await runTest() }
+            } label: {
+                Group {
+                    switch state.testResult {
+                    case .notTested:
+                        Text("Tester la connexion")
+                            .frame(maxWidth: .infinity)
+                    case .inProgress:
+                        HStack {
+                            ProgressView()
+                            Text("Test en cours…")
+                        }
+                    case .success(let count, _):
+                        Label("Connexion OK — \(count) éléments", systemImage: "checkmark.seal.fill")
+                            .foregroundStyle(.green)
+                            .frame(maxWidth: .infinity)
+                    case .failure:
+                        Label("Tester à nouveau", systemImage: "arrow.clockwise")
+                            .frame(maxWidth: .infinity)
+                    case .timeout:
+                        Label("Tester à nouveau (timeout)", systemImage: "arrow.clockwise")
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+            }
+            .buttonStyle(.bordered)
+            .disabled(isTesting || isFinalizing)
+
+            switch state.testResult {
+            case .success(_, let sample):
+                if !sample.isEmpty {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(sample, id: \.self) { name in
+                            Text("• \(name)")
+                                .font(.caption.monospaced())
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            case .failure(let message):
+                Label(message, systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            case .timeout:
+                Label("Le serveur ne répond pas. Vérifie ta connexion ou tes paramètres.",
+                      systemImage: "clock.badge.exclamationmark")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            default:
+                EmptyView()
+            }
+        } header: {
+            Text("Validation")
+        }
+    }
+
+    private var actionsSection: some View {
+        Section {
+            Button {
+                Task { await finalizeCreation() }
+            } label: {
+                if isFinalizing {
+                    HStack {
+                        ProgressView()
+                        Text("Création…")
+                    }
+                } else {
+                    Text("Créer le remote")
+                        .frame(maxWidth: .infinity)
+                }
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(!canFinalize)
+        } footer: {
+            if !canFinalize {
+                Text("Le remote sera créé après un test réussi. Si le test échoue de manière connue, tu peux quand même créer le remote.")
+                    .font(.caption2)
+            }
+        }
+    }
+
+    // MARK: - Computed
+
+    private var canFinalize: Bool {
+        guard !isFinalizing else { return false }
+        switch state.testResult {
+        case .success, .failure, .timeout:
+            // .failure and .timeout still allow creation (force-create)
+            // because the user might know better than us (network blip).
+            return true
+        case .notTested, .inProgress:
+            return false
+        }
+    }
+
+    private func nonSecretParameters(for backend: BackendSchema) -> [(String, String)] {
+        let oauthHidden: Set<String> = ["token", "auth_url", "token_url", "client_secret"]
+        var entries: [(String, String)] = []
+        for field in backend.formFields {
+            if oauthHidden.contains(field.name) { continue }
+            if field.sensitive || field.isPassword { continue }
+            let value = state.fieldValues[field.name] ?? ""
+            guard !value.isEmpty else { continue }
+            entries.append((field.label, value))
+        }
+        return entries
+    }
+
+    private func hasMaskedSecrets(for backend: BackendSchema) -> Bool {
+        backend.formFields.contains { field in
+            (field.sensitive || field.isPassword) && !(state.fieldValues[field.name] ?? "").isEmpty
+        }
+    }
+
+    // MARK: - Actions
+
+    private func runTest() async {
+        guard let backend = state.selectedBackend else { return }
+        isTesting = true
+        state.testResult = .inProgress
+        defer { isTesting = false }
+
+        // 1. Pre-create the remote in rclone.conf so operations/list works.
+        do {
+            try await callConfigCreate(backend: backend)
+            state.remoteWasPreCreated = true
+        } catch {
+            state.testResult = .failure(message: error.localizedDescription)
+            return
+        }
+
+        // 2. Run operations/list with timeout.
+        do {
+            let result = try await RemoteConnectionTester.test(remote: state.name)
+            state.testResult = .success(itemCount: result.itemCount, sample: result.sample)
+        } catch RemoteConnectionTester.TestError.timeout(let secs) {
+            state.testResult = .timeout
+            await LogService.shared.log(
+                .error,
+                category: "wizard.test",
+                message: "Test connection timeout (\(secs)s) for \(state.name)"
+            )
+        } catch {
+            state.testResult = .failure(message: error.localizedDescription)
+            await LogService.shared.log(
+                .error,
+                category: "wizard.test",
+                message: "Test failed for \(state.name): \(error.localizedDescription)"
+            )
+        }
+    }
+
+    private func callConfigCreate(backend: BackendSchema) async throws {
+        // Build parameters dict from non-empty form values.
+        var params: [String: String] = [:]
+        for (key, value) in state.fieldValues {
+            let trimmed = value.trimmingCharacters(in: .whitespaces)
+            guard !trimmed.isEmpty else { continue }
+            params[key] = trimmed
+        }
+
+        // If we already pre-created on a previous test attempt, drop
+        // the orphan first so config/create succeeds.
+        if state.remoteWasPreCreated {
+            struct DeleteInput: Encodable { let name: String }
+            let json = (try? JSONEncoder().encode(DeleteInput(name: state.name)))
+                .flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
+            _ = try? await RcloneCore.shared.rpcRaw("config/delete", json)
+            state.remoteWasPreCreated = false
+        }
+
+        let input = ConfigCreateInput(
+            name: state.name,
+            type: backend.name,
+            parameters: params,
+            opt: ConfigCreateOpt(nonInteractive: true)
+        )
+        let _: ConfigCreateResponse = try await RcloneCore.shared.rpc(
+            "config/create",
+            input: input
+        )
+        await RcloneCore.shared.invalidateConfigCache()
+    }
+
+    private func finalizeCreation() async {
+        isFinalizing = true
+        defer { isFinalizing = false }
+
+        // If the test ran, the remote is already in rclone.conf via
+        // librclone's own write. We still need to sync ConfigStore
+        // (re-encrypt) and notify the rest of the app.
+        if !state.remoteWasPreCreated, let backend = state.selectedBackend {
+            do {
+                try await callConfigCreate(backend: backend)
+                state.remoteWasPreCreated = true
+            } catch {
+                state.configCreateError = error.localizedDescription
+                return
+            }
+        }
+
+        // Mirror to ConfigStore (re-encrypt) + reload + notifications.
+        await RcloneConfigEditor.refreshRuntimeAndNotify()
+        await LogService.shared.log(
+            .info,
+            category: "wizard",
+            message: "Remote « \(state.name) » créé via wizard"
+        )
+        onCreated()
+    }
+}
