@@ -1,0 +1,883 @@
+//
+//  PhotoSyncService.swift
+//  Rclone GUI — Services
+//
+//  Opportunistic Photo Library backup. iOS decides when background work
+//  actually runs, so this service is designed around idempotent scans and
+//  resumable enqueueing rather than a permanent daemon.
+//
+
+import BackgroundTasks
+import Foundation
+import Photos
+import SwiftData
+import UIKit
+
+public enum PhotoSyncAuthorizationState: String, Sendable, Equatable {
+    case authorized
+    case limited
+    case denied
+    case restricted
+    case notDetermined
+    case unknown
+
+    public var isUsable: Bool {
+        self == .authorized || self == .limited
+    }
+}
+
+public struct PhotoSyncRunSummary: Sendable, Equatable {
+    public let authorization: PhotoSyncAuthorizationState
+    public let visibleAssetCount: Int
+    public let indexedCount: Int
+    public let newlyIndexedCount: Int
+    public let enqueuedCount: Int
+    public let pendingCount: Int
+    public let activeCount: Int
+    public let completedCount: Int
+    public let failedCount: Int
+
+    public var isLimitedAccess: Bool {
+        authorization == .limited
+    }
+}
+
+struct PhotoSyncLimits: Sendable, Equatable {
+    var indexSaveBatchSize = 250
+    var enqueueBatchSize = 3
+    var maxActiveUploads = 3
+    var maxRetries = 3
+
+    static let standard = PhotoSyncLimits()
+}
+
+struct PhotoSyncCandidate: Sendable, Equatable {
+    let localIdentifier: String
+    let mediaType: String
+    let creationDate: Date?
+}
+
+private struct PhotoSyncIndexResult: Sendable {
+    let visibleAssetCount: Int
+    let newlyIndexedCount: Int
+}
+
+private struct PhotoSyncCounts {
+    let indexed: Int
+    let pending: Int
+    let active: Int
+    let completed: Int
+    let failed: Int
+}
+
+private struct PhotoSyncScanResult: Sendable {
+    let visibleAssetCount: Int
+    let candidates: [PhotoSyncCandidate]
+}
+
+@MainActor
+public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
+    public static let shared = PhotoSyncService()
+
+    public nonisolated static let processingIdentifier = "com.rougetet.rclone-gui.photo-sync"
+
+    private let limits = PhotoSyncLimits.standard
+    private var modelContext: ModelContext?
+    private var observerRegistered = false
+    private var isSyncing = false
+    private var observerSyncTask: Task<Void, Never>?
+    private var continuationTask: Task<Void, Never>?
+
+    private override init() {
+        super.init()
+    }
+
+    // MARK: - Setup
+
+    public func attach(modelContext: ModelContext) {
+        guard self.modelContext !== modelContext else { return }
+        self.modelContext = modelContext
+        Task { await registerPhotoObserverIfNeeded() }
+    }
+
+    public nonisolated func registerBackgroundTasks() {
+        BGTaskScheduler.shared.register(
+            forTaskWithIdentifier: Self.processingIdentifier,
+            using: nil
+        ) { task in
+            guard let task = task as? BGProcessingTask else {
+                task.setTaskCompleted(success: false)
+                return
+            }
+            Task { @MainActor in
+                await PhotoSyncService.shared.handleProcessingTask(task)
+            }
+        }
+    }
+
+    public func scheduleBackgroundProcessing() {
+        guard isEnabled, configuredRemote != nil else { return }
+        let request = BGProcessingTaskRequest(identifier: Self.processingIdentifier)
+        request.requiresNetworkConnectivity = true
+        request.requiresExternalPower = requiresExternalPower
+        request.earliestBeginDate = Date(timeIntervalSinceNow: 20 * 60)
+        try? BGTaskScheduler.shared.submit(request)
+    }
+
+    // MARK: - Settings
+
+    public var isEnabled: Bool {
+        get { UserDefaults.standard.bool(forKey: "photoSync.enabled") }
+        set {
+            UserDefaults.standard.set(newValue, forKey: "photoSync.enabled")
+            if newValue {
+                Task { await registerPhotoObserverIfNeeded() }
+                scheduleBackgroundProcessing()
+            }
+        }
+    }
+
+    public var configuredRemote: String? {
+        let value = UserDefaults.standard.string(forKey: "photoSync.remote") ?? ""
+        return value.isEmpty ? nil : value
+    }
+
+    public var configuredFolder: String {
+        UserDefaults.standard.string(forKey: "photoSync.folder") ?? "Phototheque"
+    }
+
+    public var requiresExternalPower: Bool {
+        get {
+            if UserDefaults.standard.object(forKey: "photoSync.requiresExternalPower") == nil {
+                return true
+            }
+            return UserDefaults.standard.bool(forKey: "photoSync.requiresExternalPower")
+        }
+        set { UserDefaults.standard.set(newValue, forKey: "photoSync.requiresExternalPower") }
+    }
+
+    public var allowsCellular: Bool {
+        get { UserDefaults.standard.bool(forKey: "photoSync.allowsCellular") }
+        set { UserDefaults.standard.set(newValue, forKey: "photoSync.allowsCellular") }
+    }
+
+    private var shouldContinueUntilEmpty: Bool {
+        get { UserDefaults.standard.bool(forKey: "photoSync.continueUntilEmpty") }
+        set { UserDefaults.standard.set(newValue, forKey: "photoSync.continueUntilEmpty") }
+    }
+
+    public func configure(enabled: Bool, remote: String?, folder: String, requiresPower: Bool, allowsCellular: Bool) {
+        UserDefaults.standard.set(enabled, forKey: "photoSync.enabled")
+        UserDefaults.standard.set(remote ?? "", forKey: "photoSync.remote")
+        UserDefaults.standard.set(folder.isEmpty ? "Phototheque" : folder, forKey: "photoSync.folder")
+        self.requiresExternalPower = requiresPower
+        self.allowsCellular = allowsCellular
+        if !enabled {
+            shouldContinueUntilEmpty = false
+            continuationTask?.cancel()
+            continuationTask = nil
+        }
+        if enabled {
+            Task { await registerPhotoObserverIfNeeded() }
+            scheduleBackgroundProcessing()
+        }
+    }
+
+    // MARK: - Sync
+
+    @discardableResult
+    public func syncNow(limit: Int = 3) async -> PhotoSyncRunSummary {
+        let summary = await runSync(requestedLimit: limit, continueUntilEmpty: false, includeFailedRetries: true)
+        #if os(iOS)
+        await postSyncCompleteNotification(uploaded: summary.completedCount, failed: summary.failedCount)
+        #endif
+        return summary
+    }
+
+    @discardableResult
+    public func startFullSync() async -> PhotoSyncRunSummary {
+        shouldContinueUntilEmpty = true
+        let summary = await runSync(
+            requestedLimit: limits.enqueueBatchSize,
+            continueUntilEmpty: true,
+            includeFailedRetries: true
+        )
+        #if os(iOS)
+        await postSyncCompleteNotification(uploaded: summary.completedCount, failed: summary.failedCount)
+        #endif
+        return summary
+    }
+
+    public func currentSummary() async -> PhotoSyncRunSummary {
+        await statusSnapshot()
+    }
+
+    private func runSync(
+        requestedLimit: Int,
+        continueUntilEmpty: Bool,
+        includeFailedRetries: Bool
+    ) async -> PhotoSyncRunSummary {
+        guard !isSyncing else { return await statusSnapshot() }
+        guard isEnabled, let remote = configuredRemote else { return await statusSnapshot() }
+        guard canStartNewWork else {
+            await LogService.shared.log(.info, category: "photos", message: "Synchro photos suspendue par la politique energie/reseau.")
+            scheduleBackgroundProcessing()
+            return await statusSnapshot()
+        }
+
+        isSyncing = true
+        defer {
+            isSyncing = false
+            scheduleBackgroundProcessing()
+        }
+
+        do {
+            let authorizationStatus = try await ensurePhotoAuthorization()
+            let indexResult = try await indexLibrary()
+            let enqueuedCount = try await enqueuePending(
+                remote: remote,
+                folder: configuredFolder,
+                requestedLimit: requestedLimit,
+                includeFailedRetries: includeFailedRetries
+            )
+            let summary = await statusSnapshot(
+                authorizationStatus: authorizationStatus,
+                visibleAssetCount: indexResult.visibleAssetCount,
+                newlyIndexedCount: indexResult.newlyIndexedCount,
+                enqueuedCount: enqueuedCount
+            )
+            if continueUntilEmpty {
+                finishFullSyncIfDrained(summary)
+                scheduleContinuationIfNeeded()
+            }
+            return summary
+        } catch {
+            await LogService.shared.log(.error, category: "photos", message: "Synchro photos impossible : \(error.localizedDescription)")
+            return await statusSnapshot()
+        }
+    }
+
+    private func handleProcessingTask(_ task: BGProcessingTask) async {
+        var expired = false
+        task.expirationHandler = {
+            expired = true
+        }
+        if shouldContinueUntilEmpty {
+            _ = await runSync(
+                requestedLimit: limits.enqueueBatchSize,
+                continueUntilEmpty: true,
+                includeFailedRetries: false
+            )
+        } else {
+            await syncNow(limit: limits.enqueueBatchSize)
+        }
+        task.setTaskCompleted(success: !expired)
+    }
+
+    private func ensurePhotoAuthorization() async throws -> PHAuthorizationStatus {
+        let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        switch status {
+        case .authorized, .limited:
+            return status
+        case .notDetermined:
+            let newStatus = await PHPhotoLibrary.requestAuthorization(for: .readWrite)
+            if newStatus == .authorized || newStatus == .limited { return newStatus }
+            throw PhotoSyncError.authorizationDenied
+        default:
+            throw PhotoSyncError.authorizationDenied
+        }
+    }
+
+    private func registerPhotoObserverIfNeeded() async {
+        guard isEnabled, !observerRegistered else { return }
+        let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        guard status == .authorized || status == .limited else { return }
+        PHPhotoLibrary.shared().register(self)
+        observerRegistered = true
+    }
+
+    nonisolated public func photoLibraryDidChange(_ changeInstance: PHChange) {
+        Task { @MainActor in
+            guard PhotoSyncService.shared.isEnabled else { return }
+            PhotoSyncService.shared.observerSyncTask?.cancel()
+            PhotoSyncService.shared.observerSyncTask = Task { @MainActor in
+                try? await Task.sleep(for: .seconds(3))
+                await PhotoSyncService.shared.syncNow(limit: PhotoSyncLimits.standard.enqueueBatchSize)
+            }
+        }
+    }
+
+    private func indexLibrary() async throws -> PhotoSyncIndexResult {
+        guard let modelContext else {
+            return PhotoSyncIndexResult(visibleAssetCount: 0, newlyIndexedCount: 0)
+        }
+
+        let existingIDs = try await indexedIdentifiers()
+        let scan = try await Task.detached(priority: .utility) {
+            try Task.checkCancellation()
+            return Self.scanPhotoLibrary(excluding: existingIDs)
+        }.value
+        guard !scan.candidates.isEmpty else {
+            return PhotoSyncIndexResult(visibleAssetCount: scan.visibleAssetCount, newlyIndexedCount: 0)
+        }
+
+        for batch in Self.batches(scan.candidates, size: limits.indexSaveBatchSize) {
+            for candidate in batch {
+                let record = PhotoSyncAsset(
+                    localIdentifier: candidate.localIdentifier,
+                    mediaType: candidate.mediaType,
+                    creationDate: candidate.creationDate
+                )
+                modelContext.insert(record)
+            }
+            try modelContext.save()
+            await Task.yield()
+        }
+        return PhotoSyncIndexResult(
+            visibleAssetCount: scan.visibleAssetCount,
+            newlyIndexedCount: scan.candidates.count
+        )
+    }
+
+    private func indexedIdentifiers() async throws -> Set<String> {
+        guard let modelContext else { return [] }
+        var ids = Set<String>()
+        var offset = 0
+        let pageSize = 1_000
+
+        while true {
+            var descriptor = FetchDescriptor<PhotoSyncAsset>(
+                sortBy: [SortDescriptor(\.localIdentifier, order: .forward)]
+            )
+            descriptor.fetchLimit = pageSize
+            descriptor.fetchOffset = offset
+            let records = try modelContext.fetch(descriptor)
+            ids.formUnion(records.map(\.localIdentifier))
+            guard records.count == pageSize else { break }
+            offset += records.count
+            await Task.yield()
+        }
+
+        return ids
+    }
+
+    private func enqueuePending(
+        remote: String,
+        folder: String,
+        requestedLimit: Int,
+        includeFailedRetries: Bool
+    ) async throws -> Int {
+        guard let modelContext else { return 0 }
+        let activeCount = try activePhotoAssetCount()
+        let limit = Self.enqueueCapacity(activeCount: activeCount, requestedLimit: requestedLimit, limits: limits)
+        guard limit > 0 else { return 0 }
+
+        var pendingDescriptor = FetchDescriptor<PhotoSyncAsset>(
+            predicate: #Predicate { $0.statusRaw == "pending" },
+            sortBy: [SortDescriptor(\.creationDate, order: .forward)]
+        )
+        pendingDescriptor.fetchLimit = limit
+        var records = try modelContext.fetch(pendingDescriptor)
+
+        if includeFailedRetries && records.count < limit {
+            var failedDescriptor = FetchDescriptor<PhotoSyncAsset>(
+                predicate: #Predicate { $0.statusRaw == "failed" },
+                sortBy: [SortDescriptor(\.creationDate, order: .forward)]
+            )
+            failedDescriptor.fetchLimit = 500
+            let retryableFailures = try modelContext.fetch(failedDescriptor)
+                .filter { $0.retryCount < limits.maxRetries }
+                .prefix(limit - records.count)
+            records.append(contentsOf: retryableFailures)
+        }
+
+        guard !records.isEmpty else { return 0 }
+
+        var enqueuedCount = 0
+        for record in records {
+            try Task.checkCancellation()
+            record.status = .exporting
+            record.lastAttemptAt = .now
+            record.lastError = nil
+            try? modelContext.save()
+
+            do {
+                let localIdentifier = record.localIdentifier
+                let creationDate = record.creationDate
+                let exports = try await exportResources(forLocalIdentifier: localIdentifier)
+                var remotePaths: [String] = []
+                var bytes: Int64 = 0
+                for exported in exports {
+                    let remotePath = Self.remotePathForAsset(
+                        baseFolder: folder,
+                        localIdentifier: localIdentifier,
+                        creationDate: creationDate,
+                        filename: exported.url.lastPathComponent
+                    )
+                    try await TransferQueue.shared.enqueueUpload(
+                        local: exported.url,
+                        remote: remote,
+                        path: remotePath,
+                        sourceKind: .photoLibrary
+                    )
+                    remotePaths.append(remotePath)
+                    bytes += exported.bytes
+                }
+                record.remotePaths = remotePaths
+                record.byteCount = bytes
+                record.status = .enqueued
+                record.lastError = nil
+                try? modelContext.save()
+                enqueuedCount += 1
+            } catch {
+                record.status = .failed
+                record.retryCount += 1
+                record.lastError = error.localizedDescription
+                try? modelContext.save()
+                await LogService.shared.log(.error, category: "photos", message: "Asset \(record.localIdentifier) non enqueue : \(error.localizedDescription)")
+            }
+        }
+        return enqueuedCount
+    }
+
+    public func transferDidFinish(destinationPath: String, success: Bool, error: String?) {
+        guard let modelContext else { return }
+
+        var descriptor = FetchDescriptor<PhotoSyncAsset>(
+            predicate: #Predicate {
+                $0.statusRaw == "enqueued" || $0.statusRaw == "exporting" || $0.statusRaw == "failed"
+            },
+            sortBy: [SortDescriptor(\.lastAttemptAt, order: .reverse)]
+        )
+        descriptor.fetchLimit = 200
+        guard let records = try? modelContext.fetch(descriptor),
+              let record = records.first(where: { $0.remotePaths.contains(destinationPath) }) else {
+            return
+        }
+
+        if !success {
+            record.status = .failed
+            record.retryCount += 1
+            record.lastError = error ?? "Upload PhotoSync échoué"
+            try? modelContext.save()
+            scheduleContinuationIfNeeded()
+            return
+        }
+
+        if areAllRemotePathsUploaded(for: record, in: modelContext) {
+            record.status = .completed
+            record.completedAt = .now
+            record.lastError = nil
+            try? modelContext.save()
+            scheduleContinuationIfNeeded()
+        }
+    }
+
+    private func scheduleContinuationIfNeeded() {
+        guard shouldContinueUntilEmpty else { return }
+        continuationTask?.cancel()
+        continuationTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(250))
+            await PhotoSyncService.shared.continueFullSyncIfNeeded()
+        }
+    }
+
+    private func continueFullSyncIfNeeded() async {
+        guard shouldContinueUntilEmpty else { return }
+        guard isEnabled, configuredRemote != nil else {
+            shouldContinueUntilEmpty = false
+            return
+        }
+        guard canStartNewWork else {
+            scheduleBackgroundProcessing()
+            return
+        }
+
+        let pendingCount = (try? pendingWorkCount(includeFailedRetries: false)) ?? 0
+        let activeCount = (try? activePhotoAssetCount()) ?? 0
+        guard Self.shouldContinueSync(
+            continueUntilEmpty: shouldContinueUntilEmpty,
+            pendingCount: pendingCount,
+            activeCount: activeCount,
+            limits: limits
+        ) else {
+            if pendingCount == 0 && activeCount == 0 {
+                shouldContinueUntilEmpty = false
+            }
+            return
+        }
+
+        _ = await runSync(
+            requestedLimit: limits.enqueueBatchSize,
+            continueUntilEmpty: true,
+            includeFailedRetries: false
+        )
+    }
+
+    private func finishFullSyncIfDrained(_ summary: PhotoSyncRunSummary) {
+        if summary.pendingCount == 0 && summary.activeCount == 0 {
+            shouldContinueUntilEmpty = false
+        }
+    }
+
+    private func areAllRemotePathsUploaded(for record: PhotoSyncAsset, in modelContext: ModelContext) -> Bool {
+        let remotePaths = record.remotePaths
+        guard !remotePaths.isEmpty else { return false }
+
+        let descriptor = FetchDescriptor<Transfer>(
+            predicate: #Predicate {
+                $0.sourceKindRaw == "photoLibrary" && $0.statusRaw == "completed"
+            }
+        )
+        guard let completedTransfers = try? modelContext.fetch(descriptor) else { return false }
+        let completedPaths = Set(completedTransfers.map(\.destinationPath))
+        return remotePaths.allSatisfy { completedPaths.contains($0) }
+    }
+
+    private func pendingWorkCount(includeFailedRetries: Bool) throws -> Int {
+        guard let modelContext else { return 0 }
+        let descriptor = FetchDescriptor<PhotoSyncAsset>(
+            predicate: #Predicate { $0.statusRaw == "pending" || $0.statusRaw == "failed" }
+        )
+        let records = try modelContext.fetch(descriptor)
+        return records.filter { record in
+            record.status == .pending || (includeFailedRetries && record.retryCount < limits.maxRetries)
+        }.count
+    }
+
+    private func activePhotoAssetCount() throws -> Int {
+        guard let modelContext else { return 0 }
+        let descriptor = FetchDescriptor<PhotoSyncAsset>(
+            predicate: #Predicate { $0.statusRaw == "exporting" || $0.statusRaw == "enqueued" }
+        )
+        return try modelContext.fetchCount(descriptor)
+    }
+
+    private func statusSnapshot(
+        authorizationStatus: PHAuthorizationStatus? = nil,
+        visibleAssetCount: Int? = nil,
+        newlyIndexedCount: Int = 0,
+        enqueuedCount: Int = 0
+    ) async -> PhotoSyncRunSummary {
+        let rawStatus = authorizationStatus ?? PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        let authorization = Self.authorizationState(from: rawStatus)
+        let visibleCount: Int
+        if let visibleAssetCount {
+            visibleCount = visibleAssetCount
+        } else if authorization.isUsable {
+            visibleCount = await Self.visiblePhotoAssetCount()
+        } else {
+            visibleCount = 0
+        }
+        let counts = photoSyncCounts()
+        return PhotoSyncRunSummary(
+            authorization: authorization,
+            visibleAssetCount: visibleCount,
+            indexedCount: counts.indexed,
+            newlyIndexedCount: newlyIndexedCount,
+            enqueuedCount: enqueuedCount,
+            pendingCount: counts.pending,
+            activeCount: counts.active,
+            completedCount: counts.completed,
+            failedCount: counts.failed
+        )
+    }
+
+    private func photoSyncCounts() -> PhotoSyncCounts {
+        PhotoSyncCounts(
+            indexed: fetchPhotoSyncCount(),
+            pending: fetchPhotoSyncCount(.pending),
+            active: fetchPhotoSyncCount(.exporting) + fetchPhotoSyncCount(.enqueued),
+            completed: fetchPhotoSyncCount(.completed),
+            failed: fetchPhotoSyncCount(.failed)
+        )
+    }
+
+    private func fetchPhotoSyncCount(_ status: PhotoSyncStatus? = nil) -> Int {
+        guard let modelContext else { return 0 }
+        if let status {
+            let raw = status.rawValue
+            let descriptor = FetchDescriptor<PhotoSyncAsset>(
+                predicate: #Predicate { $0.statusRaw == raw }
+            )
+            return (try? modelContext.fetchCount(descriptor)) ?? 0
+        }
+        return (try? modelContext.fetchCount(FetchDescriptor<PhotoSyncAsset>())) ?? 0
+    }
+
+    private struct ExportedResource: Sendable {
+        let url: URL
+        let bytes: Int64
+    }
+
+    private func exportResources(forLocalIdentifier localIdentifier: String) async throws -> [ExportedResource] {
+        try await Task.detached(priority: .utility) {
+            try await Self.exportResourcesDetached(forLocalIdentifier: localIdentifier)
+        }.value
+    }
+
+    nonisolated static func scanCandidates(
+        _ candidates: [PhotoSyncCandidate],
+        excluding existingIDs: Set<String>
+    ) -> [PhotoSyncCandidate] {
+        candidates.filter { !existingIDs.contains($0.localIdentifier) }
+    }
+
+    nonisolated static func batches<T>(_ elements: [T], size: Int) -> [[T]] {
+        guard size > 0, !elements.isEmpty else { return [] }
+        return stride(from: 0, to: elements.count, by: size).map { start in
+            Array(elements[start..<min(start + size, elements.count)])
+        }
+    }
+
+    nonisolated static func enqueueCapacity(
+        activeCount: Int,
+        requestedLimit: Int,
+        limits: PhotoSyncLimits
+    ) -> Int {
+        max(0, min(requestedLimit, limits.maxActiveUploads - activeCount))
+    }
+
+    nonisolated static func shouldContinueSync(
+        continueUntilEmpty: Bool,
+        pendingCount: Int,
+        activeCount: Int,
+        limits: PhotoSyncLimits
+    ) -> Bool {
+        continueUntilEmpty && pendingCount > 0 && activeCount < limits.maxActiveUploads
+    }
+
+    nonisolated private static func scanPhotoLibrary(
+        excluding existingIDs: Set<String>
+    ) -> PhotoSyncScanResult {
+        // Read the user's album filter from UserDefaults. An empty set means
+        // "scan everything" (legacy default behavior).
+        #if os(iOS)
+        let selectedAlbumIDs = PhotoSyncAlbumStore.load()
+        #else
+        let selectedAlbumIDs = Set<String>()
+        #endif
+
+        let options = PHFetchOptions()
+        options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: true)]
+
+        // Choose between full library scan and per-album scan. For per-album
+        // we union the assets across collections, deduplicated by localIdentifier
+        // — a photo can appear in multiple albums and we don't want it staged twice.
+        let visibleCount: Int
+        var candidates: [PhotoSyncCandidate] = []
+        var seenLocalIDs = Set<String>()
+
+        if selectedAlbumIDs.isEmpty {
+            let assets = PHAsset.fetchAssets(with: options)
+            visibleCount = assets.count
+            candidates.reserveCapacity(min(visibleCount, 512))
+            assets.enumerateObjects { asset, _, stop in
+                if Task.isCancelled { stop.pointee = true; return }
+                let id = asset.localIdentifier
+                guard seenLocalIDs.insert(id).inserted else { return }
+                candidates.append(
+                    PhotoSyncCandidate(
+                        localIdentifier: id,
+                        mediaType: mediaTypeName(asset.mediaType),
+                        creationDate: asset.creationDate
+                    )
+                )
+            }
+        } else {
+            let collections = PHAssetCollection.fetchAssetCollections(
+                withLocalIdentifiers: Array(selectedAlbumIDs),
+                options: nil
+            )
+            var totalVisible = 0
+            collections.enumerateObjects { collection, _, _ in
+                let assets = PHAsset.fetchAssets(in: collection, options: options)
+                totalVisible += assets.count
+                assets.enumerateObjects { asset, _, stop in
+                    if Task.isCancelled { stop.pointee = true; return }
+                    let id = asset.localIdentifier
+                    guard seenLocalIDs.insert(id).inserted else { return }
+                    candidates.append(
+                        PhotoSyncCandidate(
+                            localIdentifier: id,
+                            mediaType: mediaTypeName(asset.mediaType),
+                            creationDate: asset.creationDate
+                        )
+                    )
+                }
+            }
+            // visibleAssetCount counts items as the user sees them in the
+            // chosen albums (with duplicates), not the deduped sync set.
+            visibleCount = totalVisible
+        }
+
+        return PhotoSyncScanResult(
+            visibleAssetCount: visibleCount,
+            candidates: scanCandidates(candidates, excluding: existingIDs)
+        )
+    }
+
+    nonisolated private static func visiblePhotoAssetCount() async -> Int {
+        await Task.detached(priority: .utility) {
+            let options = PHFetchOptions()
+            return PHAsset.fetchAssets(with: options).count
+        }.value
+    }
+
+    nonisolated private static func exportResourcesDetached(
+        forLocalIdentifier localIdentifier: String
+    ) async throws -> [ExportedResource] {
+        let result = PHAsset.fetchAssets(withLocalIdentifiers: [localIdentifier], options: nil)
+        guard let asset = result.firstObject else { throw PhotoSyncError.assetMissing }
+
+        let allResources = PHAssetResource.assetResources(for: asset)
+        let resources = preferredResources(from: allResources)
+        guard !resources.isEmpty else { throw PhotoSyncError.noExportableResource }
+
+        let stagingRoot = try stagingDirectory()
+        var exported: [ExportedResource] = []
+        for resource in resources {
+            try Task.checkCancellation()
+            let filename = safeFilename(resource.originalFilename, fallbackExtension: fallbackExtension(for: resource))
+            let target = stagingRoot
+                .appending(path: safeIdentifier(localIdentifier), directoryHint: .isDirectory)
+                .appending(path: filename)
+            try FileManager.default.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
+            if FileManager.default.fileExists(atPath: target.path) {
+                try FileManager.default.removeItem(at: target)
+            }
+
+            let options = PHAssetResourceRequestOptions()
+            options.isNetworkAccessAllowed = true
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                PHAssetResourceManager.default().writeData(for: resource, toFile: target, options: options) { error in
+                    if let error {
+                        continuation.resume(throwing: error)
+                    } else {
+                        continuation.resume()
+                    }
+                }
+            }
+            let size = Int64((try? target.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0)
+            exported.append(ExportedResource(url: target, bytes: size))
+        }
+        return exported
+    }
+
+    nonisolated private static func preferredResources(from resources: [PHAssetResource]) -> [PHAssetResource] {
+        let primary = resources.filter { resource in
+            switch resource.type {
+            case .photo, .video, .pairedVideo, .fullSizePhoto, .fullSizeVideo:
+                return true
+            default:
+                return false
+            }
+        }
+        return primary.isEmpty ? resources.prefix(1).map { $0 } : primary
+    }
+
+    nonisolated private static func remotePathForAsset(
+        baseFolder: String,
+        localIdentifier: String,
+        creationDate: Date?,
+        filename: String
+    ) -> String {
+        let date = creationDate ?? .now
+        let calendar = Calendar(identifier: .gregorian)
+        let year = calendar.component(.year, from: date)
+        let month = calendar.component(.month, from: date)
+        let stampFormatter = DateFormatter()
+        stampFormatter.calendar = calendar
+        stampFormatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
+        let stamp = stampFormatter.string(from: date)
+        let cleanID = safeIdentifier(localIdentifier)
+        let cleanFilename = safeFilename(filename, fallbackExtension: nil)
+        let prefix = baseFolder.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        return "\(prefix)/\(year)/\(String(format: "%02d", month))/\(stamp)_\(cleanID)_\(cleanFilename)"
+    }
+
+    private var canStartNewWork: Bool {
+        if ProcessInfo.processInfo.isLowPowerModeEnabled { return false }
+        guard requiresExternalPower else { return true }
+        UIDevice.current.isBatteryMonitoringEnabled = true
+        return UIDevice.current.batteryState == .charging || UIDevice.current.batteryState == .full
+    }
+
+    nonisolated private static func stagingDirectory() throws -> URL {
+        let caches = try FileManager.default.url(
+            for: .cachesDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: true
+        )
+        let root = caches.appending(path: "PhotoSyncStaging", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        return root
+    }
+
+    nonisolated private static func safeIdentifier(_ id: String) -> String {
+        id.replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: ":", with: "_")
+    }
+
+    nonisolated private static func safeFilename(_ name: String, fallbackExtension: String?) -> String {
+        let fallback = fallbackExtension.map { "asset.\($0)" } ?? "asset"
+        let base = name.isEmpty ? fallback : name
+        let forbidden = CharacterSet(charactersIn: "/:")
+        return base.components(separatedBy: forbidden).joined(separator: "_")
+    }
+
+    nonisolated private static func fallbackExtension(for resource: PHAssetResource) -> String {
+        switch resource.type {
+        case .photo, .fullSizePhoto:
+            return "heic"
+        case .video, .fullSizeVideo, .pairedVideo:
+            return "mov"
+        default:
+            return "dat"
+        }
+    }
+
+    nonisolated private static func mediaTypeName(_ mediaType: PHAssetMediaType) -> String {
+        switch mediaType {
+        case .image: return "image"
+        case .video: return "video"
+        case .audio: return "audio"
+        default: return "unknown"
+        }
+    }
+
+    nonisolated private static func authorizationState(from status: PHAuthorizationStatus) -> PhotoSyncAuthorizationState {
+        switch status {
+        case .authorized:
+            return .authorized
+        case .limited:
+            return .limited
+        case .denied:
+            return .denied
+        case .restricted:
+            return .restricted
+        case .notDetermined:
+            return .notDetermined
+        @unknown default:
+            return .unknown
+        }
+    }
+}
+
+public enum PhotoSyncError: LocalizedError {
+    case authorizationDenied
+    case assetMissing
+    case noExportableResource
+
+    public var errorDescription: String? {
+        switch self {
+        case .authorizationDenied:
+            return "Acces a la phototheque refuse ou limite sans selection exploitable."
+        case .assetMissing:
+            return "Asset PhotoKit introuvable."
+        case .noExportableResource:
+            return "Aucune ressource originale exportable."
+        }
+    }
+}
