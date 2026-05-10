@@ -186,9 +186,14 @@ enum BackendOverrides {
 
     static let oauthConfigs: [String: OAuthProviderConfig] = [
         // P0: Drive (smoke-test target).
-        // The default client_id/secret are the public ones bundled with
-        // rclone CLI. Users may override these in the wizard's advanced
-        // section. See https://rclone.org/drive/#making-your-own-client-id
+        // The default client_id/secret below are rclone's intentionally-public
+        // shared credentials, identical to the ones embedded in rclone CLI's
+        // open-source repository (cf. backend/drive/drive.go). They are NOT a
+        // secret — Google considers them a "well-known" pair tied to the
+        // shared rclone OAuth project. Power users should still override
+        // both via the wizard's advanced section to escape the global rate
+        // limit shared with every other rclone install.
+        // See https://rclone.org/drive/#making-your-own-client-id
         "drive": OAuthProviderConfig(
             backendName: "drive",
             authURL: URL(string: "https://accounts.google.com/o/oauth2/auth")!,

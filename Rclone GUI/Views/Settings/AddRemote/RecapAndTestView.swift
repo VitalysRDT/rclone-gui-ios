@@ -259,13 +259,24 @@ struct RecapAndTestView: View {
         }
 
         // If we already pre-created on a previous test attempt, drop
-        // the orphan first so config/create succeeds.
+        // the orphan first so config/create succeeds. Keep the flag
+        // set if the delete fails — handleCancel will retry on the
+        // way out so we don't permanently strand a section we own.
         if state.remoteWasPreCreated {
             struct DeleteInput: Encodable { let name: String }
             let json = (try? JSONEncoder().encode(DeleteInput(name: state.name)))
                 .flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
-            _ = try? await RcloneCore.shared.rpcRaw("config/delete", json)
-            state.remoteWasPreCreated = false
+            do {
+                _ = try await RcloneCore.shared.rpcRaw("config/delete", json)
+                state.remoteWasPreCreated = false
+            } catch {
+                // Leave remoteWasPreCreated = true so cancel still cleans up.
+                await LogService.shared.log(
+                    .error,
+                    category: "wizard",
+                    message: "Failed to delete orphan \(state.name) before retry: \(error.localizedDescription)"
+                )
+            }
         }
 
         let input = ConfigCreateInput(

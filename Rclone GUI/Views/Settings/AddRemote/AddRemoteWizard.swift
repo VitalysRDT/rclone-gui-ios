@@ -87,24 +87,28 @@ struct AddRemoteWizard: View {
 
     private func handleCancel() {
         // If we already wrote the remote to rclone.conf during the
-        // "Tester" step, undo it before dismissing so we don't leave
-        // an orphan section behind.
-        if state.remoteWasPreCreated, !state.name.isEmpty {
-            let nameSnapshot = state.name
-            Task.detached {
-                struct DeleteInput: Encodable { let name: String }
-                let payload = DeleteInput(name: nameSnapshot)
-                let json = (try? JSONEncoder().encode(payload))
-                    .flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
-                _ = try? await RcloneCore.shared.rpcRaw("config/delete", json)
-                await LogService.shared.log(
-                    .info,
-                    category: "wizard",
-                    message: "Wizard canceled — cleaned up orphan remote \(nameSnapshot)"
-                )
-            }
+        // "Tester" step, undo it before dismissing. We dismiss only
+        // AFTER the delete resolves to avoid a race where the user
+        // re-opens the wizard with the same name and the detached
+        // cleanup deletes the freshly-recreated remote.
+        guard state.remoteWasPreCreated, !state.name.isEmpty else {
+            dismiss()
+            return
         }
-        dismiss()
+        let nameSnapshot = state.name
+        Task {
+            struct DeleteInput: Encodable { let name: String }
+            let json = (try? JSONEncoder().encode(DeleteInput(name: nameSnapshot)))
+                .flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
+            _ = try? await RcloneCore.shared.rpcRaw("config/delete", json)
+            await RcloneCore.shared.invalidateConfigCache()
+            await LogService.shared.log(
+                .info,
+                category: "wizard",
+                message: "Wizard canceled — cleaned up orphan remote \(nameSnapshot)"
+            )
+            dismiss()
+        }
     }
 
     private func handleCreated() {

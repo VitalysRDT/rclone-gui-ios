@@ -64,6 +64,14 @@ public final class OAuthBrokerService: NSObject {
     public static let shared = OAuthBrokerService()
     private override init() { super.init() }
 
+    // Strong reference held while a session is in-flight. Without it, ARC
+    // can release the locally-scoped ASWebAuthenticationSession after
+    // start() returns and the callback never fires (.canceledLogin
+    // delivered silently to the continuation). This is a known iOS pitfall.
+    #if canImport(AuthenticationServices)
+    private var activeSession: ASWebAuthenticationSession?
+    #endif
+
     // MARK: - Authenticate
 
     /// Runs the full PKCE OAuth flow for `config` and returns a token
@@ -102,8 +110,10 @@ public final class OAuthBrokerService: NSObject {
     }
 
     /// Validates that a user-pasted JSON blob is a well-formed rclone
-    /// token. Used by the OAuthView "manual" mode.
-    func parseManualToken(_ raw: String) throws -> RcloneTokenJSON {
+    /// token. Used by the OAuthView "manual" mode. Marked `nonisolated`
+    /// so the JSON decode runs off the MainActor — keeps the UI smooth
+    /// even if a future revision adds heavier validation.
+    nonisolated func parseManualToken(_ raw: String) throws -> RcloneTokenJSON {
         guard let data = raw.data(using: .utf8) else {
             throw BrokerError.decodingFailed("Texte non UTF-8")
         }
@@ -154,12 +164,16 @@ public final class OAuthBrokerService: NSObject {
             throw BrokerError.strategyNotConfigured("auth_url construit invalide")
         }
 
-        // Run the ASWebAuthenticationSession.
-        let callbackURL: URL = try await withCheckedThrowingContinuation { continuation in
+        // Run the ASWebAuthenticationSession. We retain it on `self` for
+        // the duration of the await; if we kept only a local `let session`
+        // ARC could release it after `start()` returns and the callback
+        // would deliver `.canceledLogin` silently in optimized builds.
+        let callbackURL: URL = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<URL, Error>) in
             let session = ASWebAuthenticationSession(
                 url: authURL,
                 callbackURLScheme: scheme
-            ) { url, error in
+            ) { [weak self] url, error in
+                self?.activeSession = nil
                 if let url {
                     continuation.resume(returning: url)
                 } else if let error = error as? ASWebAuthenticationSessionError, error.code == .canceledLogin {
@@ -172,7 +186,9 @@ public final class OAuthBrokerService: NSObject {
             }
             session.presentationContextProvider = self
             session.prefersEphemeralWebBrowserSession = true
+            self.activeSession = session
             if !session.start() {
+                self.activeSession = nil
                 continuation.resume(throwing: BrokerError.strategyNotConfigured("Impossible de démarrer ASWebAuthenticationSession"))
             }
         }
