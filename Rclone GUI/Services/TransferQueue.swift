@@ -492,6 +492,92 @@ public final class TransferQueue {
         try? modelContext?.save()
     }
 
+    /// Retry a failed transfer by re-enqueuing an equivalent operation. The
+    /// failed Transfer record stays in the store as audit trail; a brand new
+    /// Transfer is created via the regular enqueue path. Not every kind can
+    /// be retried automatically — uploads need the original local file (often
+    /// deleted by then), and deletes don't carry the isDirectory hint.
+    public func retry(_ transfer: Transfer) async throws {
+        switch transfer.kind {
+        case .download:
+            guard let srcRemote = transfer.sourceRemote, !transfer.destinationPath.isEmpty else {
+                throw TransferQueueError.cannotRetry("Métadonnées du téléchargement incomplètes.")
+            }
+            try await enqueueDownload(
+                remote: srcRemote,
+                path: transfer.sourcePath,
+                to: URL(fileURLWithPath: transfer.destinationPath)
+            )
+
+        case .copy, .move, .sync:
+            guard let srcRemote = transfer.sourceRemote,
+                  let dstRemote = transfer.destinationRemote else {
+                throw TransferQueueError.cannotRetry("Source ou destination manquante.")
+            }
+            // Synthetic DTO — real fields are recovered server-side at copy time.
+            // The replay's Transfer record carries the canonical metadata; the
+            // synthesized entry just needs the path + name + isDirectory bits.
+            // We assume isDirectory == false for retry; for directory transfers
+            // the user can re-trigger the original action manually.
+            let synthetic = RemoteEntryDTO(
+                pathInRemote: transfer.sourcePath,
+                name: transfer.displayName ?? (transfer.sourcePath as NSString).lastPathComponent,
+                isDirectory: false,
+                size: transfer.bytesTotal,
+                modTime: .now,
+                mimeType: nil,
+                hashMD5: nil,
+                hashSHA1: nil
+            )
+            try await enqueueRemoteTransfer(
+                kind: transfer.kind,
+                srcRemote: srcRemote,
+                entry: synthetic,
+                dstRemote: dstRemote,
+                dstPath: transfer.destinationPath
+            )
+
+        case .upload:
+            throw TransferQueueError.cannotRetry(
+                "Le retry d'un upload n'est pas supporté — relancez l'upload depuis le dossier d'origine."
+            )
+
+        case .delete:
+            throw TransferQueueError.cannotRetry(
+                "Le retry d'une suppression n'est pas supporté — réessayez depuis le dossier."
+            )
+        }
+
+        // Annotate the original transfer so the UI can collapse old failures.
+        transfer.lastError = (transfer.lastError ?? "Échec") + " — retry lancé"
+        try? modelContext?.save()
+    }
+
+    /// Pause every running rclone job by lowering the global bandwidth ceiling
+    /// to 1 byte/second (rclone treats rate "0" as "unlimited"). Idempotent.
+    public func pauseAllTransfers() async throws {
+        try await TransferService.shared.pauseAllTransfers()
+        isPausedGlobally = true
+    }
+
+    /// Restore the user's preferred bandwidth ceiling and resume progress.
+    /// `bytesPerSecond == 0` means "no limit" (rate "off").
+    public func resumeAllTransfers(bytesPerSecond: Int64) async throws {
+        try await TransferService.shared.resumeAllTransfers(bytesPerSecond: bytesPerSecond)
+        isPausedGlobally = false
+    }
+
+    /// Apply the user's bandwidth setting without toggling pause state.
+    /// Called at app launch and whenever the user changes the slider in
+    /// the Performance settings.
+    public func applyBandwidthLimit(bytesPerSecond: Int64) async throws {
+        try await TransferService.shared.setBandwidthLimit(bytesPerSecond: bytesPerSecond)
+    }
+
+    /// Live state mirrored from `pauseAllTransfers` / `resumeAllTransfers`.
+    /// SwiftUI views can observe this via the @MainActor isolation.
+    public private(set) var isPausedGlobally: Bool = false
+
     // MARK: - Polling
 
     private func startPolling(_ transfer: Transfer) {
@@ -756,5 +842,18 @@ public final class TransferQueue {
             }
         }
         return total
+    }
+}
+
+public enum TransferQueueError: LocalizedError, Equatable {
+    /// The retry path can't fully reconstruct the original transfer (missing
+    /// metadata, unsupported kind). The associated message is shown to the user.
+    case cannotRetry(String)
+
+    public var errorDescription: String? {
+        switch self {
+        case .cannotRetry(let reason):
+            return "Retry impossible : \(reason)"
+        }
     }
 }

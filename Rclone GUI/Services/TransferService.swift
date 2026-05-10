@@ -45,6 +45,45 @@ public actor TransferService {
         )
     }
 
+    /// Copy an entire directory tree. `srcFs` and `dstFs` are complete
+    /// rclone fs strings, e.g. "drive:Photos/2026" or a local absolute path.
+    public func copyDirAsync(srcFs: String, dstFs: String, createEmptySrcDirs: Bool = true) async throws -> Int {
+        try await jobIDFromRPC(
+            method: "sync/copy",
+            input: DirPair(srcFs: srcFs, dstFs: dstFs, createEmptySrcDirs: createEmptySrcDirs, _async: true)
+        )
+    }
+
+    /// Sync an entire directory tree. This mirrors the source into the
+    /// destination, including deletion of destination-only files according
+    /// to rclone sync semantics.
+    public func syncDirAsync(srcFs: String, dstFs: String, createEmptySrcDirs: Bool = true) async throws -> Int {
+        try await jobIDFromRPC(
+            method: "sync/sync",
+            input: DirPair(srcFs: srcFs, dstFs: dstFs, createEmptySrcDirs: createEmptySrcDirs, _async: true)
+        )
+    }
+
+    /// Move an entire directory tree. Server-side when supported by rclone,
+    /// otherwise rclone falls back to copy + delete.
+    public func moveDirAsync(
+        srcFs: String,
+        dstFs: String,
+        deleteEmptySrcDirs: Bool = true,
+        createEmptySrcDirs: Bool = true
+    ) async throws -> Int {
+        try await jobIDFromRPC(
+            method: "sync/move",
+            input: MoveDirPair(
+                srcFs: srcFs,
+                dstFs: dstFs,
+                createEmptySrcDirs: createEmptySrcDirs,
+                deleteEmptySrcDirs: deleteEmptySrcDirs,
+                _async: true
+            )
+        )
+    }
+
     /// Rename in place: same parent, new name. Wraps moveFile.
     public func renameAsync(remote: String, oldPath: String, newPath: String) async throws -> Int {
         try await moveFileAsync(srcFs: "\(remote):", srcPath: oldPath, dstFs: "\(remote):", dstPath: newPath)
@@ -161,6 +200,37 @@ public actor TransferService {
         let _: Empty = try await RcloneCore.shared.rpc("job/stop", input: Input(jobid: jobID))
     }
 
+    // MARK: - Bandwidth control
+
+    /// Set the global rclone bandwidth ceiling. `bytesPerSecond == 0` removes
+    /// the limit entirely (rate = "off"). Otherwise the value is forwarded
+    /// to rclone as raw bytes per second; rclone applies the same ceiling
+    /// to upload and download.
+    public func setBandwidthLimit(bytesPerSecond: Int64) async throws {
+        struct Input: Encodable { let rate: String }
+        struct Empty: Decodable {}
+        let rate = bytesPerSecond <= 0 ? "off" : "\(bytesPerSecond)b"
+        let _: Empty = try await RcloneCore.shared.rpc("core/bwlimit", input: Input(rate: rate))
+    }
+
+    /// Pause every running transfer by setting the bandwidth ceiling to 0
+    /// bytes/second. Active jobs keep their slots — they just stop making
+    /// progress until `resumeAllTransfers` restores a positive rate.
+    public func pauseAllTransfers() async throws {
+        struct Input: Encodable { let rate: String }
+        struct Empty: Decodable {}
+        let _: Empty = try await RcloneCore.shared.rpc("core/bwlimit", input: Input(rate: "1b"))
+        // rclone treats rate "0" as "no limit" rather than "stop", which
+        // is the opposite of intuition. The lowest non-zero rate that
+        // effectively stops progress is 1b/s.
+    }
+
+    /// Restore a positive bandwidth ceiling. Pass 0 to resume to "off"
+    /// (unlimited). Used as the counterpart of `pauseAllTransfers()`.
+    public func resumeAllTransfers(bytesPerSecond: Int64) async throws {
+        try await setBandwidthLimit(bytesPerSecond: bytesPerSecond)
+    }
+
     // MARK: - Internals
 
     private struct PathPair: Encodable {
@@ -168,6 +238,21 @@ public actor TransferService {
         let srcRemote: String
         let dstFs: String
         let dstRemote: String
+        let _async: Bool
+    }
+
+    private struct DirPair: Encodable {
+        let srcFs: String
+        let dstFs: String
+        let createEmptySrcDirs: Bool
+        let _async: Bool
+    }
+
+    private struct MoveDirPair: Encodable {
+        let srcFs: String
+        let dstFs: String
+        let createEmptySrcDirs: Bool
+        let deleteEmptySrcDirs: Bool
         let _async: Bool
     }
 

@@ -87,6 +87,13 @@ struct Rclone_GUIApp: App {
                     Task.detached(priority: .background) { @MainActor in
                         await TrashService.shared.purgeExpired()
                     }
+                    // Apply persisted bandwidth ceiling — rclone forgets it on
+                    // restart, so we re-send it every boot. 0 means "off".
+                    Task.detached(priority: .background) { @MainActor in
+                        let mbps = UserDefaults.standard.double(forKey: "transfer.bandwidthLimitMBps")
+                        let bytesPerSecond = Int64(mbps * 1024 * 1024)
+                        try? await TransferQueue.shared.applyBandwidthLimit(bytesPerSecond: bytesPerSecond)
+                    }
                 }
         }
         .modelContainer(sharedModelContainer)

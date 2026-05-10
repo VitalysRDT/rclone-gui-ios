@@ -69,6 +69,17 @@ struct SettingsView: View {
                     }
 
                     NavigationLink {
+                        PerformanceSettingsView()
+                    } label: {
+                        SettingsNavigationRow(
+                            icon: "speedometer",
+                            title: "Performance",
+                            subtitle: "Limite de bande passante et pause globale des transferts",
+                            tint: .indigo
+                        )
+                    }
+
+                    NavigationLink {
                         PhotoSyncSettingsView()
                     } label: {
                         SettingsNavigationRow(
