@@ -49,9 +49,9 @@ struct AddRemoteWizard: View {
     private var currentStepView: some View {
         switch state.step {
         case .nameAndBackend:
-            NameAndBackendStep(state: state)
+            NameAndBackendView(state: state, onNext: { state.advance() })
         case .formFields:
-            FormFieldsStep(state: state)
+            DynamicRemoteFormView(state: state, onNext: { state.advance() })
         case .oauth:
             OAuthStep(state: state)
         case .recapAndTest:
@@ -149,24 +149,6 @@ private struct StepPlaceholder: View {
             }
         }
         .padding()
-    }
-}
-
-private struct NameAndBackendStep: View {
-    let state: WizardState
-    var body: some View {
-        StepPlaceholder(
-            title: "Étape 1 — Nom & backend",
-            state: state,
-            canProceed: false  // Sprint B implements real selection
-        )
-    }
-}
-
-private struct FormFieldsStep: View {
-    let state: WizardState
-    var body: some View {
-        StepPlaceholder(title: "Étape 2 — Formulaire", state: state)
     }
 }
 
