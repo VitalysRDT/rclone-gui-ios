@@ -51,9 +51,22 @@ extension PhotoSyncService {
 
     /// Post a "sync done" local notification if the user has enabled the
     /// feature. Safe to call after every sync run — it deduplicates by ID.
-    public func postSyncCompleteNotification(uploaded: Int, failed: Int) async {
+    ///
+    /// `abortedReason` is used when sync exited early without uploading or
+    /// failing anything (auth revoked, policy blocked, …). In that case
+    /// the count guard is bypassed so the user gets a notification instead
+    /// of silence. Pass `nil` for normal completion.
+    public func postSyncCompleteNotification(
+        uploaded: Int,
+        failed: Int,
+        abortedReason: String? = nil
+    ) async {
         guard UserDefaults.standard.bool(forKey: Self.notificationsEnabledKey) else { return }
-        guard uploaded + failed > 0 else { return }  // skip empty runs
+        // Skip empty runs only on the normal-completion path. If the run
+        // was aborted, we still want to inform the user.
+        if abortedReason == nil {
+            guard uploaded + failed > 0 else { return }
+        }
 
         let center = UNUserNotificationCenter.current()
         let settings = await center.notificationSettings()
@@ -62,17 +75,22 @@ extension PhotoSyncService {
         }
 
         let content = UNMutableNotificationContent()
-        content.title = "Synchro Photos terminée"
-        if failed == 0 {
-            content.body = uploaded == 1
-                ? "1 photo sauvegardée."
-                : "\(uploaded) photos sauvegardées."
-        } else if uploaded == 0 {
-            content.body = failed == 1
-                ? "1 échec — voir les détails dans Rclone GUI."
-                : "\(failed) échecs — voir les détails dans Rclone GUI."
+        if let reason = abortedReason {
+            content.title = "Synchro Photos interrompue"
+            content.body = reason
         } else {
-            content.body = "\(uploaded) sauvegardée(s), \(failed) échec(s)."
+            content.title = "Synchro Photos terminée"
+            if failed == 0 {
+                content.body = uploaded == 1
+                    ? "1 photo sauvegardée."
+                    : "\(uploaded) photos sauvegardées."
+            } else if uploaded == 0 {
+                content.body = failed == 1
+                    ? "1 échec — voir les détails dans Rclone GUI."
+                    : "\(failed) échecs — voir les détails dans Rclone GUI."
+            } else {
+                content.body = "\(uploaded) sauvegardée(s), \(failed) échec(s)."
+            }
         }
         content.sound = .default
 

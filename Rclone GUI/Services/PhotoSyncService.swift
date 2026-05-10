@@ -391,6 +391,17 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
             records.append(contentsOf: retryableFailures)
         }
 
+        // Privacy guard — apply the album filter to the upload queue, not just
+        // the indexer. Without this check, pending records that were indexed
+        // before the user narrowed their album selection would still be
+        // uploaded, leaking photos outside the chosen scope. See Sprint 4
+        // code review issue #1.
+        #if os(iOS)
+        if let eligibleIDs = Self.eligibleAssetIDs() {
+            records = records.filter { eligibleIDs.contains($0.localIdentifier) }
+        }
+        #endif
+
         guard !records.isEmpty else { return 0 }
 
         var enqueuedCount = 0
@@ -647,6 +658,30 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         continueUntilEmpty && pendingCount > 0 && activeCount < limits.maxActiveUploads
     }
 
+    /// Resolve the set of asset localIdentifiers eligible for sync given the
+    /// user's current album selection. Returns `nil` when no album is
+    /// selected (= scope is the whole library, no filter). Synchronous so
+    /// it can be called from both MainActor (enqueuePending) and nonisolated
+    /// (scanPhotoLibrary) contexts. Photos fetches are fast in-memory ops.
+    #if os(iOS)
+    nonisolated static func eligibleAssetIDs() -> Set<String>? {
+        let selectedAlbumIDs = PhotoSyncAlbumStore.load()
+        guard !selectedAlbumIDs.isEmpty else { return nil }
+        let collections = PHAssetCollection.fetchAssetCollections(
+            withLocalIdentifiers: Array(selectedAlbumIDs),
+            options: nil
+        )
+        var ids = Set<String>()
+        collections.enumerateObjects { collection, _, _ in
+            let assets = PHAsset.fetchAssets(in: collection, options: nil)
+            assets.enumerateObjects { asset, _, _ in
+                ids.insert(asset.localIdentifier)
+            }
+        }
+        return ids
+    }
+    #endif
+
     nonisolated private static func scanPhotoLibrary(
         excluding existingIDs: Set<String>
     ) -> PhotoSyncScanResult {
@@ -689,10 +724,8 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
                 withLocalIdentifiers: Array(selectedAlbumIDs),
                 options: nil
             )
-            var totalVisible = 0
             collections.enumerateObjects { collection, _, _ in
                 let assets = PHAsset.fetchAssets(in: collection, options: options)
-                totalVisible += assets.count
                 assets.enumerateObjects { asset, _, stop in
                     if Task.isCancelled { stop.pointee = true; return }
                     let id = asset.localIdentifier
@@ -706,9 +739,10 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
                     )
                 }
             }
-            // visibleAssetCount counts items as the user sees them in the
-            // chosen albums (with duplicates), not the deduped sync set.
-            visibleCount = totalVisible
+            // visibleAssetCount = unique assets in the selected albums, not
+            // the raw sum that double-counts photos in overlapping albums.
+            // Otherwise the UI progress bar shows nonsense like "340/200".
+            visibleCount = seenLocalIDs.count
         }
 
         return PhotoSyncScanResult(

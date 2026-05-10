@@ -238,10 +238,17 @@ struct PhotoSyncAlbumPicker: View {
 /// directly because Set<String> isn't supported, and serializing to a JSON
 /// string handles the union semantics PhotoSyncService needs to query at
 /// scan time.
+///
+/// Both methods are explicitly `nonisolated` so they can be called from the
+/// `nonisolated` PhotoSyncService.scanPhotoLibrary context without Swift 6's
+/// MainActor inheritance complaining. UserDefaults read/write is documented
+/// as thread-safe for individual accesses; a stale-read window between save
+/// and a concurrent in-flight scan is acceptable (and bounded by the next
+/// scan cycle).
 public enum PhotoSyncAlbumStore {
     public static let userDefaultsKey = "photosync.selectedAlbumIDs"
 
-    public static func load() -> Set<String> {
+    nonisolated public static func load() -> Set<String> {
         guard let data = UserDefaults.standard.data(forKey: userDefaultsKey),
               let decoded = try? JSONDecoder().decode([String].self, from: data) else {
             return []
@@ -249,7 +256,7 @@ public enum PhotoSyncAlbumStore {
         return Set(decoded)
     }
 
-    public static func save(_ ids: Set<String>) {
+    nonisolated public static func save(_ ids: Set<String>) {
         let array = Array(ids).sorted()
         if let data = try? JSONEncoder().encode(array) {
             UserDefaults.standard.set(data, forKey: userDefaultsKey)
