@@ -17,5 +17,9 @@
 	</dict>
 	<key>NSFileProviderTestingMode</key>
 	<string>Production</string>
+	<key>NSDownloadsUbiquitousContents</key>
+	<true/>
+	<key>RcloneKeychainAccessGroup</key>
+	<string>$(DEVELOPMENT_TEAM).com.rougetet.rclone-gui</string>
 </dict>
 </plist>
