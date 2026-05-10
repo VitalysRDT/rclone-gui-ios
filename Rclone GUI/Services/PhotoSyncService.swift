@@ -44,8 +44,15 @@ public struct PhotoSyncRunSummary: Sendable, Equatable {
 
 struct PhotoSyncLimits: Sendable, Equatable {
     var indexSaveBatchSize = 250
-    var enqueueBatchSize = 3
-    var maxActiveUploads = 3
+    /// How many records we enqueue per `runSync` pass. Picked so that once a
+    /// few uploads complete and free a slot in `maxActiveUploads`, the next
+    /// batch is already queued behind them — keeps the pipeline saturated
+    /// without pinning every photo in memory at once.
+    var enqueueBatchSize = 25
+    /// How many TransferQueue jobs we want active in parallel for photo sync.
+    /// rclone-bridge handles concurrent jobs fine; the cap exists mostly so
+    /// the user's manual transfers don't get crowded out.
+    var maxActiveUploads = 5
     var maxRetries = 3
 
     static let standard = PhotoSyncLimits()
@@ -87,6 +94,11 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
     private var isSyncing = false
     private var observerSyncTask: Task<Void, Never>?
     private var continuationTask: Task<Void, Never>?
+    /// Periodic safety net that re-kicks the continuation if it ever stalls
+    /// (e.g. transferDidFinish failed to match a remotePath because of a
+    /// path-normalisation drift, or the queue dropped a callback). Set up
+    /// once per attach() and torn down implicitly on app termination.
+    private var heartbeatTask: Task<Void, Never>?
 
     private override init() {
         super.init()
@@ -98,6 +110,69 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         guard self.modelContext !== modelContext else { return }
         self.modelContext = modelContext
         Task { await registerPhotoObserverIfNeeded() }
+        startHeartbeatIfNeeded()
+    }
+
+    /// Start the recovery heartbeat. The loop wakes every 30s; if there are
+    /// pending records but zero active uploads while the user expects sync to
+    /// drain, it relaunches the chain. This is a safety net for the case where
+    /// `transferDidFinish` fails to match a record (path drift, queue glitch),
+    /// which would otherwise leave the pipeline silently stuck.
+    private func startHeartbeatIfNeeded() {
+        guard heartbeatTask == nil else { return }
+        heartbeatTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(30))
+                guard let self else { return }
+                await self.heartbeatTick()
+            }
+        }
+    }
+
+    private func heartbeatTick() async {
+        guard isEnabled, configuredRemote != nil else { return }
+        guard !isSyncing else { return }
+        let pending = (try? pendingWorkCount(includeFailedRetries: false)) ?? 0
+        let active = (try? activePhotoAssetCount()) ?? 0
+        // Stuck condition: there's still work to do, nothing is currently
+        // uploading, and the user expects continuous draining. Without this
+        // kick, a missed transferDidFinish callback would freeze the pipeline.
+        guard pending > 0, active == 0 else { return }
+        await LogService.shared.log(
+            .info,
+            category: "photos",
+            message: "Heartbeat photo sync : pipeline inactif avec \(pending) en attente, relance auto."
+        )
+        shouldContinueUntilEmpty = true
+        _ = await runSync(
+            requestedLimit: limits.enqueueBatchSize,
+            continueUntilEmpty: true,
+            includeFailedRetries: true
+        )
+    }
+
+    /// Resume an interrupted full sync if one was in flight when the app
+    /// last quit. Reads the persisted `shouldContinueUntilEmpty` flag and the
+    /// pending count from SwiftData; if there's still work to do, kick off a
+    /// background `startFullSync()` so the user doesn't have to revisit
+    /// Settings to tap "Synchroniser" every time.
+    ///
+    /// Idempotent and cheap: returns immediately when sync is disabled, no
+    /// remote is configured, or no pending records remain.
+    public func resumeIfNeeded() async {
+        guard isEnabled, configuredRemote != nil else { return }
+        let pending = (try? pendingWorkCount(includeFailedRetries: true)) ?? 0
+        // Resume if either:
+        //  - the persisted continuation flag is still set (interrupted full sync)
+        //  - or we have indexed pending records and the user just wants the
+        //    backlog drained on launch.
+        guard shouldContinueUntilEmpty || pending > 0 else { return }
+        await LogService.shared.log(
+            .info,
+            category: "photos",
+            message: "Reprise auto de la synchro photos au lancement (pending=\(pending))."
+        )
+        _ = await startFullSync()
     }
 
     public nonisolated func registerBackgroundTasks() {
@@ -186,7 +261,7 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
     // MARK: - Sync
 
     @discardableResult
-    public func syncNow(limit: Int = 3) async -> PhotoSyncRunSummary {
+    public func syncNow(limit: Int = 25) async -> PhotoSyncRunSummary {
         let summary = await runSync(requestedLimit: limit, continueUntilEmpty: false, includeFailedRetries: true)
         #if os(iOS)
         await postSyncCompleteNotification(uploaded: summary.completedCount, failed: summary.failedCount)
@@ -301,8 +376,14 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
             guard PhotoSyncService.shared.isEnabled else { return }
             PhotoSyncService.shared.observerSyncTask?.cancel()
             PhotoSyncService.shared.observerSyncTask = Task { @MainActor in
+                // Debounce so a Photos burst (10 photos imported at once)
+                // doesn't kick off 10 separate full syncs racing each other.
                 try? await Task.sleep(for: .seconds(3))
-                await PhotoSyncService.shared.syncNow(limit: PhotoSyncLimits.standard.enqueueBatchSize)
+                // Use startFullSync() — not syncNow(limit:N) — so newly added
+                // photos drain to the end without the user reopening Settings.
+                // syncNow stops after one batch; startFullSync sets the
+                // continueUntilEmpty flag and chains automatically.
+                await PhotoSyncService.shared.startFullSync()
             }
         }
     }
@@ -831,10 +912,23 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
     }
 
     private var canStartNewWork: Bool {
-        if ProcessInfo.processInfo.isLowPowerModeEnabled { return false }
-        guard requiresExternalPower else { return true }
+        suspensionReason == nil
+    }
+
+    /// Why the sync is currently paused, or nil if it can run. Exposed so the
+    /// PhotoSyncSettingsView can render a clear banner instead of letting the
+    /// user wonder why nothing is happening after they tapped "Synchroniser".
+    public var suspensionReason: String? {
+        if ProcessInfo.processInfo.isLowPowerModeEnabled {
+            return "Mode économie d'énergie actif — la synchro reprendra automatiquement."
+        }
+        guard requiresExternalPower else { return nil }
         UIDevice.current.isBatteryMonitoringEnabled = true
-        return UIDevice.current.batteryState == .charging || UIDevice.current.batteryState == .full
+        let state = UIDevice.current.batteryState
+        if state == .charging || state == .full {
+            return nil
+        }
+        return "En attente du branchement secteur (option « Exiger la charge » activée)."
     }
 
     nonisolated private static func stagingDirectory() throws -> URL {

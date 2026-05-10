@@ -25,6 +25,7 @@ struct PhotoSyncSettingsView: View {
     @State private var stats = PhotoSyncStats()
     @State private var recentAssets: [PhotoSyncAsset] = []
     @State private var selectedAlbumCount = 0
+    @State private var suspensionReason: String?
 
     @AppStorage("photosync.notificationsEnabled") private var notificationsEnabled = false
 
@@ -79,6 +80,24 @@ struct PhotoSyncSettingsView: View {
                 Text("Filtres et notifications")
             } footer: {
                 Text("Sans album sélectionné, toutes les photos visibles sont sauvegardées. Une notification locale signalera la fin de chaque cycle de sync si vous l'autorisez.")
+            }
+            #endif
+
+            #if os(iOS)
+            if let suspensionReason {
+                Section {
+                    Label {
+                        Text(suspensionReason)
+                            .font(.subheadline)
+                    } icon: {
+                        Image(systemName: "pause.circle.fill")
+                            .foregroundStyle(.orange)
+                    }
+                } header: {
+                    Text("Synchro en pause")
+                } footer: {
+                    Text("Le pipeline reprend automatiquement dès que la condition est levée — vous n'avez rien à faire.")
+                }
             }
             #endif
 
@@ -171,7 +190,18 @@ struct PhotoSyncSettingsView: View {
             await reloadStats()
             #if os(iOS)
             selectedAlbumCount = PhotoSyncAlbumStore.load().count
+            suspensionReason = PhotoSyncService.shared.suspensionReason
             #endif
+            // Live refresh while the view is on screen. SwiftUI cancels the
+            // .task closure when the view disappears, so the loop tears down
+            // automatically — no manual timer management needed.
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(2))
+                await reloadStats()
+                #if os(iOS)
+                suspensionReason = PhotoSyncService.shared.suspensionReason
+                #endif
+            }
         }
         .onAppear {
             // Refresh count when returning from the album picker.

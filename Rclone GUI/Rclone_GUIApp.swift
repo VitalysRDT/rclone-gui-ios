@@ -96,6 +96,14 @@ struct Rclone_GUIApp: App {
                         let bytesPerSecond = Int64(mbps * 1024 * 1024)
                         await TransferQueue.shared.restoreFromPersistedState(bytesPerSecond: bytesPerSecond)
                     }
+                    // Resume an interrupted photo full-sync if the previous run
+                    // didn't drain the backlog. Without this, the user has to
+                    // reopen Settings and tap "Synchroniser" after every cold
+                    // start — exactly the symptom of "il faut tout le temps
+                    // appuyer sur synchronisation".
+                    Task.detached(priority: .background) { @MainActor in
+                        await PhotoSyncService.shared.resumeIfNeeded()
+                    }
                 }
         }
         .modelContainer(sharedModelContainer)
