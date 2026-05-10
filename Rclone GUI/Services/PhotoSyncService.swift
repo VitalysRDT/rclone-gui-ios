@@ -113,16 +113,18 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         startHeartbeatIfNeeded()
     }
 
-    /// Start the recovery heartbeat. The loop wakes every 30s; if there are
-    /// pending records but zero active uploads while the user expects sync to
-    /// drain, it relaunches the chain. This is a safety net for the case where
-    /// `transferDidFinish` fails to match a record (path drift, queue glitch),
-    /// which would otherwise leave the pipeline silently stuck.
+    /// Start the recovery heartbeat. The loop wakes every 15s; if there are
+    /// pending records, it reconciles orphans and relaunches the chain. This
+    /// is the safety net for the case where `transferDidFinish` fails to match
+    /// a record (path drift, queue glitch, app cold-start dropping poll tasks),
+    /// which would otherwise leave the pipeline silently stuck — the exact
+    /// symptom of "ça ne rajoute pas ceux en attente si je ne vais pas dans
+    /// réglage".
     private func startHeartbeatIfNeeded() {
         guard heartbeatTask == nil else { return }
         heartbeatTask = Task { @MainActor [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(30))
+                try? await Task.sleep(for: .seconds(15))
                 guard let self else { return }
                 await self.heartbeatTick()
             }
@@ -132,16 +134,31 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
     private func heartbeatTick() async {
         guard isEnabled, configuredRemote != nil else { return }
         guard !isSyncing else { return }
-        let pending = (try? pendingWorkCount(includeFailedRetries: false)) ?? 0
-        let active = (try? activePhotoAssetCount()) ?? 0
-        // Stuck condition: there's still work to do, nothing is currently
-        // uploading, and the user expects continuous draining. Without this
-        // kick, a missed transferDidFinish callback would freeze the pipeline.
-        guard pending > 0, active == 0 else { return }
+
+        // First, recycle any asset whose Transfer counterpart is terminal or
+        // missing — these would otherwise inflate `active` and block the
+        // pipeline forever (the previous design's silent failure mode).
+        let recycled = reconcileOrphanedAssets()
+        if recycled > 0 {
+            await LogService.shared.log(
+                .info,
+                category: "photos",
+                message: "Heartbeat : \(recycled) asset(s) orphelin(s) repris."
+            )
+        }
+
+        let pending = (try? pendingWorkCount(includeFailedRetries: true)) ?? 0
+        // We deliberately don't gate on active==0. Even with N records still
+        // genuinely active, if there's pending work and we're under the active
+        // ceiling, we should be enqueuing more — the runSync internal cap does
+        // the right thing. The previous gate was the bug that made the user
+        // see "ne rajoute pas ceux en attente".
+        guard pending > 0 else { return }
+
         await LogService.shared.log(
             .info,
             category: "photos",
-            message: "Heartbeat photo sync : pipeline inactif avec \(pending) en attente, relance auto."
+            message: "Heartbeat photo sync : \(pending) en attente, relance auto."
         )
         shouldContinueUntilEmpty = true
         _ = await runSync(
@@ -161,11 +178,20 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
     /// remote is configured, or no pending records remain.
     public func resumeIfNeeded() async {
         guard isEnabled, configuredRemote != nil else { return }
+        // Critical: reconcile before counting. Records that were `.enqueued`
+        // when the app quit are orphaned at launch — TransferQueue.pollLoop
+        // doesn't survive a relaunch, so transferDidFinish was never called.
+        // Without this remap, the orphan records would inflate `active` count
+        // and prevent the heartbeat from re-kicking the pipeline forever.
+        let recovered = reconcileOrphanedAssets()
+        if recovered > 0 {
+            await LogService.shared.log(
+                .info,
+                category: "photos",
+                message: "Reconciliation au lancement : \(recovered) asset(s) orphelin(s) remis en file."
+            )
+        }
         let pending = (try? pendingWorkCount(includeFailedRetries: true)) ?? 0
-        // Resume if either:
-        //  - the persisted continuation flag is still set (interrupted full sync)
-        //  - or we have indexed pending records and the user just wants the
-        //    backlog drained on launch.
         guard shouldContinueUntilEmpty || pending > 0 else { return }
         await LogService.shared.log(
             .info,
@@ -173,6 +199,94 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
             message: "Reprise auto de la synchro photos au lancement (pending=\(pending))."
         )
         _ = await startFullSync()
+    }
+
+    /// Walk every `PhotoSyncAsset` whose status is `.enqueued` or `.exporting`
+    /// and reconcile it with the matching `Transfer` record:
+    ///
+    ///  - Transfer is `.completed` → mark the asset `.completed` (the missed
+    ///    callback we never got to deliver)
+    ///  - Transfer is `.failed` → mark `.failed` + bump retryCount
+    ///  - No Transfer found, or it's older than `staleAfter` and not `.running`
+    ///    → reset asset to `.pending` so the next runSync picks it up
+    ///  - Transfer is genuinely still `.running` with a recent attempt → leave it
+    ///
+    /// Returns the number of records that were moved back to `.pending`. The
+    /// caller uses this as a signal that the pipeline can resume.
+    @discardableResult
+    private func reconcileOrphanedAssets() -> Int {
+        guard let modelContext else { return 0 }
+
+        // Anything still claiming to be active. We keep the fetchLimit high
+        // because at relaunch every previously-active asset shows up here,
+        // not just maxActiveUploads worth.
+        let activeDescriptor = FetchDescriptor<PhotoSyncAsset>(
+            predicate: #Predicate { $0.statusRaw == "enqueued" || $0.statusRaw == "exporting" }
+        )
+        guard let activeAssets = try? modelContext.fetch(activeDescriptor),
+              !activeAssets.isEmpty else { return 0 }
+
+        // Pull every photoLibrary Transfer; we'll filter in memory because
+        // SwiftData #Predicate can't express "destinationPath in [String]".
+        let transferDescriptor = FetchDescriptor<Transfer>(
+            predicate: #Predicate { $0.sourceKindRaw == "photoLibrary" }
+        )
+        let allTransfers = (try? modelContext.fetch(transferDescriptor)) ?? []
+        let transfersByPath: [String: Transfer] = Dictionary(
+            allTransfers.map { ($0.destinationPath, $0) },
+            uniquingKeysWith: { latest, _ in latest }
+        )
+
+        let staleAfter: TimeInterval = 3 * 60  // 3 minutes
+        let now = Date()
+        var resetCount = 0
+
+        for asset in activeAssets {
+            // No remote paths recorded yet (asset was claimed by enqueuePending
+            // but the upload call threw before append) → safe to reset.
+            guard !asset.remotePaths.isEmpty else {
+                asset.status = .pending
+                resetCount += 1
+                continue
+            }
+
+            // For multi-resource assets (paired video + photo), all transfers
+            // must be terminal for us to call the asset finished.
+            let transfers = asset.remotePaths.compactMap { transfersByPath[$0] }
+
+            // No matching Transfer found at all (purged, never enqueued) → recycle.
+            if transfers.count != asset.remotePaths.count {
+                asset.status = .pending
+                asset.lastError = "Transfer correspondant introuvable, remis en file."
+                resetCount += 1
+                continue
+            }
+
+            let allCompleted = transfers.allSatisfy { $0.status == .completed }
+            let anyFailed = transfers.contains { $0.status == .failed }
+            let allTerminal = transfers.allSatisfy { $0.status == .completed || $0.status == .failed }
+            let staleAttempt = (now.timeIntervalSince(asset.lastAttemptAt ?? .distantPast)) > staleAfter
+
+            if allCompleted {
+                asset.status = .completed
+                asset.completedAt = .now
+                asset.lastError = nil
+            } else if anyFailed && allTerminal {
+                asset.status = .failed
+                asset.retryCount += 1
+                asset.lastError = transfers.first { $0.status == .failed }?.lastError
+                    ?? "Upload PhotoSync échoué"
+            } else if staleAttempt {
+                // Some transfers still .running but the last attempt is old —
+                // most likely an orphan (poll task dropped at app relaunch).
+                // Reset to .pending so the next pass re-enqueues fresh.
+                asset.status = .pending
+                asset.lastError = "Pipeline interrompu, repris automatiquement."
+                resetCount += 1
+            }
+        }
+        try? modelContext.save()
+        return resetCount
     }
 
     public nonisolated func registerBackgroundTasks() {
