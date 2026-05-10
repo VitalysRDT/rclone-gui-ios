@@ -20,13 +20,22 @@ import UIKit
 struct MediaPlayerView: UIViewControllerRepresentable {
     let url: URL
     let title: String?
+    /// Taille du média en octets — sert à décider si PiP/full-screen valent
+    /// le coût d'init (skip pour les très petits clips).
+    var sizeHint: Int64 = 0
 
     func makeUIViewController(context: Context) -> AVPlayerViewController {
         let player = AVPlayer(url: url)
+        // Preroll buffer 2s : limite le stalling initial sans dégrader le TTFP.
+        player.automaticallyWaitsToMinimizeStalling = true
         let controller = AVPlayerViewController()
         controller.player = player
-        controller.allowsPictureInPicturePlayback = true
-        controller.canStartPictureInPictureAutomaticallyFromInline = true
+
+        // Feature-gate PiP : init est coûteuse (~50-100ms) et inutile pour
+        // les petits clips audio/vidéo. Activé pour ≥ ~5MB ou taille inconnue.
+        let isPiPEligible = sizeHint == 0 || sizeHint >= 5_000_000
+        controller.allowsPictureInPicturePlayback = isPiPEligible
+        controller.canStartPictureInPictureAutomaticallyFromInline = isPiPEligible
         controller.entersFullScreenWhenPlaybackBegins = true
         controller.exitsFullScreenWhenPlaybackEnds = false
         controller.modalPresentationStyle = .fullScreen
@@ -39,6 +48,8 @@ struct MediaPlayerView: UIViewControllerRepresentable {
             player.currentItem?.externalMetadata = [item]
         }
 
+        // Preroll 2s pour limiter les stalls initiaux.
+        player.currentItem?.preferredForwardBufferDuration = 2.0
         // Auto-play
         player.play()
         return controller
@@ -47,7 +58,12 @@ struct MediaPlayerView: UIViewControllerRepresentable {
     func updateUIViewController(_ uiViewController: AVPlayerViewController, context: Context) {}
 
     static func dismantleUIViewController(_ uiViewController: AVPlayerViewController, coordinator: ()) {
-        uiViewController.player?.pause()
+        // Cleanup explicite : libère decodage HW, buffers HTTP, et casse les
+        // observers KVO internes avant que le controller ne soit dealloc.
+        if let player = uiViewController.player {
+            player.pause()
+            player.replaceCurrentItem(with: nil)
+        }
         uiViewController.player = nil
     }
 }
@@ -68,7 +84,7 @@ struct MediaPlayerHost: View {
     let remote: String
     let entry: RemoteEntryDTO
 
-    @State private var localURL: URL?
+    @State private var session: StreamingSession?
     @State private var preparing = true
     @State private var error: String?
     @Environment(\.dismiss) private var dismiss
@@ -78,15 +94,15 @@ struct MediaPlayerHost: View {
             if preparing {
                 VStack(spacing: 12) {
                     ProgressView().controlSize(.large)
-                    Text("Téléchargement pour lecture…")
+                    Text("Préparation de la lecture…")
                         .foregroundStyle(.secondary)
                     if let sizeText = entrySizeText {
                         Text(sizeText).font(.caption).foregroundStyle(.tertiary)
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if let url = localURL {
-                MediaPlayerView(url: url, title: entry.name)
+            } else if let session {
+                MediaPlayerView(url: session.url, title: entry.name, sizeHint: entry.size)
                     .ignoresSafeArea()
             } else if let error {
                 VStack(spacing: 12) {
@@ -103,6 +119,11 @@ struct MediaPlayerHost: View {
             }
         }
         .task { await prepare() }
+        .onDisappear {
+            if let session {
+                Task { await RcloneStreamingService.shared.stop(session) }
+            }
+        }
     }
 
     private var entrySizeText: String? {
@@ -113,13 +134,12 @@ struct MediaPlayerHost: View {
     private func prepare() async {
         preparing = true
         do {
-            let url = try await MediaCacheService.shared.localPlayableURL(
+            let session = try await RcloneStreamingService.shared.session(
                 remote: remote,
                 path: entry.pathInRemote,
-                sizeHint: entry.size,
-                policy: .reuseIfCached
+                sizeHint: entry.size
             )
-            localURL = url
+            self.session = session
         } catch {
             self.error = error.localizedDescription
         }

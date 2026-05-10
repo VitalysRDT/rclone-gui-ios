@@ -195,8 +195,11 @@ struct PhotoSyncSettingsView: View {
             // Live refresh while the view is on screen. SwiftUI cancels the
             // .task closure when the view disappears, so the loop tears down
             // automatically — no manual timer management needed.
+            // Interval relâché à 4s (vs 2s) : suffisant pour l'œil humain,
+            // divise par 2 le coût SwiftData fetch et la conso batterie quand
+            // l'écran reste affiché en arrière-plan.
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(2))
+                try? await Task.sleep(for: .seconds(4))
                 await reloadStats()
                 #if os(iOS)
                 suspensionReason = PhotoSyncService.shared.suspensionReason
@@ -205,6 +208,8 @@ struct PhotoSyncSettingsView: View {
         }
         .onAppear {
             // Refresh count when returning from the album picker.
+            // Reste séparé du .task pour capter le retour depuis NavigationLink
+            // (l'album picker pop ne re-déclenche pas le .task).
             #if os(iOS)
             selectedAlbumCount = PhotoSyncAlbumStore.load().count
             #endif

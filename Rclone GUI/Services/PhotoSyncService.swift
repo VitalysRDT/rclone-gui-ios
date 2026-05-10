@@ -226,15 +226,28 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         guard let activeAssets = try? modelContext.fetch(activeDescriptor),
               !activeAssets.isEmpty else { return 0 }
 
-        // Pull every photoLibrary Transfer; we'll filter in memory because
-        // SwiftData #Predicate can't express "destinationPath in [String]".
-        let transferDescriptor = FetchDescriptor<Transfer>(
-            predicate: #Predicate { $0.sourceKindRaw == "photoLibrary" }
+        // Pull only photoLibrary Transfers in matching statuses; we filter
+        // in memory because SwiftData #Predicate can't express
+        // "destinationPath in [String]". On exclut .pending et .paused qui
+        // ne matchent jamais le destinationPath d'un asset enqueued/exporting,
+        // et on cape à 5000 pour éviter les scans pathologiques après des
+        // semaines d'usage. Sort par startedAt desc pour que les plus récents
+        // gagnent la collision sur destinationPath en cas de retry.
+        var transferDescriptor = FetchDescriptor<Transfer>(
+            predicate: #Predicate {
+                $0.sourceKindRaw == "photoLibrary"
+                && ($0.statusRaw == "running"
+                    || $0.statusRaw == "completed"
+                    || $0.statusRaw == "failed")
+            },
+            sortBy: [SortDescriptor(\.startedAt, order: .reverse)]
         )
+        transferDescriptor.fetchLimit = 5000
         let allTransfers = (try? modelContext.fetch(transferDescriptor)) ?? []
+        // Premier wins (sort desc → le plus récent), pas le dernier.
         let transfersByPath: [String: Transfer] = Dictionary(
             allTransfers.map { ($0.destinationPath, $0) },
-            uniquingKeysWith: { latest, _ in latest }
+            uniquingKeysWith: { first, _ in first }
         )
 
         let staleAfter: TimeInterval = 3 * 60  // 3 minutes

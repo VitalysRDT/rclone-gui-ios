@@ -18,6 +18,17 @@ public actor RcloneCore {
     private let engine: any RcloneEngine
     private var initialized = false
 
+    // Singletons réutilisés pour tous les RPC : évite ~200-500µs d'allocation
+    // par appel sous polling intensif (TransferQueue, FileProvider, MediaCache).
+    private static let sharedEncoder = JSONEncoder()
+    private static let sharedDecoder = JSONDecoder()
+
+    // Cache court pour les RPC stables côté config (listremotes, dump).
+    // Invalidé via invalidateConfigCache() à chaque modification de config.
+    private var cachedRemoteNames: (value: [String], expires: Date)?
+    private var cachedConfigDump: (value: [String: [String: String]], expires: Date)?
+    private static let configCacheTTL: TimeInterval = 30
+
     /// Empty payload used by rc methods that accept no input.
     /// Defined at the actor level (not nested in a generic function,
     /// which Swift forbids).
@@ -46,12 +57,12 @@ public actor RcloneCore {
     /// Send an RPC with `Codable` input/output.
     public func rpc<I: Encodable, O: Decodable>(_ method: String, input: I) async throws -> O {
         try await ensureInit()
-        let inputData = try JSONEncoder().encode(input)
+        let inputData = try Self.sharedEncoder.encode(input)
         let inputJSON = String(decoding: inputData, as: UTF8.self)
         let outputJSON = try await engine.rpcRaw(method: method, inputJSON: inputJSON)
         let outputData = Data(outputJSON.utf8)
         do {
-            return try JSONDecoder().decode(O.self, from: outputData)
+            return try Self.sharedDecoder.decode(O.self, from: outputData)
         } catch {
             throw RcloneError.invalidJSON(method: method, raw: outputJSON, underlying: error)
         }
@@ -71,11 +82,33 @@ public actor RcloneCore {
         return resp.version
     }
 
-    /// `config/listremotes` → array of remote names.
+    /// `config/listremotes` → array of remote names. Cache 30s pour éviter
+    /// les rafales lors des navigations Settings ↔ Remote ↔ Folder.
     public func listRemoteNames() async throws -> [String] {
+        if let cached = cachedRemoteNames, cached.expires > Date() {
+            return cached.value
+        }
         struct Response: Decodable { let remotes: [String] }
         let resp: Response = try await rpc("config/listremotes")
+        cachedRemoteNames = (resp.remotes, Date().addingTimeInterval(Self.configCacheTTL))
         return resp.remotes
+    }
+
+    /// Renvoie le `config/dump` complet (cache 30s, partagé avec les services).
+    public func configDump() async throws -> [String: [String: String]] {
+        if let cached = cachedConfigDump, cached.expires > Date() {
+            return cached.value
+        }
+        let resp: [String: [String: String]] = try await rpc("config/dump")
+        cachedConfigDump = (resp, Date().addingTimeInterval(Self.configCacheTTL))
+        return resp
+    }
+
+    /// À appeler après création/édition/suppression de remote pour invalider
+    /// les caches sans attendre l'expiration TTL.
+    public func invalidateConfigCache() {
+        cachedRemoteNames = nil
+        cachedConfigDump = nil
     }
 
     // MARK: - Init
@@ -110,7 +143,7 @@ public actor RcloneCore {
         // Initialize() only installs the storage handler; the file isn't
         // read until first config access, so setpath here is in time.
         struct SetPathInput: Encodable { let path: String }
-        let payloadData = try JSONEncoder().encode(SetPathInput(path: confPath))
+        let payloadData = try Self.sharedEncoder.encode(SetPathInput(path: confPath))
         let pathPayload = String(decoding: payloadData, as: UTF8.self)
         _ = try await engine.rpcRaw(method: "config/setpath", inputJSON: pathPayload)
         initialized = true

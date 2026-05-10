@@ -22,9 +22,15 @@ public struct LogEntry: Sendable, Codable, Identifiable, Hashable {
     public let category: String
     public let message: String
 
-    public nonisolated init(level: LogLevel, category: String, message: String) {
-        self.id = UUID()
-        self.timestamp = .now
+    public nonisolated init(
+        id: UUID = UUID(),
+        timestamp: Date = .now,
+        level: LogLevel,
+        category: String,
+        message: String
+    ) {
+        self.id = id
+        self.timestamp = timestamp
         self.level = level
         self.category = category
         self.message = message
@@ -34,8 +40,13 @@ public struct LogEntry: Sendable, Codable, Identifiable, Hashable {
 public actor LogService {
     public static let shared = LogService()
 
-    private let maxEntries = 5000
+    // Cap réduit à 1000 (vs 5000 historique) : suffit pour debug live,
+    // divise par 5 l'empreinte mémoire en condition d'usage normal.
+    // L'export reste possible via exportAsFile() pour garder l'historique.
+    private let maxEntries = 1000
     private var ring: [LogEntry] = []
+    // Pré-allocation pour éviter les reallocs successives lors des bursts.
+    private var didReserveCapacity = false
 
     private init() {}
 
@@ -74,10 +85,17 @@ public actor LogService {
     }
 
     public func log(_ level: LogLevel, category: String, message: String) {
+        if !didReserveCapacity {
+            ring.reserveCapacity(maxEntries)
+            didReserveCapacity = true
+        }
         let entry = LogEntry(level: level, category: category, message: message)
         ring.append(entry)
         if ring.count > maxEntries {
-            ring.removeFirst(ring.count - maxEntries)
+            // Trim par batch de 100 pour éviter une realloc à chaque insertion
+            // une fois la capacité atteinte.
+            let overflow = ring.count - maxEntries
+            ring.removeFirst(max(overflow, 100))
         }
     }
 

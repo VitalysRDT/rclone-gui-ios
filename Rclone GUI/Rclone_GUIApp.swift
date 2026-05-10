@@ -104,6 +104,14 @@ struct Rclone_GUIApp: App {
                     Task.detached(priority: .background) { @MainActor in
                         await PhotoSyncService.shared.resumeIfNeeded()
                     }
+                    // Hygiène cache média : supprime les .partial-* > 24h
+                    // et applique la limite LRU (5GB par défaut). Sans ça,
+                    // un utilisateur qui regarde 100 films cumule des Go
+                    // de cache orphelin jusqu'à saturer le device.
+                    Task.detached(priority: .background) {
+                        try? await MediaCacheService.shared.cleanupStalePartials()
+                        try? await MediaCacheService.shared.evictIfNeeded(reservingBytes: 0)
+                    }
                 }
         }
         .modelContainer(sharedModelContainer)

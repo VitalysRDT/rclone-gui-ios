@@ -40,6 +40,12 @@ public struct RemoteSpaceDTO: Sendable, Hashable {
     public let trashed: Int64?
 }
 
+public struct RemoteSizeDTO: Sendable, Hashable {
+    public let count: Int64
+    public let bytes: Int64
+    public let sizeless: Int64
+}
+
 // MARK: - Service
 
 public actor RemoteService {
@@ -55,14 +61,13 @@ public actor RemoteService {
     }
 
     /// Names + types of all remotes (`config/dump` then filtered).
+    /// Utilise le cache 30s côté RcloneCore pour éviter les rafales lors
+    /// des navigations fréquentes Settings ↔ RemotesList ↔ Folder.
     public func listRemoteSummaries() async throws -> [RemoteSummaryDTO] {
-        struct DumpEntry: Decodable {
-            let type: String
-        }
         let names = try await listRemoteNames()
-        let dump: [String: DumpEntry] = (try? await RcloneCore.shared.rpc("config/dump")) ?? [:]
+        let dump = (try? await RcloneCore.shared.configDump()) ?? [:]
         return names.map { name in
-            let type = dump[name]?.type ?? "unknown"
+            let type = dump[name]?["type"] ?? "unknown"
             return RemoteSummaryDTO(
                 name: name,
                 type: type,
@@ -127,6 +132,75 @@ public actor RemoteService {
                 hashSHA1: raw.hashes?["sha1"]
             )
         }
+    }
+
+    public func stat(remote: String, path: String) async throws -> RemoteEntryDTO? {
+        struct Input: Encodable {
+            let fs: String
+            let remote: String
+            let opt: ListOptions
+        }
+        struct ListOptions: Encodable {
+            let recurse: Bool
+            let noModTime: Bool
+            let showHash: Bool
+        }
+        struct Output: Decodable {
+            let item: RawItem?
+        }
+        struct RawItem: Decodable {
+            let path: String
+            let name: String
+            let size: Int64
+            let mimeType: String?
+            let modTime: String?
+            let isDir: Bool
+            let hashes: [String: String]?
+
+            enum CodingKeys: String, CodingKey {
+                case path = "Path"
+                case name = "Name"
+                case size = "Size"
+                case mimeType = "MimeType"
+                case modTime = "ModTime"
+                case isDir = "IsDir"
+                case hashes = "Hashes"
+            }
+        }
+
+        let output: Output = try await RcloneCore.shared.rpc(
+            "operations/stat",
+            input: Input(
+                fs: "\(remote):",
+                remote: path,
+                opt: ListOptions(recurse: false, noModTime: false, showHash: true)
+            )
+        )
+        guard let raw = output.item else { return nil }
+        return RemoteEntryDTO(
+            pathInRemote: raw.path,
+            name: raw.name.isEmpty ? (path as NSString).lastPathComponent : raw.name,
+            isDirectory: raw.isDir,
+            size: max(raw.size, 0),
+            modTime: Self.parseRcloneTime(raw.modTime),
+            mimeType: raw.mimeType,
+            hashMD5: raw.hashes?["md5"],
+            hashSHA1: raw.hashes?["sha1"]
+        )
+    }
+
+    public func size(remote: String, path: String) async throws -> RemoteSizeDTO {
+        struct Input: Encodable {
+            let fs: String
+        }
+        struct Output: Decodable {
+            let count: Int64
+            let bytes: Int64
+            let sizeless: Int64?
+        }
+        let fs = path.isEmpty ? "\(remote):" : "\(remote):\(path)"
+        let output: Output = try await RcloneCore.shared.rpc("operations/size", input: Input(fs: fs))
+        return RemoteSizeDTO(count: output.count, bytes: output.bytes, sizeless: output.sizeless ?? 0)
     }
 
     // MARK: Remote space

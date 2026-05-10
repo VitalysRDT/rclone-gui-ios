@@ -743,17 +743,26 @@ public final class TransferQueue {
         guard let stats = try? await TransferService.shared.coreStats() else { return }
 
         // core/stats reports per-file under `transferring`, keyed by the destination basename.
-        // We do best-effort matching.
+        // We do best-effort matching. Dirty flag : on évite save() si rien
+        // n'a changé (épargne ~10ms × 75/min = 750ms CPU/min en idle).
+        var didMutate = false
         for transfer in running {
             if let match = stats.transferring.first(where: { statMatchesTransfer($0, transfer: transfer) })
                 ?? uniqueSizeFallback(stats: stats, running: running, transfer: transfer)
                 ?? singleTransferFallback(stats: stats, running: running) {
-                transfer.bytesTransferred = match.bytesTransferred
-                transfer.bytesTotal = max(match.bytesTotal, transfer.bytesTotal)
+                let newBytes = match.bytesTransferred
+                let newTotal = max(match.bytesTotal, transfer.bytesTotal)
+                if transfer.bytesTransferred != newBytes || transfer.bytesTotal != newTotal {
+                    transfer.bytesTransferred = newBytes
+                    transfer.bytesTotal = newTotal
+                    didMutate = true
+                }
             }
         }
-        updateRunningBatches()
-        try? modelContext.save()
+        let batchesChanged = updateRunningBatches()
+        if didMutate || batchesChanged {
+            try? modelContext.save()
+        }
     }
 
     private func statMatchesTransfer(_ stat: CoreStatsDTO.Transferring, transfer: Transfer) -> Bool {
@@ -831,21 +840,31 @@ public final class TransferQueue {
         try? modelContext?.save()
     }
 
-    private func updateRunningBatches() {
-        guard let modelContext else { return }
+    /// Renvoie `true` si au moins un champ d'un batch a été modifié, pour
+    /// que tickStats puisse skip le save() quand rien n'a bougé.
+    @discardableResult
+    private func updateRunningBatches() -> Bool {
+        guard let modelContext else { return false }
         let descriptor = FetchDescriptor<TransferBatch>(
             predicate: #Predicate { $0.statusRaw == "running" }
         )
-        guard let batches = try? modelContext.fetch(descriptor), !batches.isEmpty else { return }
+        guard let batches = try? modelContext.fetch(descriptor), !batches.isEmpty else { return false }
+        var didMutate = false
         for batch in batches {
             let id = batch.id
             let transferDescriptor = FetchDescriptor<Transfer>(
                 predicate: #Predicate { $0.batchID == id }
             )
             guard let transfers = try? modelContext.fetch(transferDescriptor) else { continue }
-            batch.bytesTotal = transfers.reduce(0) { $0 + $1.bytesTotal }
-            batch.bytesTransferred = transfers.reduce(0) { $0 + $1.bytesTransferred }
+            let total = transfers.reduce(Int64(0)) { $0 + $1.bytesTotal }
+            let transferred = transfers.reduce(Int64(0)) { $0 + $1.bytesTransferred }
+            if batch.bytesTotal != total || batch.bytesTransferred != transferred {
+                batch.bytesTotal = total
+                batch.bytesTransferred = transferred
+                didMutate = true
+            }
         }
+        return didMutate
     }
 
     private func fetchBatch(id: String) -> TransferBatch? {

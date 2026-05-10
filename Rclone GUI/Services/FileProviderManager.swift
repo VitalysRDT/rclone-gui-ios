@@ -26,6 +26,14 @@ public final class FileProviderManager {
     public static let domainIdentifier = NSFileProviderDomainIdentifier("com.rougetet.rclone-gui.main")
     public static let domainDisplayName = "Rclone GUI"
 
+    // Coalescing des signalEnumerator : iOS Files.app recharge à chaque
+    // signal, donc 100 manifests écrits en rafale = 100 reloads inutiles.
+    // On collecte les identifiers et on flush en un seul batch après 500ms
+    // d'inactivité.
+    private var pendingSignals: Set<String> = []
+    private var signalFlushTask: Task<Void, Never>?
+    private static let signalDebounce: Duration = .milliseconds(500)
+
     /// Register the single FileProvider domain. No-op if the extension
     /// target is not built or not provisioned.
     public func registerDomain() async {
@@ -155,16 +163,44 @@ public final class FileProviderManager {
     }
 
     /// Signal that the cached enumeration for `<remote>:<path>` is stale.
+    /// Debounced 500ms : empêche un burst de manifest writes (100 dossiers
+    /// énumérés à la suite) de provoquer 100 reloads dans Files.app.
     public func signalRefresh(remote: String, path: String = "") {
+        let key = remote.isEmpty && path.isEmpty
+            ? "__ROOT__"
+            : "\(remote):\(path)"
+        pendingSignals.insert(key)
+        signalFlushTask?.cancel()
+        signalFlushTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: Self.signalDebounce)
+            guard !Task.isCancelled, let self else { return }
+            self.flushPendingSignals()
+        }
+    }
+
+    /// Flush immédiat : utilisé par les chemins critiques (resetDomain) qui
+    /// ne peuvent pas attendre les 500ms du debounce.
+    public func flushSignalsNow() {
+        signalFlushTask?.cancel()
+        signalFlushTask = nil
+        flushPendingSignals()
+    }
+
+    private func flushPendingSignals() {
         #if canImport(FileProvider)
+        let signals = pendingSignals
+        pendingSignals.removeAll(keepingCapacity: true)
+        guard !signals.isEmpty else { return }
         let manager = NSFileProviderManager(for: NSFileProviderDomain(
             identifier: Self.domainIdentifier,
             displayName: Self.domainDisplayName
         ))
-        let identifier: NSFileProviderItemIdentifier = remote.isEmpty && path.isEmpty
-            ? .rootContainer
-            : NSFileProviderItemIdentifier("\(remote):\(path)")
-        manager?.signalEnumerator(for: identifier) { _ in }
+        for key in signals {
+            let identifier: NSFileProviderItemIdentifier = key == "__ROOT__"
+                ? .rootContainer
+                : NSFileProviderItemIdentifier(key)
+            manager?.signalEnumerator(for: identifier) { _ in }
+        }
         #endif
     }
 

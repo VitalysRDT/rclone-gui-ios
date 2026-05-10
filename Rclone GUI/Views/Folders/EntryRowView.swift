@@ -12,25 +12,44 @@ struct EntryRowView: View {
     let entry: RemoteEntryDTO
     var activeTransfer: Transfer? = nil
 
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: iconName)
-                .font(.title3)
-                .foregroundStyle(iconColor)
-                .frame(width: 28, height: 28)
+    // Formatters partagés : évitent ~200 allocations inutiles par re-render
+    // d'une liste de 100 fichiers (RelativeDateTimeFormatter + DateFormatter
+    // étaient créés par row).
+    private static let relativeFormatter: RelativeDateTimeFormatter = {
+        let f = RelativeDateTimeFormatter()
+        f.unitsStyle = .short
+        f.dateTimeStyle = .named
+        return f
+    }()
+    private static let absoluteFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateStyle = .medium
+        f.timeStyle = .none
+        return f
+    }()
 
-            VStack(alignment: .leading, spacing: 2) {
+    var body: some View {
+        HStack(spacing: 14) {
+            AppIconTile(systemImage: iconName, tint: iconColor, size: 44)
+
+            VStack(alignment: .leading, spacing: 5) {
                 Text(entry.name)
+                    .font(.body.weight(.medium))
                     .lineLimit(1)
                     .truncationMode(.middle)
 
                 if let active = activeTransfer {
                     transferProgressLine(for: active)
                 } else {
-                    Text(secondaryLine)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                    HStack(spacing: 7) {
+                        Text(secondaryLine)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                        if !entry.isDirectory {
+                            AppStatusBadge(title: fileKindLabel, tint: iconColor)
+                        }
+                    }
                 }
             }
 
@@ -41,6 +60,7 @@ struct EntryRowView: View {
                     .controlSize(.small)
             }
         }
+        .padding(.vertical, 6)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityText)
     }
@@ -57,8 +77,8 @@ struct EntryRowView: View {
             }
             if transfer.bytesTotal > 0 {
                 ProgressView(
-                    value: Double(transfer.bytesTransferred),
-                    total: Double(transfer.bytesTotal)
+                    value: progressValue(for: transfer),
+                    total: progressTotal(for: transfer)
                 )
                 .progressViewStyle(.linear)
                 .tint(transferColor(for: transfer.kind))
@@ -104,10 +124,22 @@ struct EntryRowView: View {
         case .delete:   action = "Suppression"
         }
         if transfer.bytesTotal > 0 {
-            let pct = Int(Double(transfer.bytesTransferred) / Double(transfer.bytesTotal) * 100)
-            return "\(action) — \(pct)% · \(formatBytes(transfer.bytesTransferred)) / \(formatBytes(transfer.bytesTotal))"
+            let pct = Int(progressValue(for: transfer) / progressTotal(for: transfer) * 100)
+            return "\(action) — \(pct)% · \(formatBytes(clampedBytesTransferred(for: transfer))) / \(formatBytes(transfer.bytesTotal))"
         }
         return "\(action) en cours…"
+    }
+
+    private func clampedBytesTransferred(for transfer: Transfer) -> Int64 {
+        min(max(transfer.bytesTransferred, 0), max(transfer.bytesTotal, 0))
+    }
+
+    private func progressValue(for transfer: Transfer) -> Double {
+        Double(clampedBytesTransferred(for: transfer))
+    }
+
+    private func progressTotal(for transfer: Transfer) -> Double {
+        Double(max(transfer.bytesTotal, 1))
     }
 
     // MARK: Icon
@@ -158,7 +190,7 @@ struct EntryRowView: View {
         case "zip", "tar", "gz", "tgz", "7z", "rar", "xz", "bz2":
             return .orange
         default:
-            return .secondary
+            return .gray
         }
     }
 
@@ -172,23 +204,22 @@ struct EntryRowView: View {
         return "\(formatBytes(entry.size)) · \(date)"
     }
 
+    private var fileKindLabel: String {
+        let ext = (entry.name as NSString).pathExtension.uppercased()
+        return ext.isEmpty ? "Fichier" : ext
+    }
+
     private func formatBytes(_ bytes: Int64) -> String {
         ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
     }
 
     private func formatDate(_ date: Date) -> String {
         if date == .distantPast { return "—" }
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .short
-        formatter.dateTimeStyle = .named
         let interval = abs(date.timeIntervalSinceNow)
         if interval < 60 * 60 * 24 * 7 {
-            return formatter.localizedString(for: date, relativeTo: .now)
+            return Self.relativeFormatter.localizedString(for: date, relativeTo: .now)
         }
-        let abs = DateFormatter()
-        abs.dateStyle = .medium
-        abs.timeStyle = .none
-        return abs.string(from: date)
+        return Self.absoluteFormatter.string(from: date)
     }
 
     private var accessibilityText: String {

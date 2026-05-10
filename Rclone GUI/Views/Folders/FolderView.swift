@@ -60,8 +60,14 @@ struct FolderView: View {
     @Query(filter: #Predicate<Transfer> { $0.statusRaw == "running" })
     private var runningTransfers: [Transfer]
 
-    /// Map of "<remote>:<path>" → Transfer for quick lookup per row.
-    private var activeTransferByPath: [String: Transfer] {
+    /// Map of "<remote>:<path>" → Transfer pour lookup O(1) par row.
+    /// Mémoisée en @State : sans ça, le dict était recalculé à chaque
+    /// re-render du body (plusieurs fois par seconde pendant un transfert)
+    /// alors qu'il ne change que quand `runningTransfers` muet. Mise à jour
+    /// via .onChange(of: runningTransfers).
+    @State private var activeTransferByPath: [String: Transfer] = [:]
+
+    private func computeActiveTransferByPath() -> [String: Transfer] {
         var dict: [String: Transfer] = [:]
         for t in runningTransfers {
             // Match download (sourceRemote:sourcePath), upload (destinationRemote:destinationPath),
@@ -185,9 +191,17 @@ struct FolderView: View {
             }
             .task(id: TaskKey(remote: remote, path: path)) {
                 await load()
+                activeTransferByPath = computeActiveTransferByPath()
             }
             .refreshable {
                 await load()
+            }
+            // Recompute le mapping path → Transfer uniquement quand
+            // l'ensemble des running transfers change réellement (arrival,
+            // departure). Sans ça, le dict était reconstruit à chaque
+            // re-render du body — coûteux pour de gros dossiers.
+            .onChange(of: runningTransfers.count) { _, _ in
+                activeTransferByPath = computeActiveTransferByPath()
             }
             .sheet(item: $renameTarget) { entry in
                 RenameSheetView(

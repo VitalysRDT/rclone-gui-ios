@@ -19,6 +19,13 @@ struct TransfersView: View {
     @State private var transientMessage: String?
     @State private var hapticTrigger = 0
 
+    // Pagination des sections Terminés/Échoués : un historique de plusieurs
+    // centaines de transferts faisait freezer la liste (pas de virtualisation
+    // par défaut sur des Sections imbriquées). On affiche 50 par défaut + un
+    // bouton "Afficher plus" qui en débloque 50 supplémentaires.
+    @State private var terminalDisplayLimit: Int = 50
+    private static let terminalPageSize = 50
+
     var body: some View {
         Group {
             if transfers.isEmpty {
@@ -128,7 +135,13 @@ struct TransfersView: View {
                 let groups = TransferGroup.organize(filteredTransfers)
                 ForEach(groups, id: \.title) { group in
                     Section(group.title) {
-                        ForEach(group.items) { transfer in
+                        // Cap les sections terminales (Terminés/Échoués) qui
+                        // peuvent gonfler à plusieurs centaines d'éléments.
+                        let isTerminal = group.title == "Terminés" || group.title == "Échoués"
+                        let visibleItems = isTerminal
+                            ? Array(group.items.prefix(terminalDisplayLimit))
+                            : group.items
+                        ForEach(visibleItems) { transfer in
                             TransferRowView(transfer: transfer)
                                 .swipeActions(edge: .trailing) {
                                     if transfer.status == .running || transfer.status == .pending || transfer.status == .enqueued {
@@ -158,6 +171,20 @@ struct TransfersView: View {
                                         .tint(.blue)
                                     }
                                 }
+                        }
+                        if isTerminal && group.items.count > visibleItems.count {
+                            Button {
+                                terminalDisplayLimit += Self.terminalPageSize
+                                hapticTrigger &+= 1
+                            } label: {
+                                HStack {
+                                    Spacer()
+                                    Text("Afficher \(min(Self.terminalPageSize, group.items.count - visibleItems.count)) de plus (\(group.items.count - visibleItems.count) restants)")
+                                        .font(.subheadline.weight(.medium))
+                                    Spacer()
+                                }
+                            }
+                            .foregroundStyle(.tint)
                         }
                     }
                 }
