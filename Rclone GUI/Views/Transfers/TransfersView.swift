@@ -55,6 +55,7 @@ struct TransfersView: View {
                 } label: {
                     Image(systemName: "ellipsis.circle")
                 }
+                .accessibilityLabel("Plus d'actions de transferts")
             }
         }
         .alert("Info", isPresented: Binding(

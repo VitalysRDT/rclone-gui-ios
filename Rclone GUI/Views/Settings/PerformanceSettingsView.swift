@@ -57,6 +57,8 @@ struct PerformanceSettingsView: View {
                     .onChange(of: bandwidthLimitMBps) { _, newValue in
                         Task { await applyBandwidthLimit(mbps: newValue) }
                     }
+                    .accessibilityValue(rateLabel)
+                    .accessibilityHint("Faites glisser pour ajuster la limite globale de bande passante en MB/s. Zéro signifie pas de limite.")
                 }
                 .padding(.vertical, 4)
             } header: {

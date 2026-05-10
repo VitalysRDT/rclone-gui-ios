@@ -382,13 +382,11 @@ struct FolderView: View {
     private var content: some View {
         switch loadState {
         case .idle:
-            ProgressView("Chargement…")
-                .controlSize(.large)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            SkeletonLoaderView(rowCount: 6, style: .fileRow)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         case .loading where entries.isEmpty:
-            ProgressView("Chargement…")
-                .controlSize(.large)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            SkeletonLoaderView(rowCount: 6, style: .fileRow)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 
         case .failed(let msg):
             ContentUnavailableView {
