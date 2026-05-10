@@ -176,21 +176,53 @@ struct OAuthView: View {
             return
         }
 
-        // If the field is the rclone "token" JSON, validate the JSON shape
-        // before saving so the user sees a clear error rather than getting
-        // a cryptic rclone failure later.
-        if config.tokenFieldName == "token" && trimmed.hasPrefix("{") {
-            do {
-                _ = try OAuthBrokerService.shared.parseManualToken(trimmed)
-            } catch {
-                validationError = error.localizedDescription
-                return
+        let valueToStore: String
+
+        if config.tokenFieldName == "token" {
+            if trimmed.hasPrefix("{") {
+                // Looks like a JSON token (rclone authorize output). Validate
+                // the shape so the user sees a clean error early.
+                do {
+                    _ = try OAuthBrokerService.shared.parseManualToken(trimmed)
+                    valueToStore = trimmed
+                } catch {
+                    validationError = error.localizedDescription
+                    return
+                }
+            } else {
+                // Raw access_token (e.g. Dropbox `sl.B...`, Yandex hex). Wrap
+                // it into the rclone JSON token format so config/create
+                // doesn't reject it.
+                valueToStore = wrapRawAccessTokenAsJSON(trimmed)
             }
+        } else {
+            // access_token / api_key / password / permanent_token / etc. —
+            // these go in their dedicated rclone field as plain string.
+            valueToStore = trimmed
         }
 
-        state.fieldValues[config.tokenFieldName] = trimmed
+        state.fieldValues[config.tokenFieldName] = valueToStore
         state.oauthCompleted = true
         validationError = nil
+    }
+
+    /// Wraps a raw access_token (no JSON envelope) into the rclone-expected
+    /// `{"access_token":"...","token_type":"Bearer","refresh_token":"","expiry":"..."}`
+    /// shape. Refresh token is empty (the token won't auto-refresh — the
+    /// user will need to regenerate it when it expires, which is fine for
+    /// long-lived dev tokens like Dropbox's).
+    private func wrapRawAccessTokenAsJSON(_ raw: String) -> String {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        let farFutureExpiry = formatter.string(from: Date(timeIntervalSinceNow: 60 * 60 * 24 * 365 * 10))
+        let token = RcloneTokenJSON(
+            accessToken: raw,
+            tokenType: "Bearer",
+            refreshToken: "",
+            expiry: farFutureExpiry,
+            expiresIn: nil
+        )
+        return (try? token.encodeToJSON()) ?? raw
     }
 
     // MARK: - Helpers

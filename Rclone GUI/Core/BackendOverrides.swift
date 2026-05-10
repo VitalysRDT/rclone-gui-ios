@@ -442,15 +442,16 @@ enum BackendOverrides {
             usePKCE: false,
             setupURL: URL(string: "https://appleid.apple.com/account/manage"),
             setupSteps: [
-                "Ouvre appleid.apple.com (lien ci-dessous).",
-                "Connecte-toi → section « Sign-In and Security ».",
-                "« App-Specific Passwords » → génère un mot de passe pour « Rclone GUI ».",
-                "Copie le mot de passe (4×4 caractères, ex : abcd-efgh-ijkl-mnop).",
-                "Colle-le ci-dessous, et remplis « apple_id » dans le formulaire principal."
+                "Active la 2FA sur ton compte iCloud si pas déjà fait (obligatoire).",
+                "Ouvre appleid.apple.com → section « Sign-In and Security ».",
+                "« App-Specific Passwords » → « Generate Password » pour « Rclone GUI ».",
+                "Copie le mot de passe au format abcd-efgh-ijkl-mnop.",
+                "Colle-le ci-dessous (champ « password »).",
+                "À l'étape précédente du wizard, remplis aussi « apple_id » avec ton email Apple ID."
             ],
             tokenLabel: "App-specific password Apple",
             tokenFieldName: "password",
-            tokenHint: "Format : 4 groupes de 4 lettres séparés par des tirets."
+            tokenHint: "Format : 4 groupes de 4 lettres séparés par des tirets. Le champ « apple_id » est rempli dans le formulaire principal."
         ),
 
         // ───────── Dropbox / Box / pCloud ─────────
@@ -467,13 +468,15 @@ enum BackendOverrides {
             setupSteps: [
                 "Ouvre Dropbox App Console.",
                 "« Create app » → choisis « Scoped access » + « Full Dropbox ».",
-                "Donne un nom unique (ex : « rclonegui-xxx »).",
-                "Onglet « Permissions » → coche tous les scopes files.* et sharing.*.",
-                "Onglet « Settings » → « OAuth 2 » → « Generate access token » → copie-le ici."
+                "Donne un nom unique (ex : « rclonegui-vitalys »).",
+                "Onglet « Permissions » → coche tous les scopes files.* et sharing.*. Sauvegarde.",
+                "Onglet « Settings » → section « OAuth 2 » → « Generated access token » → « Generate ».",
+                "Copie le token (commence par « sl. ») et colle-le ci-dessous.",
+                "💡 Le wizard wrap automatiquement le raw token en JSON pour rclone."
             ],
-            tokenLabel: "Generated access token",
+            tokenLabel: "Generated access token Dropbox",
             tokenFieldName: "token",
-            tokenHint: "Format : commence par « sl. » suivi d'une longue chaîne."
+            tokenHint: "Colle juste le raw token « sl.X… » — le wizard le formate en JSON automatiquement."
         ),
         "box": OAuthProviderConfig(
             backendName: "box",
@@ -488,13 +491,16 @@ enum BackendOverrides {
             setupSteps: [
                 "Ouvre Box Developer Console.",
                 "« Create New App » → « Custom App » → « User Authentication (OAuth 2.0) ».",
-                "Onglet « Configuration » → « Developer Token » → « Generate Developer Token ».",
-                "Copie le token (valable 60 minutes — re-génère si expiré).",
+                "Onglet « Configuration » → section « Developer Token » → « Generate Developer Token ».",
+                "Copie le token (valable 60 minutes seulement — re-génère si expiré).",
                 "Colle-le ci-dessous."
             ],
             tokenLabel: "Developer Token Box",
-            tokenFieldName: "token",
-            tokenHint: "Le token expire après 60 min. Pour un usage long, créer une vraie app + JWT auth."
+            // rclone Box accepte un raw access_token via le champ dédié
+            // `access_token` (pas le `token` JSON OAuth). Plus simple pour
+            // le user que de générer un JSON token complet.
+            tokenFieldName: "access_token",
+            tokenHint: "⚠️ Token valide 60 minutes seulement. Pour un usage durable, créer une vraie app + JWT (voir docs rclone box)."
         ),
         "pcloud": OAuthProviderConfig(
             backendName: "pcloud",
@@ -540,27 +546,12 @@ enum BackendOverrides {
             tokenFieldName: "token",
             tokenHint: nil
         ),
-        "mailru": OAuthProviderConfig(
-            backendName: "mailru",
-            authURL: URL(string: "https://oauth.mail.ru/login")!,
-            tokenURL: URL(string: "https://oauth.mail.ru/token")!,
-            defaultClientID: "cloud-rclone",
-            defaultClientSecret: nil,
-            defaultScopes: [],
-            strategy: .manual,
-            usePKCE: false,
-            setupURL: URL(string: "https://help.mail.ru/cloud_web/app-passwords"),
-            setupSteps: [
-                "Sur cloud.mail.ru → Paramètres → Sécurité.",
-                "Active la 2FA si pas déjà fait.",
-                "Génère un mot de passe d'application pour rclone.",
-                "Note ton email + ce mot de passe.",
-                "Renseigne « user » et « pass » dans le formulaire principal (pas besoin de coller un token ici)."
-            ],
-            tokenLabel: "Mot de passe d'application Mail.ru",
-            tokenFieldName: "pass",
-            tokenHint: "Astuce : utilise plutôt les champs « user » + « pass » du formulaire."
-        ),
+        // mailru NOT in oauthConfigs : les champs `user` (email) et `pass`
+        // sont déjà Required dans le schéma rclone et apparaissent dans le
+        // formulaire normal. L'utilisateur les remplit là, pas besoin
+        // d'écran d'authentification dédié.
+        // → Mail.ru : 2FA + app password sur cloud.mail.ru → user/pass dans
+        //   le formulaire de l'étape 2.
 
         // ───────── HiDrive / Huawei / Jottacloud / Premiumize / Putio / Sharefile / Zoho ─────────
         "hidrive": OAuthProviderConfig(
@@ -737,14 +728,14 @@ enum BackendOverrides {
             usePKCE: false,
             setupURL: URL(string: "https://www.linkbox.to/admin/account"),
             setupSteps: [
-                "Connecte-toi sur linkbox.to.",
-                "Va sur la page Account.",
-                "Trouve le « API Token » (ou demande-le au support si absent).",
-                "Colle-le ci-dessous."
+                "Connecte-toi sur linkbox.to → page Account.",
+                "Section « API Token » → copie le token affiché (ou demande au support).",
+                "Colle-le ci-dessous (champ « token »).",
+                "À l'étape précédente du wizard, remplis aussi « email » et « password » (les identifiants Linkbox classiques) dans le formulaire principal."
             ],
             tokenLabel: "API Token Linkbox",
             tokenFieldName: "token",
-            tokenHint: nil
+            tokenHint: "⚠️ En plus du token, Linkbox demande email + password (remplis-les dans le formulaire principal)."
         ),
         "shade": OAuthProviderConfig(
             backendName: "shade",
