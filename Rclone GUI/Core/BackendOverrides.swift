@@ -8,20 +8,20 @@
 //  icons, FR translations, OAuth metadata) or actively contradicts
 //  what we want users to see (hidden backends).
 //
-//  Coverage (Sprint D — P1) :
+//  Coverage :
 //    - 69 backends categorised
 //    - 69 backends with an explicit SF Symbol
 //    - 69 backends with a French description
-//    - 22 OAuth configs (Drive promoted from P0, 21 added in P1)
+//    - 22 backends with a manual auth guide (link + numbered steps + paste)
 //
-//  Strategy choice for the 22 OAuth backends:
-//    - All ship with `.manual` for now. The user runs
-//      `rclone authorize <backend>` on a desktop with a browser, then
-//      pastes the resulting JSON token into the wizard.
-//    - Custom-scheme + Universal-Link variants are designed in
-//      OAuthBrokerService and ready to switch on per-backend in P2 once
-//      Info.plist URL types are registered (custom scheme) or an
-//      apple-app-site-association is published (Universal Links).
+//  Auth strategy: NO interactive OAuth in P1.
+//    For each backend that needs auth, the wizard:
+//    1. Opens the provider's developer console / API key page in Safari.
+//    2. Walks the user through 3-5 short numbered steps.
+//    3. Asks them to paste the resulting token / API key / JSON blob.
+//    The pasted value lands in `parameters[tokenFieldName]` of
+//    `config/create`. No browser callback, no Info.plist URL types,
+//    no Universal Links infra needed.
 //
 //  Backends without an explicit override fall back to:
 //    - category .specialized
@@ -33,7 +33,7 @@ import Foundation
 
 enum BackendOverrides {
 
-    // MARK: - Category mapping (69 backends, plus 2 hidden)
+    // MARK: - Category mapping (67 + 2 hidden)
 
     static let categoryByBackend: [String: BackendCategory] = [
         // Cloud officiels (15)
@@ -203,7 +203,7 @@ enum BackendOverrides {
         "local":              "internaldrive.fill",
     ]
 
-    // MARK: - French descriptions (69 backends)
+    // MARK: - French descriptions (67 backends)
 
     static let frDescriptionByBackend: [String: String] = [
         // Cloud officiels
@@ -288,16 +288,17 @@ enum BackendOverrides {
         "local":              "Disque local (sandbox de l'app)",
     ]
 
-    // MARK: - OAuth configurations (22 backends)
+    // MARK: - Auth guides for the 22 backends that need a token / API key
     //
-    // All entries default to `.manual` — the user runs `rclone authorize`
-    // on a desktop with a browser and pastes the JSON token in the wizard.
-    // The auth_url/token_url are set to the real provider endpoints so the
-    // P2 switch to `.customScheme` or `.universalLink` is a one-line change.
+    // No OAuth is performed in-app. Each entry below tells the wizard:
+    //   - which provider page to open (setupURL)
+    //   - what the user has to do there (setupSteps)
+    //   - which rclone field to fill (tokenFieldName)
+    //   - how to label the input (tokenLabel) and hint format (tokenHint)
     //
-    // Where the URLs are not invoked (manual mode), they still need to be
-    // valid for the force-unwraps below — every URL listed has been
-    // double-checked against the upstream provider documentation.
+    // The OAuth-specific fields (authURL/tokenURL/clientID/etc.) are kept
+    // populated so a future P2 switch back to interactive OAuth is just a
+    // strategy flip per backend.
 
     static let oauthConfigs: [String: OAuthProviderConfig] = [
         // ───────── Google family ─────────
@@ -305,14 +306,22 @@ enum BackendOverrides {
             backendName: "drive",
             authURL: URL(string: "https://accounts.google.com/o/oauth2/auth")!,
             tokenURL: URL(string: "https://oauth2.googleapis.com/token")!,
-            // Public rclone-shared credentials — see top-of-file note in
-            // the previous comment block. Override in advanced section
-            // to dodge the global Google rate limit.
             defaultClientID: "202264815644.apps.googleusercontent.com",
             defaultClientSecret: "X4Z3ca8xfWDb1Voo-F9a7ZxMv3HCYUCY",
             defaultScopes: ["https://www.googleapis.com/auth/drive"],
             strategy: .manual,
-            usePKCE: true
+            usePKCE: true,
+            setupURL: URL(string: "https://developers.google.com/oauthplayground/?scopes=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fdrive"),
+            setupSteps: [
+                "Ouvre Google OAuth Playground avec le bouton ci-dessous.",
+                "Étape 1 : sélectionne « Drive API v3 → https://www.googleapis.com/auth/drive » puis clique « Authorize APIs ».",
+                "Connecte-toi à ton compte Google et accepte les permissions.",
+                "Étape 2 : clique « Exchange authorization code for tokens ».",
+                "Copie le bloc JSON entier qui contient access_token + refresh_token, puis colle-le ci-dessous."
+            ],
+            tokenLabel: "Token JSON (Google OAuth Playground)",
+            tokenFieldName: "token",
+            tokenHint: "Format JSON : {\"access_token\":\"...\",\"refresh_token\":\"...\",\"expiry\":\"...\"}"
         ),
         "google photos": OAuthProviderConfig(
             backendName: "google photos",
@@ -325,7 +334,18 @@ enum BackendOverrides {
                 "https://www.googleapis.com/auth/photoslibrary.appendonly",
             ],
             strategy: .manual,
-            usePKCE: true
+            usePKCE: true,
+            setupURL: URL(string: "https://developers.google.com/oauthplayground/"),
+            setupSteps: [
+                "Ouvre Google OAuth Playground.",
+                "Sélectionne les scopes Photos Library API : photoslibrary.readonly + photoslibrary.appendonly.",
+                "Clique « Authorize APIs » et accepte avec ton compte Google.",
+                "Clique « Exchange authorization code for tokens ».",
+                "Copie le bloc JSON et colle-le ci-dessous."
+            ],
+            tokenLabel: "Token JSON (Google OAuth Playground)",
+            tokenFieldName: "token",
+            tokenHint: nil
         ),
         "google cloud storage": OAuthProviderConfig(
             backendName: "google cloud storage",
@@ -335,7 +355,17 @@ enum BackendOverrides {
             defaultClientSecret: "X4Z3ca8xfWDb1Voo-F9a7ZxMv3HCYUCY",
             defaultScopes: ["https://www.googleapis.com/auth/devstorage.full_control"],
             strategy: .manual,
-            usePKCE: true
+            usePKCE: true,
+            setupURL: URL(string: "https://console.cloud.google.com/iam-admin/serviceaccounts"),
+            setupSteps: [
+                "Ouvre Google Cloud Console → IAM → Service Accounts.",
+                "Crée un service account avec le rôle « Storage Admin ».",
+                "Onglet « Keys » → « Add Key » → « JSON » → télécharge le fichier.",
+                "Ouvre le fichier JSON, copie tout son contenu, et colle-le ci-dessous."
+            ],
+            tokenLabel: "Service Account JSON",
+            tokenFieldName: "service_account_credentials",
+            tokenHint: "Le contenu complet du fichier JSON téléchargé depuis GCP."
         ),
 
         // ───────── Microsoft family ─────────
@@ -347,7 +377,18 @@ enum BackendOverrides {
             defaultClientSecret: nil,
             defaultScopes: ["Files.Read", "Files.ReadWrite", "Files.Read.All", "Files.ReadWrite.All", "offline_access"],
             strategy: .manual,
-            usePKCE: true
+            usePKCE: true,
+            setupURL: URL(string: "https://rclone.org/onedrive/#getting-your-own-client-id-and-key"),
+            setupSteps: [
+                "Sur un poste avec rclone CLI : `rclone authorize \"onedrive\"`.",
+                "Une page web s'ouvre — connecte-toi à ton compte Microsoft.",
+                "Accepte les permissions demandées.",
+                "Le terminal affiche un bloc JSON. Copie-le entièrement.",
+                "Colle le JSON ci-dessous."
+            ],
+            tokenLabel: "Token JSON rclone (depuis `rclone authorize \"onedrive\"`)",
+            tokenFieldName: "token",
+            tokenHint: nil
         ),
         "azureblob": OAuthProviderConfig(
             backendName: "azureblob",
@@ -357,7 +398,17 @@ enum BackendOverrides {
             defaultClientSecret: nil,
             defaultScopes: ["https://storage.azure.com/.default"],
             strategy: .manual,
-            usePKCE: true
+            usePKCE: true,
+            setupURL: URL(string: "https://portal.azure.com/#@/blade/Microsoft_Azure_Storage/StorageAccountsBlade"),
+            setupSteps: [
+                "Ouvre Azure Portal → Storage accounts.",
+                "Sélectionne ton compte → onglet « Access keys » → « Show keys ».",
+                "Note le account name et la « key1 ».",
+                "Dans le formulaire wizard, remplis « account » et « key » (pas besoin de token JSON ici)."
+            ],
+            tokenLabel: "Account Key (depuis Azure Portal)",
+            tokenFieldName: "key",
+            tokenHint: "Astuce : pour Azure, tu peux aussi remplir « account » + « key » directement dans le formulaire normal."
         ),
         "azurefiles": OAuthProviderConfig(
             backendName: "azurefiles",
@@ -367,23 +418,39 @@ enum BackendOverrides {
             defaultClientSecret: nil,
             defaultScopes: ["https://storage.azure.com/.default"],
             strategy: .manual,
-            usePKCE: true
+            usePKCE: true,
+            setupURL: URL(string: "https://portal.azure.com/"),
+            setupSteps: [
+                "Azure Portal → Storage accounts → ton compte.",
+                "Onglet « Access keys » → copie account name + key1.",
+                "Le wizard supporte aussi SAS et Service Principal — voir docs rclone."
+            ],
+            tokenLabel: "Account Key",
+            tokenFieldName: "key",
+            tokenHint: nil
         ),
 
         // ───────── Apple family ─────────
         "iclouddrive": OAuthProviderConfig(
             backendName: "iclouddrive",
-            // iCloud Drive uses Apple-specific token-based auth, not standard
-            // OAuth. The wizard guides the user through `rclone authorize`
-            // which prompts for an app-specific password; manual mode is the
-            // canonical path.
             authURL: URL(string: "https://appleid.apple.com/")!,
             tokenURL: URL(string: "https://appleid.apple.com/")!,
             defaultClientID: "",
             defaultClientSecret: nil,
             defaultScopes: [],
             strategy: .manual,
-            usePKCE: false
+            usePKCE: false,
+            setupURL: URL(string: "https://appleid.apple.com/account/manage"),
+            setupSteps: [
+                "Ouvre appleid.apple.com (lien ci-dessous).",
+                "Connecte-toi → section « Sign-In and Security ».",
+                "« App-Specific Passwords » → génère un mot de passe pour « Rclone GUI ».",
+                "Copie le mot de passe (4×4 caractères, ex : abcd-efgh-ijkl-mnop).",
+                "Colle-le ci-dessous, et remplis « apple_id » dans le formulaire principal."
+            ],
+            tokenLabel: "App-specific password Apple",
+            tokenFieldName: "password",
+            tokenHint: "Format : 4 groupes de 4 lettres séparés par des tirets."
         ),
 
         // ───────── Dropbox / Box / pCloud ─────────
@@ -395,7 +462,18 @@ enum BackendOverrides {
             defaultClientSecret: nil,
             defaultScopes: [],
             strategy: .manual,
-            usePKCE: true
+            usePKCE: true,
+            setupURL: URL(string: "https://www.dropbox.com/developers/apps"),
+            setupSteps: [
+                "Ouvre Dropbox App Console.",
+                "« Create app » → choisis « Scoped access » + « Full Dropbox ».",
+                "Donne un nom unique (ex : « rclonegui-xxx »).",
+                "Onglet « Permissions » → coche tous les scopes files.* et sharing.*.",
+                "Onglet « Settings » → « OAuth 2 » → « Generate access token » → copie-le ici."
+            ],
+            tokenLabel: "Generated access token",
+            tokenFieldName: "token",
+            tokenHint: "Format : commence par « sl. » suivi d'une longue chaîne."
         ),
         "box": OAuthProviderConfig(
             backendName: "box",
@@ -405,7 +483,18 @@ enum BackendOverrides {
             defaultClientSecret: nil,
             defaultScopes: [],
             strategy: .manual,
-            usePKCE: true
+            usePKCE: true,
+            setupURL: URL(string: "https://app.box.com/developers/console"),
+            setupSteps: [
+                "Ouvre Box Developer Console.",
+                "« Create New App » → « Custom App » → « User Authentication (OAuth 2.0) ».",
+                "Onglet « Configuration » → « Developer Token » → « Generate Developer Token ».",
+                "Copie le token (valable 60 minutes — re-génère si expiré).",
+                "Colle-le ci-dessous."
+            ],
+            tokenLabel: "Developer Token Box",
+            tokenFieldName: "token",
+            tokenHint: "Le token expire après 60 min. Pour un usage long, créer une vraie app + JWT auth."
         ),
         "pcloud": OAuthProviderConfig(
             backendName: "pcloud",
@@ -415,7 +504,18 @@ enum BackendOverrides {
             defaultClientSecret: nil,
             defaultScopes: [],
             strategy: .manual,
-            usePKCE: false
+            usePKCE: false,
+            setupURL: URL(string: "https://my.pcloud.com/oauth2/authorize?client_id=DnONSzyJXpm&response_type=token&redirect_uri=https://my.pcloud.com"),
+            setupSteps: [
+                "Ouvre l'URL d'autorisation pCloud (lien ci-dessous).",
+                "Connecte-toi à ton compte pCloud.",
+                "Accepte l'accès rclone.",
+                "L'URL de retour contient `access_token=...` dans la query string.",
+                "Copie cette valeur (sans le préfixe access_token=) et colle-la ci-dessous."
+            ],
+            tokenLabel: "Access token pCloud",
+            tokenFieldName: "access_token",
+            tokenHint: "Long alphanumérique extrait de l'URL de retour."
         ),
 
         // ───────── Yandex / Mail.ru ─────────
@@ -427,7 +527,18 @@ enum BackendOverrides {
             defaultClientSecret: nil,
             defaultScopes: ["cloud_api:disk.app_folder", "cloud_api:disk.read", "cloud_api:disk.write", "cloud_api:disk.info"],
             strategy: .manual,
-            usePKCE: false
+            usePKCE: false,
+            setupURL: URL(string: "https://oauth.yandex.com/authorize?response_type=token&client_id=ddffbc9bb6394f49a89e74a96a43b6f2"),
+            setupSteps: [
+                "Ouvre l'URL Yandex OAuth (lien ci-dessous).",
+                "Connecte-toi à ton compte Yandex.",
+                "Accepte l'accès rclone.",
+                "Copie l'access_token affiché ou présent dans l'URL de redirection.",
+                "Colle-le ci-dessous."
+            ],
+            tokenLabel: "Access token Yandex",
+            tokenFieldName: "token",
+            tokenHint: nil
         ),
         "mailru": OAuthProviderConfig(
             backendName: "mailru",
@@ -437,7 +548,18 @@ enum BackendOverrides {
             defaultClientSecret: nil,
             defaultScopes: [],
             strategy: .manual,
-            usePKCE: false
+            usePKCE: false,
+            setupURL: URL(string: "https://help.mail.ru/cloud_web/app-passwords"),
+            setupSteps: [
+                "Sur cloud.mail.ru → Paramètres → Sécurité.",
+                "Active la 2FA si pas déjà fait.",
+                "Génère un mot de passe d'application pour rclone.",
+                "Note ton email + ce mot de passe.",
+                "Renseigne « user » et « pass » dans le formulaire principal (pas besoin de coller un token ici)."
+            ],
+            tokenLabel: "Mot de passe d'application Mail.ru",
+            tokenFieldName: "pass",
+            tokenHint: "Astuce : utilise plutôt les champs « user » + « pass » du formulaire."
         ),
 
         // ───────── HiDrive / Huawei / Jottacloud / Premiumize / Putio / Sharefile / Zoho ─────────
@@ -449,7 +571,17 @@ enum BackendOverrides {
             defaultClientSecret: nil,
             defaultScopes: ["user,rw"],
             strategy: .manual,
-            usePKCE: false
+            usePKCE: false,
+            setupURL: URL(string: "https://developer.hidrive.com/"),
+            setupSteps: [
+                "Pour HiDrive, le plus simple est `rclone authorize \"hidrive\"` sur un poste avec navigateur.",
+                "Suis l'auth web Strato/HiDrive.",
+                "Le terminal affiche un JSON token complet.",
+                "Colle ce JSON ci-dessous."
+            ],
+            tokenLabel: "Token JSON rclone",
+            tokenFieldName: "token",
+            tokenHint: nil
         ),
         "huaweidrive": OAuthProviderConfig(
             backendName: "huaweidrive",
@@ -459,7 +591,17 @@ enum BackendOverrides {
             defaultClientSecret: nil,
             defaultScopes: ["openid", "https://www.huawei.com/auth/drive"],
             strategy: .manual,
-            usePKCE: false
+            usePKCE: false,
+            setupURL: URL(string: "https://developer.huawei.com/consumer/en/console"),
+            setupSteps: [
+                "Le plus simple : `rclone authorize \"huaweidrive\"` sur un poste avec navigateur.",
+                "Suis le flux Huawei ID.",
+                "Copie le JSON token affiché dans le terminal.",
+                "Colle-le ci-dessous."
+            ],
+            tokenLabel: "Token JSON rclone",
+            tokenFieldName: "token",
+            tokenHint: nil
         ),
         "jottacloud": OAuthProviderConfig(
             backendName: "jottacloud",
@@ -469,7 +611,17 @@ enum BackendOverrides {
             defaultClientSecret: nil,
             defaultScopes: ["offline_access+openid"],
             strategy: .manual,
-            usePKCE: false
+            usePKCE: false,
+            setupURL: URL(string: "https://www.jottacloud.com/web/secure"),
+            setupSteps: [
+                "Connecte-toi sur jottacloud.com.",
+                "Profil → « Personal token » → génère un token CLI.",
+                "Copie le token affiché.",
+                "Colle-le ci-dessous (rclone le convertira en JSON token au premier usage)."
+            ],
+            tokenLabel: "Personal token Jottacloud",
+            tokenFieldName: "token",
+            tokenHint: nil
         ),
         "premiumizeme": OAuthProviderConfig(
             backendName: "premiumizeme",
@@ -479,7 +631,17 @@ enum BackendOverrides {
             defaultClientSecret: nil,
             defaultScopes: [],
             strategy: .manual,
-            usePKCE: false
+            usePKCE: false,
+            setupURL: URL(string: "https://www.premiumize.me/account"),
+            setupSteps: [
+                "Connecte-toi sur premiumize.me.",
+                "Mon Compte → onglet « Customer settings ».",
+                "Copie l'« API Key ».",
+                "Colle-la ci-dessous."
+            ],
+            tokenLabel: "API Key Premiumize",
+            tokenFieldName: "api_key",
+            tokenHint: nil
         ),
         "putio": OAuthProviderConfig(
             backendName: "putio",
@@ -489,20 +651,37 @@ enum BackendOverrides {
             defaultClientSecret: nil,
             defaultScopes: [],
             strategy: .manual,
-            usePKCE: false
+            usePKCE: false,
+            setupURL: URL(string: "https://app.put.io/settings/account/oauth/apps"),
+            setupSteps: [
+                "Sur app.put.io → Settings → OAuth Apps.",
+                "« Create new app » → donne un nom (ex : « Rclone GUI »).",
+                "Le panel affiche un OAuth token immédiatement.",
+                "Copie ce token et colle-le ci-dessous."
+            ],
+            tokenLabel: "OAuth token Put.io",
+            tokenFieldName: "token",
+            tokenHint: nil
         ),
         "sharefile": OAuthProviderConfig(
             backendName: "sharefile",
-            // ShareFile auth_url is dynamically built per subdomain. Manual
-            // mode skips that complexity — user runs `rclone authorize`
-            // and the rclone CLI handles the subdomain probing.
             authURL: URL(string: "https://secure.sharefile.com/oauth/authorize")!,
             tokenURL: URL(string: "https://secure.sharefile.com/oauth/token")!,
             defaultClientID: "",
             defaultClientSecret: nil,
             defaultScopes: [],
             strategy: .manual,
-            usePKCE: false
+            usePKCE: false,
+            setupURL: URL(string: "https://api.sharefile.com/rest/getAuthorizationCode"),
+            setupSteps: [
+                "Le plus simple : `rclone authorize \"sharefile\"` sur un poste avec navigateur.",
+                "rclone gère le subdomain probing automatiquement.",
+                "Copie le JSON token retourné.",
+                "Colle-le ci-dessous."
+            ],
+            tokenLabel: "Token JSON rclone",
+            tokenFieldName: "token",
+            tokenHint: nil
         ),
         "zoho": OAuthProviderConfig(
             backendName: "zoho",
@@ -512,21 +691,40 @@ enum BackendOverrides {
             defaultClientSecret: nil,
             defaultScopes: ["WorkDrive.team.READ", "WorkDrive.workspace.READ", "WorkDrive.files.ALL"],
             strategy: .manual,
-            usePKCE: false
+            usePKCE: false,
+            setupURL: URL(string: "https://api-console.zoho.com/"),
+            setupSteps: [
+                "Ouvre la Zoho API Console.",
+                "Crée un client « Self Client ».",
+                "Onglet « Generate Code » → scopes WorkDrive.* → durée 10 min.",
+                "Échange le code contre un access_token via curl (voir docs rclone).",
+                "Colle le JSON token ci-dessous."
+            ],
+            tokenLabel: "Token JSON Zoho",
+            tokenFieldName: "token",
+            tokenHint: nil
         ),
 
         // ───────── Token-only providers ─────────
         "filefabric": OAuthProviderConfig(
             backendName: "filefabric",
-            // FileFabric uses a permanent_token API, not a real OAuth flow.
-            // Manual mode is the only sane path.
             authURL: URL(string: "https://www.smartfile.com/")!,
             tokenURL: URL(string: "https://www.smartfile.com/")!,
             defaultClientID: "",
             defaultClientSecret: nil,
             defaultScopes: [],
             strategy: .manual,
-            usePKCE: false
+            usePKCE: false,
+            setupURL: URL(string: "https://www.smartfile.com/app/login/"),
+            setupSteps: [
+                "Connecte-toi à ton instance Enterprise File Fabric.",
+                "Profil → « API Tokens » → « Generate new token ».",
+                "Copie le permanent_token affiché.",
+                "Colle-le ci-dessous."
+            ],
+            tokenLabel: "Permanent token File Fabric",
+            tokenFieldName: "permanent_token",
+            tokenHint: nil
         ),
         "linkbox": OAuthProviderConfig(
             backendName: "linkbox",
@@ -536,7 +734,17 @@ enum BackendOverrides {
             defaultClientSecret: nil,
             defaultScopes: [],
             strategy: .manual,
-            usePKCE: false
+            usePKCE: false,
+            setupURL: URL(string: "https://www.linkbox.to/admin/account"),
+            setupSteps: [
+                "Connecte-toi sur linkbox.to.",
+                "Va sur la page Account.",
+                "Trouve le « API Token » (ou demande-le au support si absent).",
+                "Colle-le ci-dessous."
+            ],
+            tokenLabel: "API Token Linkbox",
+            tokenFieldName: "token",
+            tokenHint: nil
         ),
         "shade": OAuthProviderConfig(
             backendName: "shade",
@@ -546,7 +754,16 @@ enum BackendOverrides {
             defaultClientSecret: nil,
             defaultScopes: [],
             strategy: .manual,
-            usePKCE: false
+            usePKCE: false,
+            setupURL: URL(string: "https://shade.inc/"),
+            setupSteps: [
+                "Connecte-toi à Shade et ouvre les paramètres compte.",
+                "Génère un API token.",
+                "Colle-le ci-dessous."
+            ],
+            tokenLabel: "API Token Shade",
+            tokenFieldName: "token",
+            tokenHint: nil
         ),
     ]
 

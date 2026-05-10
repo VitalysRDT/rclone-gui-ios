@@ -2,10 +2,19 @@
 //  OAuthView.swift
 //  Rclone GUI — Views/Settings/AddRemote
 //
-//  Step 3 (conditional): handles the three OAuth strategies
-//  (.customScheme, .universalLink, .manual). Talks to the
-//  OAuthBrokerService and writes the resulting token JSON straight
-//  into `WizardState.fieldValues["token"]`.
+//  Step 3: guides the user to obtain an API key / token from the provider
+//  and paste it into the wizard. NO interactive OAuth runs in-app.
+//
+//  For each backend with `oauthConfig != nil`:
+//   1. Show backend hero + setup steps from `OAuthProviderConfig.setupSteps`.
+//   2. Offer a Safari link to `setupURL` so the user can mint the token.
+//   3. Ask for the value in a TextEditor (multi-line for JSON).
+//   4. Validate either as JSON token (rclone format) or as a plain string,
+//      based on `tokenFieldName`.
+//   5. Write the value into `WizardState.fieldValues[tokenFieldName]`.
+//
+//  The view is intentionally provider-agnostic: every backend uses the
+//  same UI shell and pulls its tutorial from the static config.
 //
 
 import SwiftUI
@@ -16,36 +25,29 @@ struct OAuthView: View {
 
     let onNext: () -> Void
 
-    @State private var isAuthenticating = false
-    @State private var errorMessage: String?
-    @State private var manualTokenJSON: String = ""
-    @State private var showAdvanced = false
+    @State private var pastedValue: String = ""
+    @State private var validationError: String?
+    @State private var showCopiedConfirmation = false
 
     var body: some View {
         Form {
             if let backend = state.selectedBackend, let config = backend.oauthConfig {
-                heroSection(for: backend)
-                strategySection(for: backend, config: config)
-                if showAdvanced {
-                    advancedSection(for: config)
-                } else {
-                    Section {
-                        Button {
-                            withAnimation { showAdvanced = true }
-                        } label: {
-                            Label("Configuration OAuth avancée", systemImage: "gearshape.2")
-                        }
-                    }
+                heroSection(for: backend, config: config)
+                tutorialSection(config: config)
+                if let setupURL = config.setupURL {
+                    linkSection(url: setupURL, label: linkLabel(for: backend))
                 }
-                if let errorMessage {
+                pasteSection(config: config)
+                if let validationError {
                     Section {
-                        Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
+                        Label(validationError, systemImage: "exclamationmark.triangle.fill")
                             .foregroundStyle(.red)
+                            .font(.caption)
                     }
                 }
             } else {
                 Section {
-                    Label("Aucun backend OAuth sélectionné.",
+                    Label("Aucun backend sélectionné nécessitant une authentification.",
                           systemImage: "exclamationmark.triangle.fill")
                         .foregroundStyle(.red)
                 }
@@ -58,18 +60,24 @@ struct OAuthView: View {
                     .disabled(!state.oauthCompleted)
             }
         }
+        .onAppear {
+            // Pre-populate from any earlier paste in this wizard session.
+            if let backend = state.selectedBackend, let config = backend.oauthConfig {
+                pastedValue = state.fieldValues[config.tokenFieldName] ?? ""
+            }
+        }
     }
 
     // MARK: - Sections
 
-    private func heroSection(for backend: BackendSchema) -> some View {
+    private func heroSection(for backend: BackendSchema, config: OAuthProviderConfig) -> some View {
         Section {
             VStack(spacing: 12) {
                 AppIconTile(systemImage: backend.icon, size: 64, iconSize: .largeTitle)
-                Text("Connexion à \(backend.displayName)")
+                Text("Authentifier \(backend.displayName)")
                     .font(.title3.weight(.semibold))
                     .multilineTextAlignment(.center)
-                Text(heroSubtitle(for: backend))
+                Text("Cette app ne réalise pas d'OAuth interactif. Tu vas obtenir un token / clé API chez \(backend.displayName), puis le coller ici.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -80,64 +88,68 @@ struct OAuthView: View {
         }
     }
 
-    @ViewBuilder
-    private func strategySection(for backend: BackendSchema, config: OAuthProviderConfig) -> some View {
-        switch config.strategy {
-        case .customScheme:
-            Section {
-                Button {
-                    Task { await runAutoFlow(config: config) }
-                } label: {
-                    if isAuthenticating {
-                        HStack {
-                            ProgressView()
-                            Text("Authentification…")
-                        }
-                    } else if state.oauthCompleted {
-                        Label("Authentifié — re-authentifier", systemImage: "checkmark.seal.fill")
-                            .foregroundStyle(.green)
-                    } else {
-                        Text("Se connecter à \(backend.displayName)")
-                            .frame(maxWidth: .infinity)
+    private func tutorialSection(config: OAuthProviderConfig) -> some View {
+        Section("Comment obtenir le token") {
+            if config.setupSteps.isEmpty {
+                Text("Aucune procédure documentée. Voir la doc rclone du backend.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(Array(config.setupSteps.enumerated()), id: \.offset) { index, step in
+                    HStack(alignment: .top, spacing: 10) {
+                        Text("\(index + 1).")
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(.tint)
+                            .frame(width: 22, alignment: .leading)
+                        Text(step)
+                            .font(.callout)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
+                    .padding(.vertical, 2)
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(isAuthenticating)
             }
-
-        case .universalLink:
-            Section {
-                Label(
-                    "Drive et OneDrive nécessitent un domaine HTTPS configuré (Universal Links). Disponible en P1. Utilise « Coller token » ci-dessous en attendant.",
-                    systemImage: "info.circle"
-                )
-                .font(.callout)
-                .foregroundStyle(.secondary)
-            }
-            manualSection(config: config)
-
-        case .manual:
-            manualSection(config: config)
         }
     }
 
-    private func manualSection(config: OAuthProviderConfig) -> some View {
+    private func linkSection(url: URL, label: String) -> some View {
         Section {
-            Text("""
-                 1. Sur un poste avec navigateur, lance :
-                 \trclone authorize \"\(config.backendName)\"
-                 2. Copie la ligne JSON qui s'affiche.
-                 3. Colle-la ci-dessous.
-                 """)
-                .font(.caption)
+            Link(destination: url) {
+                HStack {
+                    Image(systemName: "safari.fill")
+                    Text(label)
+                    Spacer()
+                    Image(systemName: "arrow.up.right.square")
+                        .foregroundStyle(.secondary)
+                }
+            }
+        } footer: {
+            Text(url.absoluteString)
+                .font(.caption2.monospaced())
                 .foregroundStyle(.secondary)
-            TextEditor(text: $manualTokenJSON)
-                .font(.system(.caption, design: .monospaced))
+                .lineLimit(2)
+        }
+    }
+
+    private func pasteSection(config: OAuthProviderConfig) -> some View {
+        Section {
+            TextEditor(text: $pastedValue)
+                .font(.system(.callout, design: .monospaced))
                 .frame(minHeight: 100)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
+                .onChange(of: pastedValue) { _, _ in
+                    state.oauthCompleted = false
+                    validationError = nil
+                }
+
+            if let hint = config.tokenHint {
+                Text(hint)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+
             Button {
-                applyManualToken()
+                applyPastedValue(config: config)
             } label: {
                 if state.oauthCompleted {
                     Label("Token validé", systemImage: "checkmark.seal.fill")
@@ -149,86 +161,41 @@ struct OAuthView: View {
                 }
             }
             .buttonStyle(.borderedProminent)
-            .disabled(manualTokenJSON.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .disabled(pastedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         } header: {
-            Text("Coller un token rclone")
-        }
-    }
-
-    private func advancedSection(for config: OAuthProviderConfig) -> some View {
-        Section {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Client ID personnel (optionnel)")
-                    .font(.caption.weight(.semibold))
-                TextField(config.defaultClientID, text: $state.customClientID)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .font(.system(.callout, design: .monospaced))
-                Text("Recommandé pour les backends à quotas (Drive, OneDrive). Voir docs rclone.")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Client secret personnel")
-                    .font(.caption.weight(.semibold))
-                SecureField("Optionnel", text: $state.customClientSecret)
-            }
-        } header: {
-            Text("Configuration OAuth avancée")
+            Text(config.tokenLabel)
         }
     }
 
     // MARK: - Actions
 
-    private func runAutoFlow(config: OAuthProviderConfig) async {
-        isAuthenticating = true
-        errorMessage = nil
-        defer { isAuthenticating = false }
-
-        do {
-            let token = try await OAuthBrokerService.shared.authenticate(
-                config: config,
-                customClientID: state.customClientID,
-                customClientSecret: state.customClientSecret
-            )
-            try applyToken(token)
-        } catch let error as OAuthBrokerService.BrokerError where error == .canceled {
-            errorMessage = nil
-        } catch {
-            errorMessage = error.localizedDescription
-            await LogService.shared.log(
-                .error,
-                category: "wizard.oauth",
-                message: "OAuth failed for \(config.backendName): \(error.localizedDescription)"
-            )
+    private func applyPastedValue(config: OAuthProviderConfig) {
+        let trimmed = pastedValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            validationError = "Coller une valeur d'abord."
+            return
         }
-    }
 
-    private func applyManualToken() {
-        errorMessage = nil
-        do {
-            let token = try OAuthBrokerService.shared.parseManualToken(manualTokenJSON)
-            try applyToken(token)
-        } catch {
-            errorMessage = error.localizedDescription
+        // If the field is the rclone "token" JSON, validate the JSON shape
+        // before saving so the user sees a clear error rather than getting
+        // a cryptic rclone failure later.
+        if config.tokenFieldName == "token" && trimmed.hasPrefix("{") {
+            do {
+                _ = try OAuthBrokerService.shared.parseManualToken(trimmed)
+            } catch {
+                validationError = error.localizedDescription
+                return
+            }
         }
-    }
 
-    private func applyToken(_ token: RcloneTokenJSON) throws {
-        let json = try token.encodeToJSON()
-        state.fieldValues["token"] = json
+        state.fieldValues[config.tokenFieldName] = trimmed
         state.oauthCompleted = true
-        state.oauthError = nil
+        validationError = nil
     }
 
     // MARK: - Helpers
 
-    private func heroSubtitle(for backend: BackendSchema) -> String {
-        switch backend.oauthConfig?.strategy {
-        case .customScheme:
-            return "Tu vas être redirigé vers la page d'authentification. Une fois connecté, tu reviendras automatiquement ici."
-        case .universalLink, .manual, .none:
-            return "Token requis. Suis les instructions ci-dessous."
-        }
+    private func linkLabel(for backend: BackendSchema) -> String {
+        "Ouvrir la page \(backend.displayName)"
     }
 }

@@ -11,33 +11,61 @@
 
 import Foundation
 
-/// OAuth configuration for one backend.
+/// Auth guide for one backend. The wizard does NOT run OAuth interactively
+/// — instead, it points the user at the provider's developer console,
+/// walks them through the steps to mint an API key / app token / service
+/// account file, and asks them to paste the resulting value.
+///
+/// The OAuth-specific fields (authURL, tokenURL, client_id, scopes,
+/// strategy) are kept around for a possible future P2 switch back to a
+/// real OAuth flow, but are unused in P1.
 struct OAuthProviderConfig: Sendable, Hashable {
     /// Rclone backend name (e.g. "drive", "dropbox").
     let backendName: String
 
-    /// Authorization endpoint (where the user logs in).
+    /// Authorization endpoint (kept for P2; unused in the manual guide).
     let authURL: URL
 
-    /// Token endpoint (where we exchange the auth code for tokens).
+    /// Token endpoint (kept for P2; unused in the manual guide).
     let tokenURL: URL
 
-    /// Default rclone-shared client_id (public, baked into rclone CLI).
-    /// Users may override this with their own client_id in the wizard.
+    /// Default rclone-shared client_id (kept for P2 reference).
     let defaultClientID: String
 
-    /// Some providers (Google, Microsoft) also require a client_secret.
-    /// rclone keeps a known secret bundled for the default client_id.
+    /// Some providers also require a client_secret (kept for P2).
     let defaultClientSecret: String?
 
-    /// OAuth scopes requested at authorize time.
+    /// OAuth scopes requested at authorize time (kept for P2).
     let defaultScopes: [String]
 
-    /// How the redirect URI is configured for this provider.
+    /// How the redirect URI is configured (kept for P2). All backends
+    /// currently use `.manual`.
     let strategy: OAuthStrategy
 
-    /// Whether to use PKCE (recommended for Google, Microsoft).
+    /// Whether to use PKCE (kept for P2).
     let usePKCE: Bool
+
+    // MARK: - Manual auth guide (P1 — what the wizard actually shows)
+
+    /// Direct link to the provider page where the user can mint a token /
+    /// API key / app password. Opens in Safari from the wizard.
+    let setupURL: URL?
+
+    /// Numbered step-by-step instructions shown above the token input.
+    /// Keep each step short (≤ 80 chars) and actionable.
+    let setupSteps: [String]
+
+    /// Display label for the input field (e.g. "Token rclone JSON",
+    /// "App access token", "Service Account JSON").
+    let tokenLabel: String
+
+    /// Rclone option name where the pasted value will be stored. Most
+    /// backends use "token"; some special cases use "access_token",
+    /// "service_account_credentials", etc.
+    let tokenFieldName: String
+
+    /// Hint shown under the input ("Doit commencer par sl.B...", etc.).
+    let tokenHint: String?
 }
 
 /// Where the OAuth callback should land. iOS does not allow loopback
