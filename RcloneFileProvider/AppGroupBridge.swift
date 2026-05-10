@@ -92,6 +92,16 @@ public enum FileProviderBridge {
         containerURL.appending(path: "fetched-files", directoryHint: .isDirectory)
     }
 
+    public static var streamingURLsDir: URL {
+        containerURL.appending(path: "streaming-urls", directoryHint: .isDirectory)
+    }
+
+    public static func streamingURLFile(remote: String, path: String) -> URL {
+        let key = "\(remote):\(path)"
+        let safe = key.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? UUID().uuidString
+        return streamingURLsDir.appending(path: safe).appendingPathExtension("json")
+    }
+
     public static var diagnosticsURL: URL {
         containerURL
             .appending(path: "FileProvider", directoryHint: .isDirectory)
@@ -184,6 +194,7 @@ public enum FileProviderBridge {
         try fm.createDirectory(at: folderManifestsDir, withIntermediateDirectories: true)
         try fm.createDirectory(at: pendingFetchesDir, withIntermediateDirectories: true)
         try fm.createDirectory(at: fetchedFilesDir, withIntermediateDirectories: true)
+        try fm.createDirectory(at: streamingURLsDir, withIntermediateDirectories: true)
         try fm.createDirectory(at: diagnosticsURL.deletingLastPathComponent(), withIntermediateDirectories: true)
     }
 
@@ -208,6 +219,84 @@ public enum FileProviderBridge {
             NSLog("Rclone GUI FileProvider diagnostic write failed: %@", error.localizedDescription)
         }
     }
+
+    /// Demande à l'app principale de démarrer (ou réutiliser) un serveur HTTP
+    /// loopback rclone pour ce remote+path. Retourne l'URL+token via App Group.
+    /// Cache : si une session récente existe déjà (<10min), on la réutilise sans IPC.
+    public static func requestStreamURLViaMainApp(
+        remote: String,
+        path: String,
+        timeout: TimeInterval
+    ) async throws -> StreamSessionInfo {
+        try ensureDirectoriesExist()
+
+        let urlFile = streamingURLFile(remote: remote, path: path)
+
+        if let existing = readStreamSession(at: urlFile),
+           existing.createdAt.timeIntervalSinceNow > -600 {
+            return existing
+        }
+
+        let requestID = UUID().uuidString
+        let pending = PendingFetch(
+            requestID: requestID,
+            remote: remote,
+            path: path,
+            destPath: urlFile.path,
+            createdAt: .now,
+            kind: "stream-url"
+        )
+        let pendingURL = pendingFetchURL(requestID: requestID)
+        let data = try JSONEncoder().encode(pending)
+        try data.write(to: pendingURL, options: [.atomic])
+
+        appendDiagnostic("ipc stream request id=\(requestID) remote=\(remote) path=\(path)")
+        postDarwinNotification(notificationFetchRequest)
+
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            try Task.checkCancellation()
+
+            if let session = readStreamSession(at: urlFile),
+               session.createdAt.timeIntervalSinceNow > -600 {
+                appendDiagnostic("ipc stream ready id=\(requestID) sid=\(session.sessionID)")
+                try? FileManager.default.removeItem(at: pendingURL)
+                return session
+            }
+
+            let errorURL = pendingURL.appendingPathExtension("error")
+            if let errorData = try? Data(contentsOf: errorURL),
+               let message = String(data: errorData, encoding: .utf8) {
+                appendDiagnostic("ipc stream error id=\(requestID) message=\(message)")
+                try? FileManager.default.removeItem(at: pendingURL)
+                try? FileManager.default.removeItem(at: errorURL)
+                throw NSError(
+                    domain: NSFileProviderErrorDomain,
+                    code: NSFileProviderError.serverUnreachable.rawValue,
+                    userInfo: [NSLocalizedDescriptionKey: message]
+                )
+            }
+
+            try? await Task.sleep(for: .milliseconds(150))
+        }
+
+        try? FileManager.default.removeItem(at: pendingURL)
+        appendDiagnostic("ipc stream timeout id=\(requestID)")
+        throw NSError(
+            domain: NSFileProviderErrorDomain,
+            code: NSFileProviderError.serverUnreachable.rawValue,
+            userInfo: [NSLocalizedDescriptionKey: "Lancez Rclone GUI puis réessayez (streaming indisponible)."]
+        )
+    }
+
+    private static func readStreamSession(at url: URL) -> StreamSessionInfo? {
+        guard FileManager.default.fileExists(atPath: url.path),
+              let data = try? Data(contentsOf: url),
+              let session = try? JSONDecoder().decode(StreamSessionInfo.self, from: data) else {
+            return nil
+        }
+        return session
+    }
 }
 
 public struct RemoteManifestEntry: Codable, Sendable {
@@ -231,12 +320,31 @@ public struct PendingFetch: Codable, Sendable {
     public let path: String
     public let destPath: String
     public let createdAt: Date
+    /// "full" (default) = download le fichier complet vers destPath.
+    /// "stream-url" = démarre un serveur HTTP loopback côté app principale et
+    /// écrit l'URL+token dans <AppGroup>/streaming-urls/<key>.json.
+    public let kind: String?
 
-    public init(requestID: String, remote: String, path: String, destPath: String, createdAt: Date) {
+    public init(requestID: String, remote: String, path: String, destPath: String, createdAt: Date, kind: String? = "full") {
         self.requestID = requestID
         self.remote = remote
         self.path = path
         self.destPath = destPath
+        self.createdAt = createdAt
+        self.kind = kind
+    }
+}
+
+/// Description du serveur HTTP loopback démarré par l'app principale pour un
+/// (remote, path). Sérialisée dans <AppGroup>/streaming-urls/<key>.json.
+public struct StreamSessionInfo: Codable, Sendable {
+    public let sessionID: String
+    public let url: String
+    public let createdAt: Date
+
+    public init(sessionID: String, url: String, createdAt: Date) {
+        self.sessionID = sessionID
+        self.url = url
         self.createdAt = createdAt
     }
 }

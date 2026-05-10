@@ -20,6 +20,9 @@
 //
 
 import Foundation
+#if canImport(RcloneKit)
+import RcloneKit
+#endif
 
 @MainActor
 public final class FileProviderFetchService {
@@ -107,6 +110,14 @@ public final class FileProviderFetchService {
         processing.insert(pending.requestID)
         defer { processing.remove(pending.requestID) }
 
+        if pending.kind == "stream-url" {
+            await handleStreamURLRequest(pending: pending, pendingURL: url)
+        } else {
+            await handleFullDownload(pending: pending, pendingURL: url)
+        }
+    }
+
+    private func handleFullDownload(pending: AppGroupPendingFetch, pendingURL: URL) async {
         await LogService.shared.log(
             .info,
             category: "fileprovider",
@@ -119,7 +130,6 @@ public final class FileProviderFetchService {
                 at: destination.deletingLastPathComponent(),
                 withIntermediateDirectories: true
             )
-            // Si un fichier traîne (re-tentative), on repart propre.
             try? FileManager.default.removeItem(at: destination)
 
             let jobID = try await TransferService.shared.copyFileAsync(
@@ -135,9 +145,7 @@ public final class FileProviderFetchService {
                 category: "fileprovider",
                 message: "FetchService done \(pending.remote):\(pending.path) → \(destination.lastPathComponent)"
             )
-            // L'extension polle destination ; rien à signaler à iOS depuis ici.
-            // On supprime juste le pending pour signaler "traité".
-            try? FileManager.default.removeItem(at: url)
+            try? FileManager.default.removeItem(at: pendingURL)
         } catch {
             let message = error.localizedDescription
             await LogService.shared.log(
@@ -145,10 +153,65 @@ public final class FileProviderFetchService {
                 category: "fileprovider",
                 message: "FetchService failed \(pending.remote):\(pending.path) : \(message)"
             )
-            // Sibling .error pour que l'extension propage l'erreur à iOS.
-            let errorURL = url.appendingPathExtension("error")
+            let errorURL = pendingURL.appendingPathExtension("error")
             try? Data(message.utf8).write(to: errorURL, options: [.atomic])
         }
+    }
+
+    private func handleStreamURLRequest(pending: AppGroupPendingFetch, pendingURL: URL) async {
+        await LogService.shared.log(
+            .info,
+            category: "fileprovider",
+            message: "FetchService stream URL \(pending.remote):\(pending.path)"
+        )
+
+        #if canImport(RcloneKit)
+        // Bridge Go : démarre un serveur HTTP loopback avec range support pour
+        // ce remote+path. Renvoie {"id": "...", "url": "http://127.0.0.1:..."}.
+        let raw = RclonebridgeStartFileHTTP(pending.remote, pending.path)
+        guard let data = raw.data(using: .utf8),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let sessionID = object["id"] as? String,
+              let urlString = object["url"] as? String,
+              !sessionID.isEmpty else {
+            let message = "Bridge StartFileHTTP a retourné une réponse invalide : \(raw)"
+            await LogService.shared.log(.error, category: "fileprovider", message: message)
+            let errorURL = pendingURL.appendingPathExtension("error")
+            try? Data(message.utf8).write(to: errorURL, options: [.atomic])
+            return
+        }
+
+        let session = AppGroupStreamSessionInfo(
+            sessionID: sessionID,
+            url: urlString,
+            createdAt: .now
+        )
+        let urlFile = URL(fileURLWithPath: pending.destPath)
+        do {
+            try FileManager.default.createDirectory(
+                at: urlFile.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            let payload = try JSONEncoder().encode(session)
+            try payload.write(to: urlFile, options: [.atomic])
+            await LogService.shared.log(
+                .info,
+                category: "fileprovider",
+                message: "FetchService stream ready \(pending.remote):\(pending.path) sid=\(sessionID)"
+            )
+            try? FileManager.default.removeItem(at: pendingURL)
+        } catch {
+            let message = "stream URL write failed: \(error.localizedDescription)"
+            await LogService.shared.log(.error, category: "fileprovider", message: message)
+            let errorURL = pendingURL.appendingPathExtension("error")
+            try? Data(message.utf8).write(to: errorURL, options: [.atomic])
+        }
+        #else
+        let message = "RcloneKit indisponible pour streaming"
+        await LogService.shared.log(.error, category: "fileprovider", message: message)
+        let errorURL = pendingURL.appendingPathExtension("error")
+        try? Data(message.utf8).write(to: errorURL, options: [.atomic])
+        #endif
     }
 
     private func waitForJob(jobID: Int, method: String) async throws {

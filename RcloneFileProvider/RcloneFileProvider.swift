@@ -223,6 +223,132 @@ public final class RcloneFileProvider: NSObject, NSFileProviderReplicatedExtensi
         return progress
     }
 
+    // MARK: - Partial fetch (streaming) — UNAVAILABLE ON iOS
+
+    // NOTE Apple : NSFileProviderFetchContentsOptions et
+    // NSFileProviderMaterializationFlags sont macOS-only. iOS n'expose pas
+    // fetchPartialContents — le streaming via FileProvider iOS n'est pas
+    // supporté par Apple. Pour streamer, l'utilisateur doit configurer Infuse/VLC
+    // sur le serveur HTTP local exposé par l'app principale (RcloneStreamingService),
+    // hors Files.app.
+    #if false
+    public func fetchPartialContents(
+        for itemIdentifier: NSFileProviderItemIdentifier,
+        version requestedVersion: NSFileProviderItemVersion,
+        request: NSFileProviderRequest,
+        minimalRange requestedRange: NSRange,
+        aligningTo alignment: Int,
+        options: NSFileProviderFetchContentsOptions = [],
+        completionHandler: @escaping (URL?, NSFileProviderItem?, NSRange, NSFileProviderMaterializationFlags, Error?) -> Void
+    ) -> Progress {
+        FileProviderBridge.appendDiagnostic("fetchPartialContents requested id=\(itemIdentifier.rawValue) range=\(requestedRange.location)+\(requestedRange.length) align=\(alignment)")
+        let progress = Progress(totalUnitCount: 100)
+
+        guard let decoded = RcloneItem.decode(itemIdentifier) else {
+            completionHandler(nil, nil, NSRange(), [], NSError(
+                domain: NSFileProviderErrorDomain,
+                code: NSFileProviderError.noSuchItem.rawValue
+            ))
+            return progress
+        }
+
+        let ext = (decoded.path as NSString).pathExtension
+        // Fichier sparse persistant pour ce (remote, path) : iOS appelle plusieurs
+        // fetchPartialContents pour différents ranges du même fichier ; on évite
+        // de re-créer un sparse à chaque fois.
+        let safeKey = ("\(decoded.remote):\(decoded.path)")
+            .addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? UUID().uuidString
+        var appleDestination = fetchTemporaryDirectory()
+            .appending(path: "stream-\(safeKey)")
+        if !ext.isEmpty {
+            appleDestination = appleDestination.appendingPathExtension(ext)
+        }
+
+        Task {
+            do {
+                let session = try await FileProviderBridge.requestStreamURLViaMainApp(
+                    remote: decoded.remote,
+                    path: decoded.path,
+                    timeout: 30
+                )
+
+                guard let baseURL = URL(string: session.url) else {
+                    throw NSError(
+                        domain: NSFileProviderErrorDomain,
+                        code: NSFileProviderError.serverUnreachable.rawValue,
+                        userInfo: [NSLocalizedDescriptionKey: "URL streaming invalide"]
+                    )
+                }
+
+                // HEAD pour récupérer la taille totale (alloue le sparse à la
+                // bonne taille pour qu'iOS sache que c'est le fichier complet).
+                var headRequest = URLRequest(url: baseURL)
+                headRequest.httpMethod = "HEAD"
+                let (_, headResponse) = try await URLSession.shared.data(for: headRequest)
+                guard let httpHead = headResponse as? HTTPURLResponse else {
+                    throw NSError(
+                        domain: NSFileProviderErrorDomain,
+                        code: NSFileProviderError.serverUnreachable.rawValue,
+                        userInfo: [NSLocalizedDescriptionKey: "Réponse HEAD invalide"]
+                    )
+                }
+                let totalSize = Int64(httpHead.value(forHTTPHeaderField: "Content-Length") ?? "-1") ?? -1
+
+                // Range étendu : on télécharge un chunk un peu plus grand que
+                // demandé (alignement) pour éviter trop d'aller-retours iOS.
+                let blockSize = max(alignment, 1 << 20) // 1 Mo min
+                let alignedStart = (requestedRange.location / blockSize) * blockSize
+                var alignedEnd = ((requestedRange.location + requestedRange.length + blockSize - 1) / blockSize) * blockSize
+                if totalSize > 0, alignedEnd > Int(totalSize) {
+                    alignedEnd = Int(totalSize)
+                }
+                let chunkLength = alignedEnd - alignedStart
+
+                try FileManager.default.createDirectory(
+                    at: appleDestination.deletingLastPathComponent(),
+                    withIntermediateDirectories: true
+                )
+
+                // Pre-allocate le fichier sparse à la taille totale si nouveau.
+                if !FileManager.default.fileExists(atPath: appleDestination.path) {
+                    FileManager.default.createFile(atPath: appleDestination.path, contents: nil)
+                }
+                let writeHandle = try FileHandle(forWritingTo: appleDestination)
+                if totalSize > 0 {
+                    try writeHandle.truncate(toOffset: UInt64(totalSize))
+                }
+
+                // GET avec Range header.
+                var rangeRequest = URLRequest(url: baseURL)
+                rangeRequest.httpMethod = "GET"
+                rangeRequest.setValue("bytes=\(alignedStart)-\(alignedEnd - 1)", forHTTPHeaderField: "Range")
+                let (rangeData, _) = try await URLSession.shared.data(for: rangeRequest)
+
+                try writeHandle.seek(toOffset: UInt64(alignedStart))
+                try writeHandle.write(contentsOf: rangeData)
+                try writeHandle.close()
+
+                let item = RcloneItem(
+                    id: itemIdentifier,
+                    parentID: parentIdentifier(remote: decoded.remote, path: decoded.path),
+                    displayName: (decoded.path as NSString).lastPathComponent,
+                    isDirectory: false,
+                    size: totalSize > 0 ? totalSize : Int64(rangeData.count),
+                    modTime: .now
+                )
+                let materialized = NSRange(location: alignedStart, length: rangeData.count)
+                FileProviderBridge.appendDiagnostic("fetchPartialContents done id=\(itemIdentifier.rawValue) range=\(alignedStart)+\(rangeData.count) at=\(appleDestination.path)")
+                progress.completedUnitCount = 100
+                completionHandler(appleDestination, item, materialized, [], nil)
+            } catch {
+                FileProviderBridge.appendDiagnostic("fetchPartialContents failed id=\(itemIdentifier.rawValue) error=\(error.localizedDescription)")
+                completionHandler(nil, nil, NSRange(), [], error)
+            }
+        }
+        return progress
+    }
+    #endif
+
     // MARK: - Mutations (create / modify / delete)
 
     public func createItem(basedOn itemTemplate: NSFileProviderItem, fields: NSFileProviderItemFields, contents url: URL?, options: NSFileProviderCreateItemOptions, request: NSFileProviderRequest, completionHandler: @escaping (NSFileProviderItem?, NSFileProviderItemFields, Bool, Error?) -> Void) -> Progress {

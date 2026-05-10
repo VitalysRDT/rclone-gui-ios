@@ -13,6 +13,7 @@
 //
 
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct EntryActionsMenu: View {
     let entry: RemoteEntryDTO
@@ -24,21 +25,51 @@ struct EntryActionsMenu: View {
     @Binding var renameTarget: RemoteEntryDTO?
     @Binding var deleteTarget: RemoteEntryDTO?
     @Binding var playTarget: RemoteEntryDTO?
+    @Binding var previewTarget: RemoteEntryDTO?
     @Binding var moveTarget: RemoteEntryDTO?
+    @Binding var downloadTarget: RemoteEntryDTO?
+    @Binding var externalOpenTarget: RemoteEntryDTO?
 
     var body: some View {
         Group {
-            if !entry.isDirectory, Self.isMediaFile(entry.name) {
+            if !entry.isDirectory {
                 Button {
-                    playTarget = entry
+                    if Self.isMediaFile(entry.name) {
+                        playTarget = entry
+                    } else {
+                        previewTarget = entry
+                    }
                 } label: {
-                    Label("Lire", systemImage: "play.circle")
+                    Label("Ouvrir dans l'app", systemImage: Self.isMediaFile(entry.name) ? "play.circle" : "doc.viewfinder")
+                }
+
+                if Self.isVideoFile(entry.name) {
+                    Menu {
+                        Button {
+                            Task { await streamInExternalPlayer(scheme: .infuse) }
+                        } label: {
+                            Label("Infuse", systemImage: "play.tv")
+                        }
+                        Button {
+                            Task { await streamInExternalPlayer(scheme: .vlc) }
+                        } label: {
+                            Label("VLC", systemImage: "play.tv.fill")
+                        }
+                    } label: {
+                        Label("Streamer dans…", systemImage: "play.rectangle.on.rectangle")
+                    }
+                }
+
+                Button {
+                    externalOpenTarget = entry
+                } label: {
+                    Label("Ouvrir dans une autre app", systemImage: "square.and.arrow.up")
                 }
                 Divider()
             }
 
             Button {
-                Task { await download() }
+                downloadTarget = entry
             } label: {
                 Label(entry.isDirectory ? "Télécharger le dossier" : "Télécharger",
                       systemImage: "arrow.down.circle")
@@ -149,12 +180,81 @@ struct EntryActionsMenu: View {
 
     static func isMediaFile(_ name: String) -> Bool {
         let ext = (name as NSString).pathExtension.lowercased()
+        if let type = UTType(filenameExtension: ext),
+           type.conforms(to: .movie) || type.conforms(to: .audio) {
+            return true
+        }
         return [
             // Video
             "mp4", "mkv", "mov", "avi", "webm", "m4v", "ts", "mpg", "mpeg",
             // Audio
             "mp3", "m4a", "wav", "flac", "ogg", "aac", "alac", "opus"
         ].contains(ext)
+    }
+
+    static func isVideoFile(_ name: String) -> Bool {
+        let ext = (name as NSString).pathExtension.lowercased()
+        if let type = UTType(filenameExtension: ext), type.conforms(to: .movie) {
+            return true
+        }
+        return ["mp4", "mkv", "mov", "avi", "webm", "m4v", "ts", "mpg", "mpeg"].contains(ext)
+    }
+
+    enum ExternalPlayerScheme {
+        case infuse
+        case vlc
+
+        func callbackURL(for streamURL: URL) -> URL? {
+            // Encode l'URL HTTP locale dans le scheme x-callback-url propre à
+            // chaque player. Infuse : infuse://x-callback-url/play?url=...
+            // VLC : vlc-x-callback://x-callback-url/stream?url=...
+            var components = URLComponents()
+            switch self {
+            case .infuse:
+                components.scheme = "infuse"
+                components.host = "x-callback-url"
+                components.path = "/play"
+            case .vlc:
+                components.scheme = "vlc-x-callback"
+                components.host = "x-callback-url"
+                components.path = "/stream"
+            }
+            components.queryItems = [URLQueryItem(name: "url", value: streamURL.absoluteString)]
+            return components.url
+        }
+    }
+
+    @MainActor
+    private func streamInExternalPlayer(scheme: ExternalPlayerScheme) async {
+        do {
+            let session = try await RcloneStreamingService.shared.session(
+                remote: remote,
+                path: entry.pathInRemote,
+                sizeHint: entry.size
+            )
+            guard let callbackURL = scheme.callbackURL(for: session.url) else {
+                await LogService.shared.log(
+                    .error,
+                    category: "streaming",
+                    message: "Impossible de construire l'URL callback pour \(entry.name)"
+                )
+                return
+            }
+            #if canImport(UIKit)
+            await UIApplication.shared.open(callbackURL)
+            #endif
+            await LogService.shared.log(
+                .info,
+                category: "streaming",
+                message: "Stream → \(callbackURL.scheme ?? "?") : \(remote):\(entry.pathInRemote)"
+            )
+        } catch {
+            await LogService.shared.log(
+                .error,
+                category: "streaming",
+                message: "Streaming externe échoué (\(remote):\(entry.pathInRemote)) : \(error.localizedDescription)"
+            )
+        }
     }
 }
 

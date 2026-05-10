@@ -90,6 +90,16 @@ public enum AppGroup {
         containerURL.appending(path: "pending-fetches", directoryHint: .isDirectory)
     }
 
+    public nonisolated static var streamingURLsDir: URL {
+        containerURL.appending(path: "streaming-urls", directoryHint: .isDirectory)
+    }
+
+    public nonisolated static func streamingURLFile(remote: String, path: String) -> URL {
+        let key = "\(remote):\(path)"
+        let safe = key.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? UUID().uuidString
+        return streamingURLsDir.appending(path: safe).appendingPathExtension("json")
+    }
+
     /// Nom de la Darwin notification postée par l'extension FileProvider
     /// pour signaler une nouvelle demande de fetch à l'app principale.
     public static let fileProviderFetchRequestNotification = "com.rougetet.rclone-gui.fp.fetch-request"
@@ -120,6 +130,7 @@ public enum AppGroup {
         try fm.createDirectory(at: thumbnailCacheURL, withIntermediateDirectories: true)
         try fm.createDirectory(at: runtimeWorkingDirectoryURL, withIntermediateDirectories: true)
         try fm.createDirectory(at: pendingFetchesDir, withIntermediateDirectories: true)
+        try fm.createDirectory(at: streamingURLsDir, withIntermediateDirectories: true)
         try fm.createDirectory(
             at: fileProviderDiagnosticsURL.deletingLastPathComponent(),
             withIntermediateDirectories: true
@@ -137,4 +148,19 @@ public struct AppGroupPendingFetch: Codable, Sendable {
     public let path: String
     public let destPath: String
     public let createdAt: Date
+    public let kind: String?
+}
+
+/// Mirror du StreamSessionInfo défini côté extension. Sérialisé dans
+/// streaming-urls/<key>.json par FileProviderFetchService.
+public struct AppGroupStreamSessionInfo: Codable, Sendable {
+    public let sessionID: String
+    public let url: String
+    public let createdAt: Date
+
+    public init(sessionID: String, url: String, createdAt: Date) {
+        self.sessionID = sessionID
+        self.url = url
+        self.createdAt = createdAt
+    }
 }
