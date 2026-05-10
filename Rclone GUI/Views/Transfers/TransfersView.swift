@@ -29,11 +29,16 @@ struct TransfersView: View {
     var body: some View {
         Group {
             if transfers.isEmpty {
-                ContentUnavailableView(
-                    "Aucun transfert",
-                    systemImage: "arrow.up.arrow.down",
-                    description: Text("Lance un téléchargement ou un upload depuis un dossier.")
-                )
+                VStack {
+                    AppEmptyStateView(
+                        title: "Aucun transfert",
+                        message: "Lance un téléchargement, un upload ou une sync depuis un dossier.",
+                        systemImage: "arrow.up.arrow.down",
+                        tint: .indigo
+                    )
+                    .padding()
+                    Spacer(minLength: 0)
+                }
             } else {
                 transfersList
             }
@@ -76,6 +81,15 @@ struct TransfersView: View {
         .sensoryFeedback(.selection, trigger: hapticTrigger)
         .task {
             isPausedGlobally = TransferQueue.shared.isPausedGlobally
+        }
+        .onAppear {
+            // L'utilisateur regarde l'écran Transferts pour voir le débit
+            // réel — on désactive le throttling automatique pendant qu'il
+            // est ici. Restauré quand il quitte la vue.
+            TransferQueue.shared.incrementActivityBypass()
+        }
+        .onDisappear {
+            TransferQueue.shared.decrementActivityBypass()
         }
     }
 
@@ -278,31 +292,17 @@ private struct TransferOverviewCard: View {
     let transfers: [Transfer]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 12) {
-                AppIconTile(systemImage: "arrow.up.arrow.down.circle.fill", tint: .indigo, size: 52)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Activité des transferts")
-                        .font(.headline)
-                    Text(summary)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer(minLength: 8)
-            }
-
+        AppHeroCard(
+            title: "Activité des transferts",
+            subtitle: summary,
+            systemImage: "arrow.up.arrow.down.circle.fill",
+            tint: .indigo
+        ) {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: 10)], spacing: 10) {
                 AppMetricPill(value: "\(activeCount)", label: "actifs", systemImage: "bolt.fill", tint: .blue)
                 AppMetricPill(value: "\(completedCount)", label: "terminés", systemImage: "checkmark.circle", tint: .green)
                 AppMetricPill(value: "\(failedCount)", label: "échecs", systemImage: "exclamationmark.triangle", tint: .red)
             }
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.background, in: .rect(cornerRadius: 16, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(.quaternary)
         }
     }
 

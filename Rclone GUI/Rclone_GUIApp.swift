@@ -25,6 +25,7 @@ struct Rclone_GUIApp: App {
             TransferBatch.self,
             PhotoSyncAsset.self,
             TrashEntry.self,
+            SavedLocation.self,
         ])
         // Local-only store: explicitly opt out of SwiftData/CloudKit auto-sync.
         // The app declares the iCloud entitlement (for future iCloud Drive
@@ -111,6 +112,27 @@ struct Rclone_GUIApp: App {
                     Task.detached(priority: .background) {
                         try? await MediaCacheService.shared.cleanupStalePartials()
                         try? await MediaCacheService.shared.evictIfNeeded(reservingBytes: 0)
+                    }
+                    // Démarre le monitoring d'activité utilisateur : capte
+                    // les taps globaux et throttle automatiquement la bande
+                    // passante à 1MB/s pendant que l'utilisateur navigue,
+                    // restaure la pleine vitesse après 5s d'inactivité. Évite
+                    // que la sync photos sature CPU/réseau quand l'utilisateur
+                    // veut juste consulter ses remotes.
+                    await MainActor.run {
+                        UserActivityMonitor.shared.start()
+                    }
+                    Task { @MainActor in
+                        let center = NotificationCenter.default
+                        for await note in center.notifications(named: .userActivityDidChange) {
+                            let isActive = (note.userInfo?["isActive"] as? Bool) ?? false
+                            let mbps = UserDefaults.standard.double(forKey: "transfer.bandwidthLimitMBps")
+                            let bytes = Int64(mbps * 1024 * 1024)
+                            await TransferQueue.shared.applyThrottleForUserActivity(
+                                isActive: isActive,
+                                userPreferredBytes: bytes
+                            )
+                        }
                     }
                 }
         }

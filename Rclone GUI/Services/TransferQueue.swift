@@ -581,6 +581,74 @@ public final class TransferQueue {
         try await TransferService.shared.setBandwidthLimit(bytesPerSecond: bytesPerSecond)
     }
 
+    // MARK: - Throttle pendant l'activité utilisateur
+
+    /// Limite temporaire appliquée pendant que l'utilisateur navigue dans
+    /// l'app. 1 MB/s = compromis : assez bas pour libérer CPU/réseau et
+    /// garder le UI fluide, assez haut pour que le sync ne s'arrête pas.
+    private static let userActivityThrottleBytes: Int64 = 1_048_576
+
+    /// Compteur de bypass : TransfersView l'incrémente à .onAppear et le
+    /// décrémente à .onDisappear pour ne PAS throttler quand l'utilisateur
+    /// regarde explicitement les transferts (il veut voir le débit réel).
+    private var userActivityBypassCount: Int = 0
+    private var isThrottlingForUserActivity = false
+
+    public func incrementActivityBypass() {
+        userActivityBypassCount += 1
+        // Re-évalue : si on était en throttle mais bypass demandé, on retire.
+        Task { await reevaluateUserActivityThrottle() }
+    }
+
+    public func decrementActivityBypass() {
+        userActivityBypassCount = max(0, userActivityBypassCount - 1)
+        Task { await reevaluateUserActivityThrottle() }
+    }
+
+    /// Appelé par UserActivityMonitor (via Notification) quand l'état
+    /// d'activité change. Throttle vers 1MB/s pendant la nav, restaure
+    /// le ceiling utilisateur après inactivité.
+    public func applyThrottleForUserActivity(isActive: Bool, userPreferredBytes: Int64) async {
+        let shouldThrottle = isActive
+            && !isPausedGlobally
+            && userActivityBypassCount == 0
+            // Ne throttle que si la valeur normale est >1MB/s (sinon useless)
+            && (userPreferredBytes == 0 || userPreferredBytes > Self.userActivityThrottleBytes)
+
+        guard shouldThrottle != isThrottlingForUserActivity else { return }
+
+        do {
+            if shouldThrottle {
+                try await TransferService.shared.setBandwidthLimit(
+                    bytesPerSecond: Self.userActivityThrottleBytes
+                )
+                isThrottlingForUserActivity = true
+            } else {
+                try await TransferService.shared.setBandwidthLimit(
+                    bytesPerSecond: userPreferredBytes
+                )
+                isThrottlingForUserActivity = false
+            }
+        } catch {
+            // Best effort : si la RPC bwlimit fail, on log mais on n'altère
+            // pas le flag pour qu'un retry futur tente à nouveau.
+            await LogService.shared.log(
+                .debug,
+                category: "transfer",
+                message: "Throttle activity échec : \(error.localizedDescription)"
+            )
+        }
+    }
+
+    private func reevaluateUserActivityThrottle() async {
+        // Réajuste après changement de bypass count : on relit la prefs
+        // depuis UserDefaults et on aligne sur l'état actif courant.
+        let mbps = UserDefaults.standard.double(forKey: "transfer.bandwidthLimitMBps")
+        let bytes = Int64(mbps * 1024 * 1024)
+        let isActive = await UserActivityMonitor.shared.isUserActive
+        await applyThrottleForUserActivity(isActive: isActive, userPreferredBytes: bytes)
+    }
+
     /// Cold-start handler: re-applies the persisted pause/bwlimit state to
     /// rclone (which forgot it) and updates the in-memory `isPausedGlobally`
     /// flag so the UI matches the real backend state.
