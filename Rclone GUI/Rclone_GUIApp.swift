@@ -24,6 +24,7 @@ struct Rclone_GUIApp: App {
             Transfer.self,
             TransferBatch.self,
             PhotoSyncAsset.self,
+            TrashEntry.self,
         ])
         // Local-only store: explicitly opt out of SwiftData/CloudKit auto-sync.
         // The app declares the iCloud entitlement (for future iCloud Drive
@@ -66,6 +67,7 @@ struct Rclone_GUIApp: App {
                     await MainActor.run {
                         TransferQueue.shared.attach(modelContext: sharedModelContainer.mainContext)
                         PhotoSyncService.shared.attach(modelContext: sharedModelContainer.mainContext)
+                        TrashService.shared.attach(modelContext: sharedModelContainer.mainContext)
                     }
                     try? await ConfigStore.shared.migrateMasterKeyToSharedAccessGroupIfNeeded()
                     await LogService.emitBoot()
@@ -77,6 +79,14 @@ struct Rclone_GUIApp: App {
                         await FileProviderManager.shared.writeRemotesManifest(remotes)
                     }
                     PhotoSyncService.shared.scheduleBackgroundProcessing()
+                    // Auto-purge trashed items past their 30-day retention. Runs in
+                    // the background so a slow remote doesn't delay app launch.
+                    // @MainActor annotation is required because TrashService is
+                    // @MainActor-isolated and accesses sharedModelContainer.mainContext,
+                    // which is bound to the main actor per SwiftData's threading contract.
+                    Task.detached(priority: .background) { @MainActor in
+                        await TrashService.shared.purgeExpired()
+                    }
                 }
         }
         .modelContainer(sharedModelContainer)

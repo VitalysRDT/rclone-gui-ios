@@ -45,6 +45,11 @@ public final class TrashService {
     /// Move a file or folder to the trash on its remote. Records metadata
     /// so the original location can be restored later.
     /// Throws on rclone failure or if the model context is not attached.
+    ///
+    /// Order of operations is **metadata first, remote move second**: if
+    /// `modelContext.save()` fails we never touch the remote, and if the
+    /// rclone move fails we roll the metadata back. This guarantees we never
+    /// strand a file in the trash dir without a TrashEntry pointing to it.
     @discardableResult
     public func moveToTrash(
         remote: String,
@@ -64,25 +69,8 @@ public final class TrashService {
         let trashFolder = "\(Self.trashRoot)/\(id)"
         let trashPath = "\(trashFolder)/\(name)"
 
-        // Make sure the wrapper folder exists. mkdir is idempotent on rclone
-        // and a no-op on backends that auto-create parents.
-        try await TransferService.shared.mkdir(remote: remote, path: trashFolder)
-
-        // Server-side rename. operations/movefile for files, sync/move for folders.
-        if isDirectory {
-            _ = try await TransferService.shared.moveDirAsync(
-                srcFs: "\(remote):\(path)",
-                dstFs: "\(remote):\(trashPath)"
-            )
-        } else {
-            _ = try await TransferService.shared.moveFileAsync(
-                srcFs: "\(remote):",
-                srcPath: path,
-                dstFs: "\(remote):",
-                dstPath: trashPath
-            )
-        }
-
+        // Step 1 — persist metadata first. If the save throws we abort before
+        // touching the remote, so no file ends up stranded.
         let entry = TrashEntry(
             id: id,
             originalRemote: remote,
@@ -95,6 +83,36 @@ public final class TrashService {
         modelContext.insert(entry)
         try modelContext.save()
 
+        // Step 2 — actually move on the remote. On any failure roll the
+        // metadata back so we don't leave an orphan TrashEntry pointing at
+        // a path that doesn't exist.
+        do {
+            try await TransferService.shared.mkdir(remote: remote, path: trashFolder)
+
+            if isDirectory {
+                _ = try await TransferService.shared.moveDirAsync(
+                    srcFs: "\(remote):\(path)",
+                    dstFs: "\(remote):\(trashPath)"
+                )
+            } else {
+                _ = try await TransferService.shared.moveFileAsync(
+                    srcFs: "\(remote):",
+                    srcPath: path,
+                    dstFs: "\(remote):",
+                    dstPath: trashPath
+                )
+            }
+        } catch {
+            modelContext.delete(entry)
+            try? modelContext.save()
+            await LogService.shared.log(
+                .error,
+                category: "trash",
+                message: "Trash move failed for \(remote):\(path), metadata rolled back: \(error.localizedDescription)"
+            )
+            throw error
+        }
+
         await LogService.shared.log(
             .info,
             category: "trash",
@@ -104,12 +122,25 @@ public final class TrashService {
         return entry
     }
 
-    /// Move a trashed item back to its original path. Fails if the original
-    /// path no longer exists (the parent folder was deleted) — caller should
-    /// handle that by offering a destination picker.
+    /// Move a trashed item back to its original path.
+    ///
+    /// Throws `TrashError.destinationOccupied` if something already exists at
+    /// `entry.originalPath` — `rclone moveto` would silently overwrite, and
+    /// since the trash exists precisely to prevent data loss we refuse instead.
+    /// Callers should catch that case and offer the user a destination picker.
     public func restore(_ entry: TrashEntry) async throws {
         guard let modelContext else {
             throw TrashError.notAttached
+        }
+
+        // Pre-flight: refuse if anything already lives at the original path.
+        // The user may have created a new file at the same location after
+        // trashing the old one; we must not silently destroy it.
+        if let existing = try? await RemoteService.shared.stat(
+            remote: entry.originalRemote,
+            path: entry.originalPath
+        ), existing != nil {
+            throw TrashError.destinationOccupied(entry.originalPath)
         }
 
         if entry.isDirectory {
@@ -126,9 +157,17 @@ public final class TrashService {
             )
         }
 
-        // Remove the wrapper folder we created (it's empty after the move).
-        let wrapper = (entry.trashPath as NSString).deletingLastPathComponent
-        try? await TransferService.shared.purgeAsync(remote: entry.originalRemote, path: wrapper)
+        // Cleanup wrapper folder. We only purge for files: for the directory
+        // case `moveDirAsync` may, on some backends, leave residual content
+        // behind that we shouldn't recursively delete here. A leftover empty
+        // wrapper is harmless (auto-removed by mkdir cleanup on next trash op).
+        if !entry.isDirectory {
+            let wrapper = (entry.trashPath as NSString).deletingLastPathComponent
+            try? await TransferService.shared.purgeAsync(
+                remote: entry.originalRemote,
+                path: wrapper
+            )
+        }
 
         modelContext.delete(entry)
         try modelContext.save()
@@ -242,13 +281,16 @@ public final class TrashService {
     }
 }
 
-public enum TrashError: LocalizedError {
+public enum TrashError: LocalizedError, Equatable {
     case notAttached
+    case destinationOccupied(String)
 
     public var errorDescription: String? {
         switch self {
         case .notAttached:
             return "Le service de corbeille n'est pas initialisé."
+        case .destinationOccupied(let path):
+            return "Un élément existe déjà à \(path). Renommez-le ou déplacez-le avant de restaurer."
         }
     }
 }
