@@ -450,7 +450,8 @@ struct FolderView: View {
                         remote: remote,
                         path: path,
                         folderCount: folderCount,
-                        fileCount: fileCount
+                        fileCount: fileCount,
+                        isInsideCrypt: currentRemoteIsCrypt
                     )
                     .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                     .listRowBackground(Color.clear)
@@ -1030,54 +1031,110 @@ private struct DisplayedEntry: Identifiable {
     let entry: RemoteEntryDTO
 }
 
+/// Header card displayed at the top of each folder. Mirrors the walkthrough
+/// artboard "05 · Naviguer": crypt breadcrumb (lock + monospace path),
+/// large folder name, and a crypt-aware tagline. The chips below carry
+/// the folder/file counters from the previous metric pills.
 private struct FolderOverviewCard: View {
     let remote: String
     let path: String
     let folderCount: Int
     let fileCount: Int
+    var isInsideCrypt: Bool = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 12) {
-                AppIconTile(systemImage: path.isEmpty ? "externaldrive.fill" : "folder.fill", tint: .blue, size: 52)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(title)
-                        .font(.headline)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                    Text(remote)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                if isInsideCrypt {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(RG.accent)
+                        .accessibilityHidden(true)
                 }
-                Spacer(minLength: 8)
+                Text(breadcrumb)
+                    .font(RG.mono)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
             }
 
-            HStack(spacing: 10) {
-                AppMetricPill(
-                    value: "\(folderCount)",
-                    label: folderCount == 1 ? "dossier" : "dossiers",
-                    systemImage: "folder",
+            Text(title)
+                .font(.system(size: 28, weight: .bold))
+                .lineLimit(1)
+                .truncationMode(.middle)
+
+            Text(tagline)
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+
+            HStack(spacing: 6) {
+                FolderCountChip(
+                    text: folderCount == 1 ? "1 dossier" : "\(folderCount) dossiers",
                     tint: .blue
                 )
-                AppMetricPill(
-                    value: "\(fileCount)",
-                    label: fileCount == 1 ? "fichier" : "fichiers",
-                    systemImage: "doc",
+                FolderCountChip(
+                    text: fileCount == 1 ? "1 fichier" : "\(fileCount) fichiers",
                     tint: .teal
                 )
+                Spacer(minLength: 0)
             }
+            .padding(.top, 2)
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.background, in: .rect(cornerRadius: 16, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(.quaternary)
-        }
+        .background(Color.rgGroupedRowBackground,
+                    in: RoundedRectangle(cornerRadius: RG.Radius.card, style: .continuous))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityText)
     }
 
     private var title: String {
-        path.isEmpty ? "Racine du remote" : path
+        if path.isEmpty {
+            return remote
+        }
+        return (path as NSString).lastPathComponent
+    }
+
+    /// `remote · /sub/path` (or just `remote` at the root). Rendered in
+    /// monospace, prefixed by a violet lock when we're inside a crypt
+    /// remote — exactly like the design's `<lock>/series` breadcrumb.
+    private var breadcrumb: String {
+        if path.isEmpty {
+            return remote
+        }
+        return "\(remote) · /\(path)"
+    }
+
+    private var tagline: String {
+        let total = folderCount + fileCount
+        let nounSuffix = total > 1 ? "s" : ""
+        let head = total == 0
+            ? "Dossier vide"
+            : "\(total) élément\(nounSuffix)"
+        return isInsideCrypt ? "\(head) · déchiffrés à la volée" : head
+    }
+
+    private var accessibilityText: String {
+        let cryptLabel = isInsideCrypt ? "chiffré" : ""
+        return "\(title) \(cryptLabel), \(breadcrumb), \(tagline)"
+    }
+}
+
+/// Small inline counter pill rendered inside `FolderOverviewCard`. Uses
+/// the tinted-rounded-rect language from the design's `Chip` element.
+private struct FolderCountChip: View {
+    let text: String
+    let tint: Color
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(tint)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(tint.opacity(0.14),
+                        in: RoundedRectangle(cornerRadius: RG.Radius.pill, style: .continuous))
+            .accessibilityHidden(true)
     }
 }
