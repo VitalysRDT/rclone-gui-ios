@@ -38,6 +38,9 @@ public struct PhotoSyncRunSummary: Sendable, Equatable {
     public let failedCount: Int
     public let totalBytes: Int64
     public let transferredBytes: Int64
+    public let averageBytesPerSecond: Double
+    public let estimatedTimeRemaining: TimeInterval?
+    public let pausedByUser: Bool
 
     public var isLimitedAccess: Bool {
         authorization == .limited
@@ -104,6 +107,12 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
     private var isSyncing = false
     private var observerSyncTask: Task<Void, Never>?
     private var continuationTask: Task<Void, Never>?
+    /// Rolling sample of (timestamp, transferredBytes) used to compute the
+    /// instantaneous throughput and ETA shown in the hero card. Capped to the
+    /// last 30 s by pruning on each insert so it stays O(n) in time, not in
+    /// session length. Lives in-memory only — restarted from zero on cold launch.
+    private var throughputSamples: [(date: Date, bytes: Int64)] = []
+    private let throughputWindow: TimeInterval = 30
     /// Periodic safety net that re-kicks the continuation if it ever stalls
     /// (e.g. transferDidFinish failed to match a remotePath because of a
     /// path-normalisation drift, or the queue dropped a callback). Set up
@@ -378,6 +387,93 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         set { UserDefaults.standard.set(newValue, forKey: "photoSync.continueUntilEmpty") }
     }
 
+    /// Persisted user-initiated pause. Distinct from the policy suspension
+    /// (battery/network) so the pipeline doesn't auto-resume when the device
+    /// is plugged in — only an explicit "Reprendre" tap lifts this.
+    public var isPausedByUser: Bool {
+        get { UserDefaults.standard.bool(forKey: "photoSync.pausedByUser") }
+        set { UserDefaults.standard.set(newValue, forKey: "photoSync.pausedByUser") }
+    }
+
+    /// User-facing pause. Stops new work from being enqueued and halts any
+    /// in-flight TransferQueue jobs. Idempotent.
+    public func pausePhotoSync() async {
+        isPausedByUser = true
+        continuationTask?.cancel()
+        continuationTask = nil
+        do {
+            try await TransferQueue.shared.pauseAllTransfers()
+        } catch {
+            await LogService.shared.log(.error, category: "photos", message: "Pause TransferQueue impossible : \(error.localizedDescription)")
+        }
+        await LogService.shared.log(.info, category: "photos", message: "Synchro photos en pause (utilisateur).")
+    }
+
+    /// Lift the user pause. Restores TransferQueue bandwidth from the user
+    /// preference and re-kicks the pipeline if there's still work to do.
+    public func resumePhotoSync() async {
+        guard isPausedByUser else { return }
+        isPausedByUser = false
+        let mbps = UserDefaults.standard.double(forKey: "transfer.bandwidthLimitMBps")
+        let bytesPerSecond = Int64(max(0, mbps) * 1024 * 1024)
+        do {
+            try await TransferQueue.shared.resumeAllTransfers(bytesPerSecond: bytesPerSecond)
+        } catch {
+            await LogService.shared.log(.error, category: "photos", message: "Reprise TransferQueue impossible : \(error.localizedDescription)")
+        }
+        await LogService.shared.log(.info, category: "photos", message: "Synchro photos reprise.")
+        if isEnabled, configuredRemote != nil {
+            shouldContinueUntilEmpty = true
+            scheduleContinuationIfNeeded()
+        }
+    }
+
+    /// Move every `.failed` asset back to `.pending` and reset attempt counters,
+    /// then kick a full sync so they get re-tried right away. Returns the
+    /// number of assets recycled.
+    @discardableResult
+    public func retryFailedAssets() async -> Int {
+        guard let modelContext else { return 0 }
+        let descriptor = FetchDescriptor<PhotoSyncAsset>(
+            predicate: #Predicate { $0.statusRaw == "failed" }
+        )
+        let failed = (try? modelContext.fetch(descriptor)) ?? []
+        guard !failed.isEmpty else { return 0 }
+        for asset in failed {
+            asset.status = .pending
+            asset.retryCount = 0
+            asset.lastError = nil
+        }
+        try? modelContext.save()
+        await LogService.shared.log(.info, category: "photos", message: "Reprise de \(failed.count) asset(s) en échec.")
+        if isEnabled, configuredRemote != nil, !isPausedByUser {
+            shouldContinueUntilEmpty = true
+            _ = await runSync(
+                requestedLimit: limits.enqueueBatchSize,
+                continueUntilEmpty: true,
+                includeFailedRetries: true
+            )
+        }
+        return failed.count
+    }
+
+    /// Permanently drop every `.failed` asset row so the historique stops
+    /// reporting them. Does NOT re-enqueue them — use `retryFailedAssets` for
+    /// that. Returns the number of rows deleted.
+    @discardableResult
+    public func clearFailedAssets() -> Int {
+        guard let modelContext else { return 0 }
+        let descriptor = FetchDescriptor<PhotoSyncAsset>(
+            predicate: #Predicate { $0.statusRaw == "failed" }
+        )
+        let failed = (try? modelContext.fetch(descriptor)) ?? []
+        for asset in failed {
+            modelContext.delete(asset)
+        }
+        try? modelContext.save()
+        return failed.count
+    }
+
     public func configure(enabled: Bool, remote: String?, folder: String, requiresPower: Bool, allowsCellular: Bool) {
         UserDefaults.standard.set(enabled, forKey: "photoSync.enabled")
         UserDefaults.standard.set(remote ?? "", forKey: "photoSync.remote")
@@ -431,6 +527,10 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
     ) async -> PhotoSyncRunSummary {
         guard !isSyncing else { return await statusSnapshot() }
         guard isEnabled, let remote = configuredRemote else { return await statusSnapshot() }
+        guard !isPausedByUser else {
+            await LogService.shared.log(.info, category: "photos", message: "Synchro photos ignorée : mise en pause par l'utilisateur.")
+            return await statusSnapshot()
+        }
         guard canStartNewWork else {
             await LogService.shared.log(.info, category: "photos", message: "Synchro photos suspendue par la politique energie/reseau.")
             scheduleBackgroundProcessing()
@@ -819,6 +919,11 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
             visibleCount = 0
         }
         let counts = photoSyncCounts()
+        recordThroughputSample(transferred: counts.transferredBytes, at: Date())
+        let (bps, eta) = throughputMetrics(
+            totalBytes: counts.totalBytes,
+            transferredBytes: counts.transferredBytes
+        )
         return PhotoSyncRunSummary(
             authorization: authorization,
             visibleAssetCount: visibleCount,
@@ -830,8 +935,46 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
             completedCount: counts.completed,
             failedCount: counts.failed,
             totalBytes: counts.totalBytes,
-            transferredBytes: counts.transferredBytes
+            transferredBytes: counts.transferredBytes,
+            averageBytesPerSecond: bps,
+            estimatedTimeRemaining: eta,
+            pausedByUser: isPausedByUser
         )
+    }
+
+    /// Append a sample to the rolling throughput buffer and prune anything
+    /// older than `throughputWindow`. Called every time `statusSnapshot` runs
+    /// (≈4 s cadence from the View), so the buffer stays bounded around 8
+    /// entries — cheap to scan.
+    private func recordThroughputSample(transferred: Int64, at date: Date) {
+        if let last = throughputSamples.last, last.bytes == transferred, date.timeIntervalSince(last.date) < 1 {
+            return
+        }
+        throughputSamples.append((date, transferred))
+        let cutoff = date.addingTimeInterval(-throughputWindow)
+        if let firstFreshIndex = throughputSamples.firstIndex(where: { $0.date >= cutoff }), firstFreshIndex > 0 {
+            throughputSamples.removeFirst(firstFreshIndex)
+        }
+    }
+
+    /// Compute the instantaneous bytes/sec (linear slope across the rolling
+    /// window) and the resulting ETA. Returns `(0, nil)` when the window holds
+    /// fewer than two samples or progress is flat — avoids reporting bogus
+    /// "0 s remaining" before any work has happened.
+    private func throughputMetrics(totalBytes: Int64, transferredBytes: Int64) -> (Double, TimeInterval?) {
+        guard throughputSamples.count >= 2,
+              let oldest = throughputSamples.first,
+              let newest = throughputSamples.last else {
+            return (0, nil)
+        }
+        let elapsed = newest.date.timeIntervalSince(oldest.date)
+        guard elapsed > 0.5 else { return (0, nil) }
+        let delta = Double(max(0, newest.bytes - oldest.bytes))
+        let bps = delta / elapsed
+        guard bps > 1 else { return (bps, nil) }
+        let remaining = Double(max(0, totalBytes - transferredBytes))
+        let eta = remaining > 0 ? remaining / bps : 0
+        return (bps, eta)
     }
 
     private func photoSyncCounts() -> PhotoSyncCounts {

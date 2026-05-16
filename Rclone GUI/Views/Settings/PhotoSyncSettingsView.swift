@@ -137,7 +137,7 @@ struct PhotoSyncSettingsView: View {
                         Label("Synchroniser maintenant", systemImage: "arrow.triangle.2.circlepath")
                     }
                 }
-                .disabled(selectedRemote.isEmpty || isSyncing)
+                .disabled(selectedRemote.isEmpty || isSyncing || stats.pausedByUser)
 
                 Button("Enregistrer la configuration") {
                     save()
@@ -146,6 +146,42 @@ struct PhotoSyncSettingsView: View {
             } footer: {
                 if let message {
                     Text(message)
+                }
+            }
+
+            Section {
+                Button {
+                    Task { await togglePause() }
+                } label: {
+                    if stats.pausedByUser {
+                        Label("Reprendre la synchro", systemImage: "play.fill")
+                    } else {
+                        Label("Mettre en pause", systemImage: "pause.fill")
+                    }
+                }
+                .disabled(selectedRemote.isEmpty)
+
+                if stats.failed > 0 {
+                    Button {
+                        Task { await retryFailed() }
+                    } label: {
+                        Label("Réessayer les échecs (\(stats.failed))", systemImage: "arrow.clockwise.circle")
+                    }
+                    .disabled(stats.pausedByUser)
+
+                    Button(role: .destructive) {
+                        Task { await clearFailed() }
+                    } label: {
+                        Label("Vider les échecs", systemImage: "trash")
+                    }
+                }
+            } header: {
+                Text("Contrôles")
+            } footer: {
+                if stats.pausedByUser {
+                    Text("La synchro est en pause. Aucun nouveau transfert ne sera lancé jusqu'à la reprise manuelle.")
+                } else if stats.failed > 0 {
+                    Text("\(stats.failed) photo(s) en échec. Réessayer remet à zéro le compteur de tentatives.")
                 }
             }
 
@@ -292,7 +328,55 @@ struct PhotoSyncSettingsView: View {
             active: summary.activeCount,
             completed: summary.completedCount,
             failed: summary.failedCount,
+            totalBytes: summary.totalBytes,
+            transferredBytes: summary.transferredBytes,
+            averageBytesPerSecond: summary.averageBytesPerSecond,
+            estimatedTimeRemaining: summary.estimatedTimeRemaining,
+            pausedByUser: summary.pausedByUser
         )
+    }
+
+    private func togglePause() async {
+        if stats.pausedByUser {
+            await PhotoSyncService.shared.resumePhotoSync()
+        } else {
+            await PhotoSyncService.shared.pausePhotoSync()
+        }
+        await reloadStats()
+    }
+
+    private func retryFailed() async {
+        let recycled = await PhotoSyncService.shared.retryFailedAssets()
+        if recycled > 0 {
+            message = "\(recycled) photo(s) remise(s) en file."
+        }
+        await reloadStats()
+    }
+
+    private func clearFailed() async {
+        let removed = PhotoSyncService.shared.clearFailedAssets()
+        if removed > 0 {
+            message = "\(removed) échec(s) supprimé(s) de l'historique."
+        }
+        await reloadStats()
+    }
+
+    private func formatBytes(_ bytes: Int64) -> String {
+        ByteCountFormatter.string(fromByteCount: max(0, bytes), countStyle: .file)
+    }
+
+    private func formatThroughput(_ bps: Double) -> String {
+        guard bps > 1 else { return "—" }
+        return "\(ByteCountFormatter.string(fromByteCount: Int64(bps), countStyle: .file))/s"
+    }
+
+    private func formatETA(_ seconds: TimeInterval) -> String {
+        let s = Int(seconds.rounded())
+        if s < 60 { return "\(s) s" }
+        if s < 3600 { return "\(s / 60) min \(s % 60) s" }
+        let h = s / 3600
+        let m = (s % 3600) / 60
+        return "\(h) h \(m) min"
     }
 
     /// Total des éléments concernés par la sync en cours : ce qui est déjà
@@ -320,7 +404,7 @@ struct PhotoSyncSettingsView: View {
         VStack(alignment: .leading, spacing: 6) {
             ProgressView(value: ratio)
                 .progressViewStyle(.linear)
-                .tint(.pink)
+                .tint(stats.pausedByUser ? .gray : .pink)
             HStack {
                 Text("\(stats.completed) / \(total) photos et vidéos")
                     .font(.caption)
@@ -329,6 +413,28 @@ struct PhotoSyncSettingsView: View {
                 Text("\(percent)%")
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
+            }
+            if stats.totalBytes > 0 {
+                HStack(spacing: 6) {
+                    if stats.pausedByUser {
+                        Label("En pause", systemImage: "pause.fill")
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(.orange)
+                    } else if stats.averageBytesPerSecond > 1 {
+                        Label(formatThroughput(stats.averageBytesPerSecond), systemImage: "speedometer")
+                            .font(.caption2.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    if let eta = stats.estimatedTimeRemaining, !stats.pausedByUser, eta > 0 {
+                        Label("≈ \(formatETA(eta))", systemImage: "hourglass")
+                            .font(.caption2.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Text("\(formatBytes(stats.transferredBytes)) / \(formatBytes(stats.totalBytes))")
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(.tertiary)
             }
         }
         .accessibilityElement(children: .combine)
@@ -411,4 +517,9 @@ private struct PhotoSyncStats {
     var active = 0
     var completed = 0
     var failed = 0
+    var totalBytes: Int64 = 0
+    var transferredBytes: Int64 = 0
+    var averageBytesPerSecond: Double = 0
+    var estimatedTimeRemaining: TimeInterval?
+    var pausedByUser = false
 }
