@@ -8,6 +8,7 @@
 //
 
 import BackgroundTasks
+import CryptoKit
 import Foundation
 import Photos
 import SwiftData
@@ -698,9 +699,25 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         observerRegistered = true
     }
 
+    /// Quand `false`, l'observation Photos reste active (pour qu'on puisse
+    /// quand même afficher des compteurs à jour) mais n'auto-déclenche pas
+    /// `startFullSync`. Le user lance lui-même via le bouton ou la prochaine
+    /// fenêtre BG.
+    public var autoSyncOnImport: Bool {
+        get {
+            if UserDefaults.standard.object(forKey: "photoSync.autoSyncOnImport") == nil {
+                return true
+            }
+            return UserDefaults.standard.bool(forKey: "photoSync.autoSyncOnImport")
+        }
+        set { UserDefaults.standard.set(newValue, forKey: "photoSync.autoSyncOnImport") }
+    }
+
     nonisolated public func photoLibraryDidChange(_ changeInstance: PHChange) {
         Task { @MainActor in
             guard PhotoSyncService.shared.isEnabled else { return }
+            guard PhotoSyncService.shared.autoSyncOnImport else { return }
+            guard !PhotoSyncService.shared.isPausedByUser else { return }
             PhotoSyncService.shared.observerSyncTask?.cancel()
             PhotoSyncService.shared.observerSyncTask = Task { @MainActor in
                 // Debounce so a Photos burst (10 photos imported at once)
@@ -826,6 +843,16 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
                 let exports = try await exportResources(forLocalIdentifier: localIdentifier)
                 var remotePaths: [String] = []
                 var bytes: Int64 = 0
+                // Hash de la ressource principale (la 1re export). On l'utilise
+                // pour comparer avec le hash distant après upload — c'est la
+                // garantie d'intégrité bout-en-bout. Calculé une seule fois,
+                // off-MainActor, donc transparent côté UI même pour de gros
+                // fichiers. Échec de hash = log info, pas blocant.
+                if let primary = exports.first, record.localHash == nil {
+                    if let hash = try? await Self.computeMD5(url: primary.url) {
+                        record.localHash = hash
+                    }
+                }
                 for exported in exports {
                     let remotePath = Self.remotePathForAsset(
                         baseFolder: folder,
@@ -900,7 +927,111 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
             record.lastError = nil
             try? modelContext.save()
             scheduleContinuationIfNeeded()
+            // Best-effort post-upload verification : on interroge rclone pour
+            // le hash MD5 du fichier distant et on compare au localHash. Non
+            // bloquant — si rclone ne supporte pas le hash MD5 sur ce backend
+            // (cas: certains S3 sans MD5 sur multipart), on marque "unsupported"
+            // mais le fichier reste considéré comme uploadé avec succès.
+            scheduleVerification(for: record.localIdentifier, paths: record.remotePaths)
         }
+    }
+
+    /// Kicks the best-effort verification of every remote path of the asset.
+    /// Runs detached so the completion callback returns immediately — the
+    /// caller (TransferQueue poll loop) doesn't wait for the verify result.
+    private func scheduleVerification(for localIdentifier: String, paths: [String]) {
+        guard let remote = configuredRemote, !paths.isEmpty else { return }
+        Task { @MainActor [weak self] in
+            await self?.verifyAsset(localIdentifier: localIdentifier, remote: remote, paths: paths)
+        }
+    }
+
+    /// Fetches the MD5 of each `paths[]` from rclone via `operations/stat` and
+    /// updates `remoteHash` + `verificationStatus` on the asset. The status is
+    /// the worst of the per-path comparisons :
+    /// - `"verified"` si tous les hashes correspondent
+    /// - `"mismatch"` si au moins un hash diffère
+    /// - `"missing"` si stat échoue / fichier introuvable
+    /// - `"unsupported"` si rclone renvoie un hash vide (backend sans MD5)
+    private func verifyAsset(localIdentifier: String, remote: String, paths: [String]) async {
+        guard let modelContext else { return }
+        let descriptor = FetchDescriptor<PhotoSyncAsset>(
+            predicate: #Predicate { $0.localIdentifier == localIdentifier }
+        )
+        guard let record = try? modelContext.fetch(descriptor).first else { return }
+
+        var aggregatedStatus = "verified"
+        var remoteHashLog: String?
+        for path in paths {
+            let remoteHash: String?
+            do {
+                let entry = try await RemoteService.shared.stat(remote: remote, path: path)
+                remoteHash = entry?.hashMD5
+            } catch {
+                aggregatedStatus = "missing"
+                continue
+            }
+            guard let remoteHash, !remoteHash.isEmpty else {
+                if aggregatedStatus == "verified" { aggregatedStatus = "unsupported" }
+                continue
+            }
+            remoteHashLog = remoteHash
+            if let local = record.localHash, !local.isEmpty {
+                if local.lowercased() != remoteHash.lowercased() {
+                    aggregatedStatus = "mismatch"
+                    break
+                }
+            } else {
+                // Pas de hash local (calcul échoué à l'enqueue) — on garde
+                // le hash distant comme référence mais on marque "unsupported"
+                // au lieu de "verified" puisqu'on ne peut pas affirmer l'intégrité.
+                if aggregatedStatus == "verified" { aggregatedStatus = "unsupported" }
+            }
+        }
+        record.remoteHash = remoteHashLog
+        record.verificationStatus = aggregatedStatus
+        try? modelContext.save()
+        if aggregatedStatus == "mismatch" {
+            await LogService.shared.log(.error, category: "photos", message: "Hash distant ne correspond pas pour \(localIdentifier).")
+        }
+    }
+
+    /// Snapshot du buffer de débit pour le graphique stats. Renvoie une liste
+    /// de points `(date, bytesPerSecond)` calculés par différence entre samples
+    /// consécutifs. Liste vide tant que < 2 samples accumulés.
+    public func throughputHistory() -> [(date: Date, bytesPerSecond: Double)] {
+        guard throughputSamples.count >= 2 else { return [] }
+        var points: [(Date, Double)] = []
+        for i in 1..<throughputSamples.count {
+            let prev = throughputSamples[i - 1]
+            let cur = throughputSamples[i]
+            let dt = cur.date.timeIntervalSince(prev.date)
+            guard dt > 0 else { continue }
+            let bps = Double(max(0, cur.bytes - prev.bytes)) / dt
+            points.append((cur.date, bps))
+        }
+        return points
+    }
+
+    /// MD5 streaming via `CryptoKit`. Lit le fichier par chunks de 1 MB pour
+    /// ne pas charger un MOV 4 Go en RAM (`Data(contentsOf:)` mappe le fichier
+    /// mais la digestion non chunked peut quand même peser sur la mémoire). Le
+    /// calcul s'effectue sur une `Task.detached` pour libérer le MainActor.
+    nonisolated static func computeMD5(url: URL) async throws -> String {
+        try await Task.detached(priority: .utility) {
+            let handle = try FileHandle(forReadingFrom: url)
+            defer { try? handle.close() }
+            var hasher = Insecure.MD5()
+            let chunkSize = 1 << 20 // 1 MiB
+            while autoreleasepool(invoking: { () -> Bool in
+                let chunk = handle.readData(ofLength: chunkSize)
+                if chunk.isEmpty { return false }
+                hasher.update(data: chunk)
+                return true
+            }) {}
+            let digest = hasher.finalize()
+            return digest.map { String(format: "%02hhx", $0) }.joined()
+        }.value
     }
 
     private func scheduleContinuationIfNeeded() {

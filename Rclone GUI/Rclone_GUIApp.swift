@@ -13,6 +13,9 @@ struct Rclone_GUIApp: App {
     init() {
         prepareRuntime()
         PhotoSyncService.shared.registerBackgroundTasks()
+        #if os(iOS)
+        PhotoSyncService.registerNotificationCategories()
+        #endif
     }
 
     var sharedModelContainer: ModelContainer = {
@@ -110,7 +113,7 @@ struct Rclone_GUIApp: App {
                     // un utilisateur qui regarde 100 films cumule des Go
                     // de cache orphelin jusqu'à saturer le device.
                     Task.detached(priority: .background) {
-                        try? await MediaCacheService.shared.cleanupStalePartials()
+                        _ = try? await MediaCacheService.shared.cleanupStalePartials()
                         try? await MediaCacheService.shared.evictIfNeeded(reservingBytes: 0)
                     }
                     // Démarre le monitoring d'activité utilisateur : capte

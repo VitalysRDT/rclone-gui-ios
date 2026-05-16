@@ -14,6 +14,7 @@
 
 #if os(iOS)
 import Foundation
+import UIKit
 import UserNotifications
 
 extension PhotoSyncService {
@@ -26,6 +27,42 @@ extension PhotoSyncService {
     /// the same id collapses earlier "sync done" notifications when a new
     /// run completes — the user only sees the latest status.
     private static let syncCompleteNotificationID = "photosync.syncComplete"
+
+    /// Catégorie de notification qui porte les actions inline Pause / Reprendre.
+    /// Routée vers `PhotoSyncNotificationDelegate.handleAction(_:)`.
+    public static let progressCategoryID = "PHOTO_SYNC_PROGRESS"
+    public static let pauseActionID = "PHOTO_SYNC_PAUSE"
+    public static let resumeActionID = "PHOTO_SYNC_RESUME"
+
+    /// Enregistre la catégorie de notification une seule fois au démarrage.
+    /// Appeler depuis l'App init (cf. `Rclone_GUIApp.init`).
+    public static func registerNotificationCategories() {
+        let pause = UNNotificationAction(
+            identifier: pauseActionID,
+            title: "Mettre en pause",
+            options: []
+        )
+        let resume = UNNotificationAction(
+            identifier: resumeActionID,
+            title: "Reprendre",
+            options: []
+        )
+        let category = UNNotificationCategory(
+            identifier: progressCategoryID,
+            actions: [pause, resume],
+            intentIdentifiers: [],
+            options: []
+        )
+        UNUserNotificationCenter.current().setNotificationCategories([category])
+        UNUserNotificationCenter.current().delegate = PhotoSyncNotificationDelegate.shared
+    }
+
+    /// Met à jour le badge de l'icône d'app. iOS 17+ exige `setBadgeCount`
+    /// via UNUserNotificationCenter — `UIApplication.applicationIconBadgeNumber`
+    /// est déprécié.
+    public static func updateBadgeCount(_ count: Int) {
+        UNUserNotificationCenter.current().setBadgeCount(max(0, count)) { _ in }
+    }
 
     /// Request notification authorization. Idempotent — iOS only shows the
     /// permission alert the first time. Logs the result via LogService.
@@ -61,6 +98,12 @@ extension PhotoSyncService {
         failed: Int,
         abortedReason: String? = nil
     ) async {
+        // Synchronise toujours le badge avec l'état réel — même si les
+        // notifications sont désactivées, le badge reste utile aux users qui
+        // surveillent l'icône.
+        let summary = await currentSummary()
+        Self.updateBadgeCount(summary.pendingCount + summary.activeCount)
+
         guard UserDefaults.standard.bool(forKey: Self.notificationsEnabledKey) else { return }
         // Skip empty runs only on the normal-completion path. If the run
         // was aborted, we still want to inform the user.
@@ -93,6 +136,10 @@ extension PhotoSyncService {
             }
         }
         content.sound = .default
+        content.badge = NSNumber(value: summary.pendingCount + summary.activeCount)
+        // Catégorie active = boutons Pause / Reprendre visibles dans la
+        // notification dépliée.
+        content.categoryIdentifier = Self.progressCategoryID
 
         let request = UNNotificationRequest(
             identifier: Self.syncCompleteNotificationID,
@@ -108,6 +155,34 @@ extension PhotoSyncService {
                 category: "photos",
                 message: "Failed posting sync notification: \(error.localizedDescription)"
             )
+        }
+    }
+}
+
+/// Single delegate routing inline notification actions to PhotoSyncService.
+/// Lives outside the @MainActor service so UNUserNotificationCenter can call
+/// it from its own callback queue. The methods bridge to MainActor explicitly.
+public final class PhotoSyncNotificationDelegate: NSObject, UNUserNotificationCenterDelegate, @unchecked Sendable {
+    public static let shared = PhotoSyncNotificationDelegate()
+
+    public func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification
+    ) async -> UNNotificationPresentationOptions {
+        [.banner, .sound, .badge]
+    }
+
+    public func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse
+    ) async {
+        switch response.actionIdentifier {
+        case PhotoSyncService.pauseActionID:
+            await PhotoSyncService.shared.pausePhotoSync()
+        case PhotoSyncService.resumeActionID:
+            await PhotoSyncService.shared.resumePhotoSync()
+        default:
+            break
         }
     }
 }

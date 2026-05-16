@@ -29,6 +29,7 @@ struct PhotoSyncSettingsView: View {
     @State private var activeFilterCount = 0
 
     @AppStorage("photosync.notificationsEnabled") private var notificationsEnabled = false
+    @AppStorage("photoSync.autoSyncOnImport") private var autoSyncOnImport = true
 
     var body: some View {
         Form {
@@ -105,9 +106,18 @@ struct PhotoSyncSettingsView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+                NavigationLink {
+                    PhotoSyncStatsView()
+                } label: {
+                    Label("Statistiques détaillées", systemImage: "chart.line.uptrend.xyaxis")
+                }
                 Toggle("Notifications après sync", isOn: $notificationsEnabled)
                     .onChange(of: notificationsEnabled) { _, newValue in
                         if newValue { Task { await PhotoSyncService.shared.requestNotificationAuthorization() } }
+                    }
+                Toggle("Synchro auto à l'import", isOn: $autoSyncOnImport)
+                    .onChange(of: autoSyncOnImport) { _, newValue in
+                        PhotoSyncService.shared.autoSyncOnImport = newValue
                     }
             } header: {
                 Text("Filtres et notifications")
