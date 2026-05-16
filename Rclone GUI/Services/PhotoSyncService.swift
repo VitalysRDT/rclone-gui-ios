@@ -853,6 +853,25 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
                         record.localHash = hash
                     }
                 }
+                // Déduplication par hash : si un autre asset déjà terminé a
+                // le même MD5, on n'uploade pas une deuxième fois. On copie
+                // ses `remotePaths` pour que verifyAsset ait un point d'ancrage
+                // si l'utilisateur lance "Vérifier l'intégrité" plus tard, et
+                // on bascule en `.skipped` (statut existant, exclu de pending/
+                // active/completed dans le hero et des octets transférés). Si
+                // le hash est nil (calcul échoué), on continue le flux normal.
+                if let hash = record.localHash, !hash.isEmpty,
+                   let duplicate = findUploadedDuplicate(hash: hash, excluding: record.localIdentifier) {
+                    record.status = .skipped
+                    record.remotePaths = duplicate.remotePaths
+                    record.byteCount = duplicate.byteCount
+                    record.completedAt = .now
+                    record.lastError = nil
+                    try? modelContext.save()
+                    await LogService.shared.log(.info, category: "photos", message: "Doublon ignoré (\(hash.prefix(8))) : \(record.localIdentifier)")
+                    await Task.yield()
+                    continue
+                }
                 for exported in exports {
                     let remotePath = Self.remotePathForAsset(
                         baseFolder: folder,
@@ -994,6 +1013,23 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         if aggregatedStatus == "mismatch" {
             await LogService.shared.log(.error, category: "photos", message: "Hash distant ne correspond pas pour \(localIdentifier).")
         }
+    }
+
+    /// Cherche un asset déjà uploadé qui partage exactement le même MD5.
+    /// Inclut `.completed` ET `.skipped` (un doublon de doublon réutilise la
+    /// même destination). Filtre `excluding` évite le faux-positif sur soi-
+    /// même. Retourne `nil` si aucun match ou si modelContext non attaché.
+    private func findUploadedDuplicate(hash: String, excluding localIdentifier: String) -> PhotoSyncAsset? {
+        guard let modelContext else { return nil }
+        // Predicate gardé minimal (hash + statut) pour ne pas surcharger le
+        // type-checker SwiftData ; on filtre `localIdentifier` à la main.
+        let descriptor = FetchDescriptor<PhotoSyncAsset>(
+            predicate: #Predicate { asset in
+                asset.localHash == hash && asset.statusRaw == "completed"
+            }
+        )
+        let matches = (try? modelContext.fetch(descriptor)) ?? []
+        return matches.first(where: { $0.localIdentifier != localIdentifier })
     }
 
     /// Snapshot du buffer de débit pour le graphique stats. Renvoie une liste

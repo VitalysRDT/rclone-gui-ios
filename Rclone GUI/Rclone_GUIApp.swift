@@ -66,7 +66,9 @@ struct Rclone_GUIApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            RootGateView {
+                ContentView()
+            }
                 .task {
                     await MainActor.run {
                         TransferQueue.shared.attach(modelContext: sharedModelContainer.mainContext)
