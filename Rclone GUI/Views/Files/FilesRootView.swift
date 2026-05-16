@@ -288,18 +288,59 @@ struct FilesRootView: View {
     }
 
     private func loadRemoteSpaces(for remotes: [RemoteSummaryDTO]) async {
-        for remote in remotes {
-            guard remoteSpaces[remote.name] == nil else { continue }
-            do {
-                let space = try await RemoteService.shared.space(remote: remote.name)
-                await MainActor.run {
-                    remoteSpaces[remote.name] = spaceLabel(space)
-                }
-            } catch {
-                await MainActor.run {
-                    remoteSpaces[remote.name] = "Espace indisponible"
+        // Lance les `about` en parallèle avec un timeout court par remote.
+        // Auparavant ce loop attendait séquentiellement → un remote dont
+        // l'about hang (Drive token expiré, réseau down) bloquait l'actor
+        // RcloneCore et empêchait toute autre RPC (dont les `list` quand
+        // l'utilisateur navigue dans un autre remote). 15s laissent au
+        // backend le temps de répondre normalement (Hetzner ~200ms,
+        // Drive ~1-3s) sans pendre indéfiniment.
+        let pending = remotes.filter { remoteSpaces[$0.name] == nil }
+        await withTaskGroup(of: (String, String).self) { group in
+            for remote in pending {
+                group.addTask {
+                    do {
+                        let space = try await Self.withTimeout(seconds: 15) {
+                            try await RemoteService.shared.space(remote: remote.name)
+                        }
+                        return (remote.name, Self.spaceLabel(space))
+                    } catch is TimeoutError {
+                        await LogService.shared.log(
+                            .error,
+                            category: "list",
+                            message: "operations/about timeout 15s remote=\(remote.name)"
+                        )
+                        return (remote.name, "Espace indisponible (timeout)")
+                    } catch {
+                        return (remote.name, "Espace indisponible")
+                    }
                 }
             }
+            for await (name, label) in group {
+                await MainActor.run { remoteSpaces[name] = label }
+            }
+        }
+    }
+
+    private struct TimeoutError: Error {}
+
+    /// Exécute `body` avec une limite de temps. Si le timeout expire,
+    /// annule la tâche et throw TimeoutError. Note : le RPC sous-jacent
+    /// continue côté Go le temps que le moteur le laisse tomber, mais
+    /// côté Swift on libère immédiatement l'appelant.
+    private static func withTimeout<T: Sendable>(
+        seconds: TimeInterval,
+        _ body: @escaping @Sendable () async throws -> T
+    ) async throws -> T {
+        try await withThrowingTaskGroup(of: T.self) { group in
+            group.addTask { try await body() }
+            group.addTask {
+                try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+                throw TimeoutError()
+            }
+            let first = try await group.next()!
+            group.cancelAll()
+            return first
         }
     }
 
@@ -316,22 +357,24 @@ struct FilesRootView: View {
         }
     }
 
-    private func spaceLabel(_ space: RemoteSpaceDTO) -> String {
+    fileprivate static func spaceLabel(_ space: RemoteSpaceDTO) -> String {
         guard let used = space.used else {
             if let free = space.free {
-                return "\(formattedBytes(free)) libres"
+                return "\(Self.formattedBytes(free)) libres"
             }
             return "Espace indisponible"
         }
         if let total = space.total {
-            return "\(formattedBytes(used)) / \(formattedBytes(total))"
+            return "\(Self.formattedBytes(used)) / \(Self.formattedBytes(total))"
         }
-        return "\(formattedBytes(used)) utilisés"
+        return "\(Self.formattedBytes(used)) utilisés"
     }
 
-    private func formattedBytes(_ bytes: Int64) -> String {
+    fileprivate static func formattedBytes(_ bytes: Int64) -> String {
         ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
     }
+
+    private func formattedBytes(_ bytes: Int64) -> String { Self.formattedBytes(bytes) }
 
     private func relativeDate(_ date: Date) -> String {
         let formatter = RelativeDateTimeFormatter()
