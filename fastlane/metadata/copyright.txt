@@ -1,0 +1,1 @@
+© 2026 Vitalys Rougetet — De Troyane. Embeds rclone (Nick Craig-Wood, MIT).

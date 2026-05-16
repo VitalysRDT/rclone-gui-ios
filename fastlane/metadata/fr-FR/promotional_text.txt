@@ -1,0 +1,1 @@
+Connectez S3, Google Drive, Dropbox, OneDrive, Storj et 60+ services cloud. Vos fichiers, chiffrés bout en bout par rclone crypt, lisibles dans Fichiers iOS.

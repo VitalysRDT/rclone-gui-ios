@@ -1,0 +1,85 @@
+# Fastlane configuration for Rclone GUI
+#
+# Setup (one-time):
+#   1. brew install fastlane
+#   2. Create an App Store Connect API key:
+#      App Store Connect → Users and Access → Keys → "+"
+#      Role: "App Manager" or higher. Download the .p8 file once.
+#   3. Place the .p8 at fastlane/.appstore-key.p8 (gitignored)
+#   4. Export the key metadata:
+#        export ASC_KEY_ID="ABC123DEF4"
+#        export ASC_ISSUER_ID="aaaa-bbbb-cccc-dddd-eeee"
+#
+# Daily use:
+#   bundle exec fastlane upload_metadata        # push metadata only
+#   bundle exec fastlane upload_screenshots     # push screenshots only
+#   bundle exec fastlane submit                 # build + upload + submit for review
+
+default_platform(:ios)
+
+ASC_KEY_PATH = File.expand_path("../fastlane/.appstore-key.p8", __dir__)
+
+def asc_key
+  app_store_connect_api_key(
+    key_id: ENV.fetch("ASC_KEY_ID"),
+    issuer_id: ENV.fetch("ASC_ISSUER_ID"),
+    key_filepath: ASC_KEY_PATH,
+    in_house: false
+  )
+end
+
+platform :ios do
+  desc "Push localized metadata (no binary, no screenshots) to App Store Connect"
+  lane :upload_metadata do
+    deliver(
+      api_key: asc_key,
+      skip_binary_upload: true,
+      skip_screenshots: true,
+      skip_metadata: false,
+      force: true,           # don't prompt for interactive confirmation
+      precheck_include_in_app_purchases: false,
+      run_precheck_before_submit: false
+    )
+  end
+
+  desc "Push screenshots only"
+  lane :upload_screenshots do
+    deliver(
+      api_key: asc_key,
+      skip_binary_upload: true,
+      skip_screenshots: false,
+      skip_metadata: true,
+      overwrite_screenshots: true,
+      force: true
+    )
+  end
+
+  desc "Full submission: archive + upload + send for review"
+  lane :submit do
+    build_app(
+      scheme: "Rclone GUI",
+      export_method: "app-store",
+      configuration: "Release",
+      clean: true,
+      output_directory: "build/",
+      include_symbols: true,
+      include_bitcode: false
+    )
+    deliver(
+      api_key: asc_key,
+      submit_for_review: true,
+      automatic_release: false,
+      force: true,
+      precheck_include_in_app_purchases: false,
+      submission_information: {
+        add_id_info_uses_idfa: false,
+        export_compliance_uses_encryption: true,
+        export_compliance_is_exempt: true,
+        export_compliance_contains_third_party_cryptography: true,
+        export_compliance_contains_proprietary_cryptography: false,
+        export_compliance_available_on_french_store: true,
+        content_rights_contains_third_party_content: false
+      }
+    )
+  end
+end

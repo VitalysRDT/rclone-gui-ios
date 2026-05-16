@@ -1,0 +1,6 @@
+app_identifier("com.rougetet.rclone-gui")
+apple_id(ENV["APPLE_ID"] || "vitalys@rougetet.com")
+
+# Optional — only set if you belong to multiple teams or use App Store Connect API key auth:
+# itc_team_id("XXXXXXXX")          # App Store Connect team
+# team_id("YYYYYYYY")              # Developer Portal team

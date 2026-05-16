@@ -1,0 +1,1 @@
+Première version publique. Client rclone iOS natif avec 70+ backends, intégration Fichiers via File Provider, chiffrement crypt bout en bout, synchronisation photo, Face ID, et zéro tracking.

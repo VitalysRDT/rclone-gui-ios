@@ -1,0 +1,13 @@
+Rclone GUI is an iOS client for the open-source rclone project (https://rclone.org). It manages personal cloud storage accounts that the user configures themselves. The app has no backend server, no third-party SDK, no analytics, and no account system.
+
+HOW TO TEST
+1. Launch the app.
+2. Go to the "Connexions" / "Remotes" tab and tap "+" to start the wizard.
+3. Pick "S3" (or any backend you have credentials for). Enter the credentials supplied below.
+4. Browse files via the "Fichiers" / "Files" tab. Tap any file to preview / stream.
+5. From the iOS Files app, the same remotes appear under "Rclone GUI" — open a file directly from there.
+
+NOTES FOR APP REVIEW
+- The localhost HTTP server (127.0.0.1) declared in NSLocalNetworkUsageDescription is used solely to feed AVPlayer with decrypted bytes from rclone crypt streams. No traffic leaves the device.
+- The app uses only open-source standard cryptography (rclone crypt = NaCl secretbox / XSalsa20-Poly1305, AES-256-GCM in TLS). ITSAppUsesNonExemptEncryption is therefore set to false under the standard-encryption exemption.
+- No content is hosted by the developer; the app browses cloud accounts that the user owns.

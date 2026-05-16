@@ -1,0 +1,1 @@
+Connect S3, Google Drive, Dropbox, OneDrive, Storj and 60+ cloud services. Your files, end-to-end encrypted by rclone crypt, browsable inside the iOS Files app.

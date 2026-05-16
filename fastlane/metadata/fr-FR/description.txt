@@ -1,0 +1,37 @@
+Rclone GUI est un client iOS natif et open source pour rclone, l'outil de référence pour gérer vos stockages cloud personnels. Connectez Amazon S3, Backblaze B2, Cloudflare R2, Storj, Wasabi, Dropbox, Google Drive, Microsoft OneDrive, pCloud, Mega, Box, SFTP, WebDAV et plus de 60 autres services depuis votre iPhone, sans intermédiaire.
+
+CHIFFREMENT CRYPT-FIRST
+Toute l'interface est conçue autour du chiffrement rclone "crypt" : vos remotes chiffrés sont identifiés par un cadenas violet, les noms de fichiers sont déchiffrés à la volée pour que vous voyiez la vraie arborescence, et le contenu est déchiffré pendant la lecture sans jamais transiter en clair par un serveur tiers. Le cœur cryptographique repose sur NaCl secretbox (XSalsa20-Poly1305), exécuté localement par rclone.
+
+INTÉGRATION FICHIERS IOS
+Une extension File Provider expose tous vos remotes dans l'app Fichiers d'Apple, y compris les remotes crypt. Vous pouvez ouvrir un PDF directement depuis Fichiers, glisser-déposer des documents entre apps, et stream vos vidéos et musiques sans téléchargement complet.
+
+SYNCHRONISATION PHOTO INTELLIGENTE
+Synchronisez automatiquement vos nouvelles photos et vidéos vers le cloud de votre choix. Throttle adaptatif quand vous utilisez l'app, exécution en arrière-plan, reprise propre après coupure réseau.
+
+ASSISTANT D'AJOUT GUIDÉ
+Un assistant pas-à-pas couvre tous les backends rclone : champs adaptés à chaque type de remote, tutoriels pour les OAuth (Drive, OneDrive, Dropbox), validation immédiate. Importez aussi votre rclone.conf existant en un geste, avec migration automatique des secrets vers le Trousseau iOS.
+
+CONÇU POUR LA CONFIDENTIALITÉ
+- Aucune analytics, aucun tracker, aucun SDK tiers
+- Aucun serveur backend : l'app parle directement à vos services cloud
+- Face ID / Touch ID pour verrouiller la configuration
+- Configuration chiffrée au repos (ChaCha20-Poly1305 + iOS Keychain)
+- Identifiants OAuth dans le Trousseau iOS, jamais dans UserDefaults
+- ATS strict, aucune exception réseau
+
+FONCTIONNALITÉS
+- 70+ backends rclone supportés
+- Transferts en parallèle, pause, reprise, file d'attente
+- Bandwidth throttling adaptatif (cellulaire / Wi-Fi)
+- Streaming vidéo et audio avec range requests
+- Aperçu QuickLook intégré
+- Recherche, tri, filtres dans les dossiers
+- Statistiques de transfert détaillées
+- Logs locaux exportables pour le debug
+
+OPEN SOURCE
+Rclone GUI est entièrement open source : https://github.com/VitalysRDT/rclone-gui-ios
+Politique de confidentialité : https://vitalysrdt.github.io/rclone-gui-ios/privacy.html
+
+L'application n'est pas affiliée à Apple, Google, Amazon, Microsoft, Dropbox ni aux autres fournisseurs cloud. "rclone" est une marque de Nick Craig-Wood (auteur de rclone).
