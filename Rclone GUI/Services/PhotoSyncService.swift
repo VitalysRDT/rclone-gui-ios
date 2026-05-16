@@ -36,9 +36,16 @@ public struct PhotoSyncRunSummary: Sendable, Equatable {
     public let activeCount: Int
     public let completedCount: Int
     public let failedCount: Int
+    public let totalBytes: Int64
+    public let transferredBytes: Int64
 
     public var isLimitedAccess: Bool {
         authorization == .limited
+    }
+
+    public var byteProgress: Double {
+        guard totalBytes > 0 else { return 0 }
+        return min(1.0, Double(transferredBytes) / Double(totalBytes))
     }
 }
 
@@ -76,6 +83,8 @@ private struct PhotoSyncCounts {
     let active: Int
     let completed: Int
     let failed: Int
+    let totalBytes: Int64
+    let transferredBytes: Int64
 }
 
 private struct PhotoSyncScanResult: Sendable {
@@ -454,6 +463,11 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
                 scheduleContinuationIfNeeded()
             }
             return summary
+        } catch is CancellationError {
+            // Annulation coopérative (ex : photoLibraryDidChange redémarre la sync,
+            // app passe en arrière-plan). Pas une vraie erreur — silence l'entrée
+            // rouge dans les Logs et laisse la prochaine passe reprendre.
+            return await statusSnapshot()
         } catch {
             await LogService.shared.log(.error, category: "photos", message: "Synchro photos impossible : \(error.localizedDescription)")
             return await statusSnapshot()
@@ -814,18 +828,53 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
             pendingCount: counts.pending,
             activeCount: counts.active,
             completedCount: counts.completed,
-            failedCount: counts.failed
+            failedCount: counts.failed,
+            totalBytes: counts.totalBytes,
+            transferredBytes: counts.transferredBytes
         )
     }
 
     private func photoSyncCounts() -> PhotoSyncCounts {
-        PhotoSyncCounts(
+        let byteTotals = photoSyncByteTotals()
+        return PhotoSyncCounts(
             indexed: fetchPhotoSyncCount(),
             pending: fetchPhotoSyncCount(.pending),
             active: fetchPhotoSyncCount(.exporting) + fetchPhotoSyncCount(.enqueued),
             completed: fetchPhotoSyncCount(.completed),
-            failed: fetchPhotoSyncCount(.failed)
+            failed: fetchPhotoSyncCount(.failed),
+            totalBytes: byteTotals.total,
+            transferredBytes: byteTotals.transferred
         )
+    }
+
+    /// Aggregates byte-level progress across the photo sync pipeline.
+    ///
+    /// - `total` = sum of `byteCount` over `PhotoSyncAsset` rows that count toward
+    ///   the active backlog (pending, exporting, enqueued, completed). Failed and
+    ///   skipped assets are intentionally excluded so the ratio stays meaningful.
+    /// - `transferred` = sum of `bytesTransferred` over `Transfer` rows tagged with
+    ///   `sourceKindRaw == "photoLibrary"`, clamped to `total` so the live RPC
+    ///   updates can't push the bar past 100%.
+    private func photoSyncByteTotals() -> (total: Int64, transferred: Int64) {
+        guard let modelContext else { return (0, 0) }
+        let assetDescriptor = FetchDescriptor<PhotoSyncAsset>(
+            predicate: #Predicate {
+                $0.statusRaw == "pending"
+                    || $0.statusRaw == "exporting"
+                    || $0.statusRaw == "enqueued"
+                    || $0.statusRaw == "completed"
+            }
+        )
+        let assets = (try? modelContext.fetch(assetDescriptor)) ?? []
+        let totalBytes = assets.reduce(Int64(0)) { $0 + max(0, $1.byteCount) }
+
+        let transferDescriptor = FetchDescriptor<Transfer>(
+            predicate: #Predicate { $0.sourceKindRaw == "photoLibrary" }
+        )
+        let transfers = (try? modelContext.fetch(transferDescriptor)) ?? []
+        let rawTransferred = transfers.reduce(Int64(0)) { $0 + max(0, $1.bytesTransferred) }
+        let transferred = totalBytes > 0 ? min(rawTransferred, totalBytes) : rawTransferred
+        return (totalBytes, transferred)
     }
 
     private func fetchPhotoSyncCount(_ status: PhotoSyncStatus? = nil) -> Int {
