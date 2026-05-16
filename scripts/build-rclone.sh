@@ -134,12 +134,59 @@ echo ""
 # in the iOS Simulator x86_64 SDK. The arm64 simulator slice has the same
 # limitation. Until we stub gopsutil/cpu we ship device-only and run the
 # app on a real iPhone.
+# Note on ldflags: we previously passed -ldflags="-s -w" to shrink the binary,
+# but `-w` strips DWARF debug info and `-s` strips the symbol table. With both,
+# `dsymutil` cannot extract a dSYM and App Store Connect rejects the archive
+# upload ("The archive did not include a dSYM for the RcloneKit.framework").
+# We now keep symbols + DWARF; Xcode's archive pipeline will strip the embedded
+# binary for distribution while keeping the dSYM bundled for crash symbolication.
 gomobile bind \
     -target=ios/arm64 \
     -o "$XCFRAMEWORK" \
-    -ldflags="-s -w" \
     -tags="rclone_no_serve_dlna" \
     .
+
+# --- dSYM extraction ---------------------------------------------------------
+#
+# gomobile does not emit a .dSYM bundle. We extract one ourselves with
+# `dsymutil` from the binary that gomobile just produced, then place it inside
+# the xcframework under ios-arm64/dSYMs/ and declare DebugSymbolsPath in the
+# xcframework Info.plist so Xcode picks it up at archive time.
+# Requirement: App Store Connect refuses uploads missing dSYMs.
+
+SLICE_DIR="$XCFRAMEWORK/ios-arm64"
+FRAMEWORK_BINARY="$SLICE_DIR/RcloneKit.framework/RcloneKit"
+DSYM_DIR="$SLICE_DIR/dSYMs"
+DSYM_BUNDLE="$DSYM_DIR/RcloneKit.framework.dSYM"
+
+if [ ! -f "$FRAMEWORK_BINARY" ]; then
+    echo "ERROR: Expected framework binary not found at $FRAMEWORK_BINARY"
+    exit 1
+fi
+
+echo ""
+echo "Extracting dSYM with dsymutil..."
+mkdir -p "$DSYM_DIR"
+xcrun dsymutil "$FRAMEWORK_BINARY" -o "$DSYM_BUNDLE"
+
+# Confirm the UUID matches between binary and dSYM (App Store Connect checks this).
+BIN_UUID=$(xcrun dwarfdump --uuid "$FRAMEWORK_BINARY" | awk '{print $2}')
+DSYM_UUID=$(xcrun dwarfdump --uuid "$DSYM_BUNDLE" | awk '{print $2}')
+echo "Binary UUID : $BIN_UUID"
+echo "dSYM UUID   : $DSYM_UUID"
+if [ "$BIN_UUID" != "$DSYM_UUID" ]; then
+    echo "ERROR: UUID mismatch — symbolication would fail."
+    exit 1
+fi
+
+# Patch xcframework Info.plist to declare the DebugSymbolsPath. Apple's
+# xcframework format supports a per-slice DebugSymbolsPath key (relative to
+# the slice directory) so Xcode locates the dSYM when archiving consumers.
+echo "Declaring DebugSymbolsPath in xcframework Info.plist..."
+/usr/libexec/PlistBuddy -c "Add :AvailableLibraries:0:DebugSymbolsPath string dSYMs" \
+    "$XCFRAMEWORK/Info.plist" 2>/dev/null || \
+    /usr/libexec/PlistBuddy -c "Set :AvailableLibraries:0:DebugSymbolsPath dSYMs" \
+        "$XCFRAMEWORK/Info.plist"
 
 # --- Report ------------------------------------------------------------------
 
