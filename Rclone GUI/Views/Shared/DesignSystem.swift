@@ -40,11 +40,13 @@ extension Color {
 // MARK: - Tokens
 
 enum RG {
-    /// Primary purple accent — slightly deeper than the swatch for AA contrast.
-    static let accent = Color(red: 124 / 255, green: 58 / 255, blue: 237 / 255)
-    /// 14% accent fill used for soft pills, badges, icon tiles.
-    static let accentSoft = Color(red: 124 / 255, green: 58 / 255, blue: 237 / 255).opacity(0.14)
-    /// Deeper end of the seal gradient.
+    /// Primary purple accent. Resolved from the asset catalog so iOS picks the
+    /// dark-mode variant automatically (lighter violet for WCAG AA ≥4.5:1).
+    static let accent = Color("AccentColor")
+    /// 18% accent fill used for soft pills, badges, icon tiles.
+    /// Slightly stronger than the original 14% to preserve legibility in dark mode.
+    static let accentSoft = Color("AccentColor").opacity(0.18)
+    /// Deeper end of the seal gradient (used in light mode only).
     static let accentDeep = Color(red: 91 / 255, green: 33 / 255, blue: 182 / 255)
 
     /// Brand monospaced font (file paths, hashes, technical chips).
