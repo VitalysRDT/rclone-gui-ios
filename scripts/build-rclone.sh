@@ -198,10 +198,6 @@ xcrun --sdk iphoneos clang \
     -Xlinker -object_path_lto -Xlinker "$STATIC_ARCHIVE.lto.o" \
     -o "$FRAMEWORK_BINARY"
 
-# We no longer need the raw archive next to the dylib (Xcode would refuse the
-# framework if both are present at archive time).
-rm -f "$STATIC_ARCHIVE" "$STATIC_ARCHIVE.lto.o"
-
 # Sanity: confirm the binary is now a real Mach-O dylib with an LC_UUID.
 if ! file "$FRAMEWORK_BINARY" | grep -q "dynamically linked shared library"; then
     echo "ERROR: wrapper did not produce a dylib:"
@@ -219,7 +215,15 @@ fi
 echo ""
 echo "Extracting dSYM with dsymutil..."
 mkdir -p "$DSYM_DIR"
+# dsymutil reads the dylib's debug map, which references object files inside
+# RcloneKit.a (the gomobile static archive we just force-loaded). The archive
+# must therefore still be on disk at this point — we only delete it afterwards.
 xcrun dsymutil "$FRAMEWORK_BINARY" -o "$DSYM_BUNDLE"
+
+# Now the dSYM is built, the raw archive and the LTO intermediate are no
+# longer needed (and Xcode would refuse the framework if a .a sat alongside
+# the dylib at archive time).
+rm -f "$STATIC_ARCHIVE" "$STATIC_ARCHIVE.lto.o"
 
 # Confirm the UUID matches between binary and dSYM (App Store Connect checks this).
 BIN_UUID=$(xcrun dwarfdump --uuid "$FRAMEWORK_BINARY" | awk '{print $2}')
