@@ -26,6 +26,64 @@ public enum PhotoSyncAuthorizationState: String, Sendable, Equatable {
     }
 }
 
+public struct PhotoSyncFilters: Codable, Sendable, Equatable {
+    public var includePhotos: Bool
+    public var includeVideos: Bool
+    public var includeLivePhotos: Bool
+    public var includeScreenshots: Bool
+    public var includeSlowMo: Bool
+    public var includePanoramas: Bool
+    public var dateRangeStart: Date?
+    public var dateRangeEnd: Date?
+    /// `nil` ou ≤ 0 = pas de limite. Sert à exclure les vidéos plus longues
+    /// que ce seuil — proxy pratique pour la taille (les vidéos longues sont
+    /// les seuls fichiers vraiment lourds en pratique).
+    public var maxVideoDurationSeconds: Double?
+
+    public init(
+        includePhotos: Bool = true,
+        includeVideos: Bool = true,
+        includeLivePhotos: Bool = true,
+        includeScreenshots: Bool = true,
+        includeSlowMo: Bool = true,
+        includePanoramas: Bool = true,
+        dateRangeStart: Date? = nil,
+        dateRangeEnd: Date? = nil,
+        maxVideoDurationSeconds: Double? = nil
+    ) {
+        self.includePhotos = includePhotos
+        self.includeVideos = includeVideos
+        self.includeLivePhotos = includeLivePhotos
+        self.includeScreenshots = includeScreenshots
+        self.includeSlowMo = includeSlowMo
+        self.includePanoramas = includePanoramas
+        self.dateRangeStart = dateRangeStart
+        self.dateRangeEnd = dateRangeEnd
+        self.maxVideoDurationSeconds = maxVideoDurationSeconds
+    }
+
+    public static let allEnabled = PhotoSyncFilters()
+
+    public var isDefault: Bool {
+        self == .allEnabled
+    }
+
+    /// Compteur de filtres actifs (i.e. différents du défaut). Sert juste au
+    /// libellé "Filtres (3)" dans le NavigationLink.
+    public var activeCount: Int {
+        var n = 0
+        if !includePhotos { n += 1 }
+        if !includeVideos { n += 1 }
+        if !includeLivePhotos { n += 1 }
+        if !includeScreenshots { n += 1 }
+        if !includeSlowMo { n += 1 }
+        if !includePanoramas { n += 1 }
+        if dateRangeStart != nil || dateRangeEnd != nil { n += 1 }
+        if let max = maxVideoDurationSeconds, max > 0 { n += 1 }
+        return n
+    }
+}
+
 public struct PhotoSyncRunSummary: Sendable, Equatable {
     public let authorization: PhotoSyncAuthorizationState
     public let visibleAssetCount: Int
@@ -385,6 +443,33 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
     private var shouldContinueUntilEmpty: Bool {
         get { UserDefaults.standard.bool(forKey: "photoSync.continueUntilEmpty") }
         set { UserDefaults.standard.set(newValue, forKey: "photoSync.continueUntilEmpty") }
+    }
+
+    /// Active media filters. Stored as JSON in `UserDefaults` so the scan
+    /// task (nonisolated static) can load them without taking a MainActor hop.
+    /// Modifying invalidates the next scan only — already-indexed assets keep
+    /// their current status.
+    public var filters: PhotoSyncFilters {
+        get {
+            guard let data = UserDefaults.standard.data(forKey: "photoSync.filters.v1"),
+                  let decoded = try? JSONDecoder().decode(PhotoSyncFilters.self, from: data) else {
+                return .allEnabled
+            }
+            return decoded
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue) {
+                UserDefaults.standard.set(data, forKey: "photoSync.filters.v1")
+            }
+        }
+    }
+
+    nonisolated public static func loadFilters() -> PhotoSyncFilters {
+        guard let data = UserDefaults.standard.data(forKey: "photoSync.filters.v1"),
+              let decoded = try? JSONDecoder().decode(PhotoSyncFilters.self, from: data) else {
+            return .allEnabled
+        }
+        return decoded
     }
 
     /// Persisted user-initiated pause. Distinct from the policy suspension
@@ -1109,6 +1194,8 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         let selectedAlbumIDs = Set<String>()
         #endif
 
+        let filters = loadFilters()
+
         let options = PHFetchOptions()
         options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: true)]
 
@@ -1119,21 +1206,26 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         var candidates: [PhotoSyncCandidate] = []
         var seenLocalIDs = Set<String>()
 
+        let append: (PHAsset) -> Void = { asset in
+            guard matchesFilters(asset, filters: filters) else { return }
+            let id = asset.localIdentifier
+            guard seenLocalIDs.insert(id).inserted else { return }
+            candidates.append(
+                PhotoSyncCandidate(
+                    localIdentifier: id,
+                    mediaType: mediaTypeName(asset.mediaType),
+                    creationDate: asset.creationDate
+                )
+            )
+        }
+
         if selectedAlbumIDs.isEmpty {
             let assets = PHAsset.fetchAssets(with: options)
             visibleCount = assets.count
             candidates.reserveCapacity(min(visibleCount, 512))
             assets.enumerateObjects { asset, _, stop in
                 if Task.isCancelled { stop.pointee = true; return }
-                let id = asset.localIdentifier
-                guard seenLocalIDs.insert(id).inserted else { return }
-                candidates.append(
-                    PhotoSyncCandidate(
-                        localIdentifier: id,
-                        mediaType: mediaTypeName(asset.mediaType),
-                        creationDate: asset.creationDate
-                    )
-                )
+                append(asset)
             }
         } else {
             let collections = PHAssetCollection.fetchAssetCollections(
@@ -1144,15 +1236,7 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
                 let assets = PHAsset.fetchAssets(in: collection, options: options)
                 assets.enumerateObjects { asset, _, stop in
                     if Task.isCancelled { stop.pointee = true; return }
-                    let id = asset.localIdentifier
-                    guard seenLocalIDs.insert(id).inserted else { return }
-                    candidates.append(
-                        PhotoSyncCandidate(
-                            localIdentifier: id,
-                            mediaType: mediaTypeName(asset.mediaType),
-                            creationDate: asset.creationDate
-                        )
-                    )
+                    append(asset)
                 }
             }
             // visibleAssetCount = unique assets in the selected albums, not
@@ -1165,6 +1249,47 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
             visibleAssetCount: visibleCount,
             candidates: scanCandidates(candidates, excluding: existingIDs)
         )
+    }
+
+    /// Returns `true` when the asset passes every active filter — type, sous-
+    /// type (live/screenshot/slow-mo/panorama), date range et durée vidéo.
+    /// On garde la logique inline (pas d'optimisation NSPredicate) car
+    /// `enumerateObjects` ne supporte pas le filtrage de toute façon.
+    nonisolated static func matchesFilters(_ asset: PHAsset, filters: PhotoSyncFilters) -> Bool {
+        // Type principal.
+        switch asset.mediaType {
+        case .image:
+            if !filters.includePhotos { return false }
+        case .video:
+            if !filters.includeVideos { return false }
+        default:
+            // audio, unknown — toujours ignorés (pas exposés dans l'UI).
+            return false
+        }
+
+        // Sous-types qui se cumulent (un Live Photo est aussi une image, etc.).
+        let sub = asset.mediaSubtypes
+        if sub.contains(.photoLive) && !filters.includeLivePhotos { return false }
+        if sub.contains(.photoScreenshot) && !filters.includeScreenshots { return false }
+        if sub.contains(.photoPanorama) && !filters.includePanoramas { return false }
+        if (sub.contains(.videoHighFrameRate) || sub.contains(.videoTimelapse)) && !filters.includeSlowMo {
+            return false
+        }
+
+        // Date range.
+        if let start = filters.dateRangeStart {
+            guard let created = asset.creationDate, created >= start else { return false }
+        }
+        if let end = filters.dateRangeEnd {
+            guard let created = asset.creationDate, created <= end else { return false }
+        }
+
+        // Durée vidéo (proxy taille).
+        if asset.mediaType == .video, let max = filters.maxVideoDurationSeconds, max > 0 {
+            if asset.duration > max { return false }
+        }
+
+        return true
     }
 
     nonisolated private static func visiblePhotoAssetCount() async -> Int {

@@ -26,6 +26,7 @@ struct PhotoSyncSettingsView: View {
     @State private var recentAssets: [PhotoSyncAsset] = []
     @State private var selectedAlbumCount = 0
     @State private var suspensionReason: String?
+    @State private var activeFilterCount = 0
 
     @AppStorage("photosync.notificationsEnabled") private var notificationsEnabled = false
 
@@ -91,6 +92,16 @@ struct PhotoSyncSettingsView: View {
                         Text("Albums à sauvegarder")
                         Spacer()
                         Text(selectedAlbumCount == 0 ? "Tous" : "\(selectedAlbumCount)")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                NavigationLink {
+                    PhotoSyncFiltersView()
+                } label: {
+                    HStack {
+                        Text("Filtres média")
+                        Spacer()
+                        Text(activeFilterCount == 0 ? "Aucun" : "\(activeFilterCount)")
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -248,6 +259,7 @@ struct PhotoSyncSettingsView: View {
             await reloadStats()
             #if os(iOS)
             selectedAlbumCount = PhotoSyncAlbumStore.load().count
+            activeFilterCount = PhotoSyncService.shared.filters.activeCount
             suspensionReason = PhotoSyncService.shared.suspensionReason
             #endif
             // Live refresh while the view is on screen. SwiftUI cancels the
@@ -270,6 +282,7 @@ struct PhotoSyncSettingsView: View {
             // (l'album picker pop ne re-déclenche pas le .task).
             #if os(iOS)
             selectedAlbumCount = PhotoSyncAlbumStore.load().count
+            activeFilterCount = PhotoSyncService.shared.filters.activeCount
             #endif
         }
     }
