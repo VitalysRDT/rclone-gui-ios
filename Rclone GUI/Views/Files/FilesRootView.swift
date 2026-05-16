@@ -288,36 +288,51 @@ struct FilesRootView: View {
     }
 
     private func loadRemoteSpaces(for remotes: [RemoteSummaryDTO]) async {
-        // Lance les `about` en parallèle avec un timeout court par remote.
-        // Auparavant ce loop attendait séquentiellement → un remote dont
-        // l'about hang (Drive token expiré, réseau down) bloquait l'actor
-        // RcloneCore et empêchait toute autre RPC (dont les `list` quand
-        // l'utilisateur navigue dans un autre remote). 15s laissent au
-        // backend le temps de répondre normalement (Hetzner ~200ms,
-        // Drive ~1-3s) sans pendre indéfiniment.
+        // Test isolement : on enchaîne les abouts STRICTEMENT
+        // séquentiellement avec timeout 10s chacun et logs explicites
+        // de start/done/timeout. But : identifier précisément quel
+        // backend pend, vs si c'est librclone qui sérialise tout.
         let pending = remotes.filter { remoteSpaces[$0.name] == nil }
-        await withTaskGroup(of: (String, String).self) { group in
-            for remote in pending {
-                group.addTask {
-                    do {
-                        let space = try await Self.withTimeout(seconds: 15) {
-                            try await RemoteService.shared.space(remote: remote.name)
-                        }
-                        return (remote.name, Self.spaceLabel(space))
-                    } catch is TimeoutError {
-                        await LogService.shared.log(
-                            .error,
-                            category: "list",
-                            message: "operations/about timeout 15s remote=\(remote.name)"
-                        )
-                        return (remote.name, "Espace indisponible (timeout)")
-                    } catch {
-                        return (remote.name, "Espace indisponible")
-                    }
+        for remote in pending {
+            await LogService.shared.log(
+                .info,
+                category: "about",
+                message: "[seq] start remote=\(remote.name)"
+            )
+            let started = Date()
+            do {
+                let space = try await Self.withTimeout(seconds: 10) {
+                    try await RemoteService.shared.space(remote: remote.name)
                 }
-            }
-            for await (name, label) in group {
-                await MainActor.run { remoteSpaces[name] = label }
+                let ms = Int(Date().timeIntervalSince(started) * 1000)
+                await LogService.shared.log(
+                    .info,
+                    category: "about",
+                    message: "[seq] done remote=\(remote.name) in \(ms)ms"
+                )
+                await MainActor.run {
+                    remoteSpaces[remote.name] = Self.spaceLabel(space)
+                }
+            } catch is TimeoutError {
+                let ms = Int(Date().timeIntervalSince(started) * 1000)
+                await LogService.shared.log(
+                    .error,
+                    category: "about",
+                    message: "[seq] TIMEOUT remote=\(remote.name) after \(ms)ms — passage au suivant"
+                )
+                await MainActor.run {
+                    remoteSpaces[remote.name] = "Espace indisponible (timeout)"
+                }
+            } catch {
+                let ms = Int(Date().timeIntervalSince(started) * 1000)
+                await LogService.shared.log(
+                    .error,
+                    category: "about",
+                    message: "[seq] FAIL remote=\(remote.name) in \(ms)ms : \(error.localizedDescription)"
+                )
+                await MainActor.run {
+                    remoteSpaces[remote.name] = "Espace indisponible"
+                }
             }
         }
     }
