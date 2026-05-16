@@ -50,7 +50,7 @@ struct FieldSpec: Identifiable, Hashable, Sendable {
 
     // MARK: - Lifting from rclone schema
 
-    init(from option: RcloneOptionSchema, label overrideLabel: String? = nil) {
+    nonisolated init(from option: RcloneOptionSchema, label overrideLabel: String? = nil) {
         self.id = option.name
         self.name = option.name
         self.label = overrideLabel ?? Self.humanize(option.name)

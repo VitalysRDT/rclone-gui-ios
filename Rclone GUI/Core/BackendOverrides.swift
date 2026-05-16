@@ -35,7 +35,7 @@ enum BackendOverrides {
 
     // MARK: - Category mapping (67 + 2 hidden)
 
-    static let categoryByBackend: [String: BackendCategory] = [
+    nonisolated static let categoryByBackend: [String: BackendCategory] = [
         // Cloud officiels (15)
         "drive": .officialCloud,
         "dropbox": .officialCloud,
@@ -120,7 +120,7 @@ enum BackendOverrides {
 
     // MARK: - Icons (SF Symbols)
 
-    static let iconByBackend: [String: String] = [
+    nonisolated static let iconByBackend: [String: String] = [
         // Cloud officiels
         "drive":              "g.circle.fill",
         "dropbox":            "shippingbox.fill",
@@ -205,7 +205,7 @@ enum BackendOverrides {
 
     // MARK: - French descriptions (67 backends)
 
-    static let frDescriptionByBackend: [String: String] = [
+    nonisolated static let frDescriptionByBackend: [String: String] = [
         // Cloud officiels
         "drive":              "Google Drive (compte personnel ou Workspace)",
         "dropbox":            "Dropbox",
@@ -300,7 +300,7 @@ enum BackendOverrides {
     // populated so a future P2 switch back to interactive OAuth is just a
     // strategy flip per backend.
 
-    static let oauthConfigs: [String: OAuthProviderConfig] = [
+    nonisolated static let oauthConfigs: [String: OAuthProviderConfig] = [
         // ───────── Google family ─────────
         "drive": OAuthProviderConfig(
             backendName: "drive",
@@ -760,7 +760,7 @@ enum BackendOverrides {
 
     // MARK: - Backends to hide on iOS
 
-    static let hiddenOnIOS: Set<String> = [
+    nonisolated static let hiddenOnIOS: Set<String> = [
         "tardigrade",   // Deprecated alias of storj
         "memory",       // In-process backend — no value to end-users
     ]

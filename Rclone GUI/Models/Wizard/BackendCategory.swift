@@ -34,7 +34,7 @@ enum BackendCategory: String, CaseIterable, Identifiable, Sendable, Hashable {
     }
 
     /// Display order in the list (top = most popular).
-    var displayOrder: Int {
+    nonisolated var displayOrder: Int {
         switch self {
         case .officialCloud: return 0
         case .s3Compatible:  return 1

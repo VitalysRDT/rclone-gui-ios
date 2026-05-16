@@ -82,7 +82,7 @@ enum OAuthStrategy: Sendable, Hashable {
 /// Minimal token JSON expected by rclone in `parameters.token`.
 /// rclone re-uses the standard OAuth2 response format produced by
 /// golang.org/x/oauth2 — we mirror it exactly here.
-struct RcloneTokenJSON: Codable, Sendable, Hashable {
+nonisolated struct RcloneTokenJSON: Codable, Sendable, Hashable {
     let accessToken: String
     let tokenType: String
     let refreshToken: String

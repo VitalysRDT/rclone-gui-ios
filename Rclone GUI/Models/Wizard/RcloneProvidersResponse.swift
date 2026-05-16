@@ -11,14 +11,14 @@
 import Foundation
 
 /// Response wrapper for the rclone `config/providers` RPC.
-struct RcloneProvidersResponse: Decodable, Sendable {
+nonisolated struct RcloneProvidersResponse: Decodable, Sendable {
     let providers: [RcloneBackendSchema]
 }
 
 /// One backend (= storage type) as advertised by the embedded rclone runtime.
 /// The bridge exposes the full set of 69+ backends compiled in via
 /// `_ "github.com/rclone/rclone/backend/all"`.
-struct RcloneBackendSchema: Decodable, Sendable, Hashable {
+nonisolated struct RcloneBackendSchema: Decodable, Sendable, Hashable {
     let name: String
     let description: String
     let prefix: String
@@ -35,7 +35,7 @@ struct RcloneBackendSchema: Decodable, Sendable, Hashable {
 /// A single option (= field) of a backend. The shape mirrors what
 /// rclone returns AND what `config/create --non-interactive` returns
 /// when asking the host a follow-up question.
-struct RcloneOptionSchema: Decodable, Sendable, Hashable {
+nonisolated struct RcloneOptionSchema: Decodable, Sendable, Hashable {
     let name: String
     let help: String
     let type: String
@@ -75,7 +75,7 @@ struct RcloneOptionSchema: Decodable, Sendable, Hashable {
 /// One suggested value for an option. When `Exclusive=true` on the
 /// parent option, the user MUST pick from this list; otherwise the
 /// list is treated as suggestions and free-form input is allowed.
-struct RcloneExampleValue: Decodable, Sendable, Hashable {
+nonisolated struct RcloneExampleValue: Decodable, Sendable, Hashable {
     let value: String
     let help: String
     let provider: String?

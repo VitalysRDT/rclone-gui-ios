@@ -245,7 +245,7 @@ struct PhotoSyncAlbumPicker: View {
 /// as thread-safe for individual accesses; a stale-read window between save
 /// and a concurrent in-flight scan is acceptable (and bounded by the next
 /// scan cycle).
-public enum PhotoSyncAlbumStore {
+nonisolated public enum PhotoSyncAlbumStore {
     public static let userDefaultsKey = "photosync.selectedAlbumIDs"
 
     nonisolated public static func load() -> Set<String> {

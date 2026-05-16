@@ -647,7 +647,7 @@ public final class TransferQueue {
         // depuis UserDefaults et on aligne sur l'état actif courant.
         let mbps = UserDefaults.standard.double(forKey: "transfer.bandwidthLimitMBps")
         let bytes = Int64(mbps * 1024 * 1024)
-        let isActive = await UserActivityMonitor.shared.isUserActive
+        let isActive = UserActivityMonitor.shared.isUserActive
         await applyThrottleForUserActivity(isActive: isActive, userPreferredBytes: bytes)
     }
 

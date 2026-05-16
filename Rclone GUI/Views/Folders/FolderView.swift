@@ -772,7 +772,7 @@ struct FolderView: View {
         do {
             entries = try await RemoteService.shared.list(remote: remote, path: path)
             loadState = .loaded
-            try? SavedLocationStore.recordOpen(
+            _ = try? SavedLocationStore.recordOpen(
                 remote: remote,
                 path: path,
                 displayName: displayTitle,
