@@ -56,12 +56,19 @@ public actor ConfigStore {
         if FileManager.default.fileExists(atPath: AppGroup.rcloneConfURL.path) {
             try FileManager.default.removeItem(at: AppGroup.rcloneConfURL)
         }
+        try? removeDecryptedTempFile()
         try deleteMasterKey()
     }
 
     /// True if a stored conf exists.
     public func hasStoredConf() -> Bool {
         FileManager.default.fileExists(atPath: AppGroup.rcloneConfURL.path)
+    }
+
+    /// Copies an existing legacy app-only key into the shared Keychain group
+    /// used by the FileProvider extension. Safe to call on every launch.
+    public func migrateMasterKeyToSharedAccessGroupIfNeeded() async throws {
+        _ = try fetchMasterKeyData()
     }
 
     /// Decrypt the stored conf and write it as plaintext to a temporary
@@ -77,6 +84,7 @@ public actor ConfigStore {
         guard let plaintext = try await load() else {
             throw RcloneError.engineNotAvailable("Aucune configuration rclone importée")
         }
+        let scrubbed = Self.scrubHostPaths(plaintext)
         let caches = try FileManager.default.url(
             for: .cachesDirectory,
             in: .userDomainMask,
@@ -84,8 +92,75 @@ public actor ConfigStore {
             create: true
         )
         let target = caches.appending(path: "rclone.conf")
+        try scrubbed.write(to: target, options: [.atomic, .completeFileProtection])
+        return target
+    }
+
+    /// Retire les clés qui pointent vers des chemins macOS/Linux (par ex.
+    /// `known_hosts_file = /Users/.../.ssh/known_hosts`) hérités d'un
+    /// rclone.conf importé depuis un poste desktop. Sur iOS, librclone
+    /// échoue avec « no such file or directory » dès que ces chemins sont
+    /// utilisés — y compris pour les crypt qui wrapent un SFTP, ce qui
+    /// rend tout le remote inutilisable. Le scrub ne touche que les clés
+    /// `*_file` dont la valeur commence par un préfixe non-iOS reconnu.
+    private static func scrubHostPaths(_ data: Data) -> Data {
+        guard var text = String(data: data, encoding: .utf8) else { return data }
+        let hostPrefixes = ["/Users/", "/home/", "/root/", "C:\\", "~/"]
+        var cleaned: [String] = []
+        var dropped: [String] = []
+        for line in text.split(separator: "\n", omittingEmptySubsequences: false) {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if let eq = trimmed.firstIndex(of: "=") {
+                let key = trimmed[..<eq].trimmingCharacters(in: .whitespaces)
+                let value = trimmed[trimmed.index(after: eq)...].trimmingCharacters(in: .whitespaces)
+                if key.hasSuffix("_file") && hostPrefixes.contains(where: { value.hasPrefix($0) }) {
+                    dropped.append("\(key) = \(value)")
+                    continue
+                }
+            }
+            cleaned.append(String(line))
+        }
+        if dropped.isEmpty { return data }
+        text = cleaned.joined(separator: "\n")
+        Task { @MainActor in
+            for d in dropped {
+                await LogService.shared.log(
+                    .info,
+                    category: "config",
+                    message: "scrub host-path : \(d) (chemin desktop incompatible iOS, retiré)"
+                )
+            }
+        }
+        return Data(text.utf8)
+    }
+
+    /// Writes a plaintext copy suitable for iOS sharing/export.
+    ///
+    /// The exported file intentionally lives in a unique temporary directory
+    /// so ShareLink can keep a stable URL for the duration of the share sheet.
+    public func exportPlaintextCopy() async throws -> URL {
+        guard let plaintext = try await load() else {
+            throw RcloneError.engineNotAvailable("Aucune configuration rclone à exporter")
+        }
+        let directory = FileManager.default.temporaryDirectory
+            .appending(path: "rclone-gui-export-\(UUID().uuidString)", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let target = directory.appending(path: "rclone.conf")
         try plaintext.write(to: target, options: [.atomic, .completeFileProtection])
         return target
+    }
+
+    private func removeDecryptedTempFile() throws {
+        let caches = try FileManager.default.url(
+            for: .cachesDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: true
+        )
+        let target = caches.appending(path: "rclone.conf")
+        if FileManager.default.fileExists(atPath: target.path) {
+            try FileManager.default.removeItem(at: target)
+        }
     }
 
     // MARK: - Master key (Keychain)
@@ -101,12 +176,25 @@ public actor ConfigStore {
     }
 
     private func fetchMasterKeyData() throws -> Data? {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: masterKeyTag,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne,
-        ]
+        if let sharedGroup = AppGroup.keychainAccessGroup {
+            if let shared = try fetchMasterKeyData(accessGroup: sharedGroup) {
+                return shared
+            }
+            if let legacy = try fetchMasterKeyData(accessGroup: nil) {
+                try storeMasterKeyData(legacy, accessGroup: sharedGroup)
+                return legacy
+            }
+            return nil
+        }
+
+        return try fetchMasterKeyData(accessGroup: nil)
+    }
+
+    private func fetchMasterKeyData(accessGroup: String?) throws -> Data? {
+        var query = baseKeychainQuery(accessGroup: accessGroup)
+        query[kSecReturnData as String] = true
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
+
         var item: CFTypeRef?
         let status = SecItemCopyMatching(query as CFDictionary, &item)
         switch status {
@@ -120,18 +208,29 @@ public actor ConfigStore {
     }
 
     private func storeMasterKeyData(_ data: Data) throws {
-        let attrs: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: masterKeyTag,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
-            kSecValueData as String: data,
-        ]
+        if let sharedGroup = AppGroup.keychainAccessGroup {
+            do {
+                try storeMasterKeyData(data, accessGroup: sharedGroup)
+                return
+            } catch {
+                // Keep the main app usable even on builds/profiles where the
+                // shared keychain group is not provisioned. FileProvider will
+                // still report a configuration error until signing is fixed.
+                try storeMasterKeyData(data, accessGroup: nil)
+                return
+            }
+        }
+        try storeMasterKeyData(data, accessGroup: nil)
+    }
+
+    private func storeMasterKeyData(_ data: Data, accessGroup: String?) throws {
+        var attrs = baseKeychainQuery(accessGroup: accessGroup)
+        attrs[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        attrs[kSecValueData as String] = data
+
         let status = SecItemAdd(attrs as CFDictionary, nil)
         if status == errSecDuplicateItem {
-            let query: [String: Any] = [
-                kSecClass as String: kSecClassGenericPassword,
-                kSecAttrService as String: masterKeyTag,
-            ]
+            let query = baseKeychainQuery(accessGroup: accessGroup)
             let update: [String: Any] = [kSecValueData as String: data]
             let updStatus = SecItemUpdate(query as CFDictionary, update as CFDictionary)
             guard updStatus == errSecSuccess else {
@@ -145,13 +244,23 @@ public actor ConfigStore {
     }
 
     private func deleteMasterKey() throws {
-        let query: [String: Any] = [
+        var statuses: [OSStatus] = []
+        statuses.append(SecItemDelete(baseKeychainQuery(accessGroup: AppGroup.keychainAccessGroup) as CFDictionary))
+        statuses.append(SecItemDelete(baseKeychainQuery(accessGroup: nil) as CFDictionary))
+
+        for status in statuses where status != errSecSuccess && status != errSecItemNotFound {
+            throw RcloneError.engineNotAvailable("Keychain delete failed (OSStatus \(status))")
+        }
+    }
+
+    private func baseKeychainQuery(accessGroup: String?) -> [String: Any] {
+        var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: masterKeyTag,
         ]
-        let status = SecItemDelete(query as CFDictionary)
-        guard status == errSecSuccess || status == errSecItemNotFound else {
-            throw RcloneError.engineNotAvailable("Keychain delete failed (OSStatus \(status))")
+        if let accessGroup, !accessGroup.isEmpty {
+            query[kSecAttrAccessGroup as String] = accessGroup
         }
+        return query
     }
 }
