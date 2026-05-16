@@ -281,9 +281,34 @@ struct FilesRootView: View {
             try? SavedLocationStore.removeUnavailableRemotes(Set(remotes.map(\.name)), in: modelContext)
             loadState = .loaded
             await FileProviderManager.shared.writeRemotesManifest(remotes)
-            await loadRemoteSpaces(for: remotes)
+            // Les quotas (operations/about) ne sont PLUS chargés au boot —
+            // cf. commit précédent : un backend qui ne répond pas pouvait
+            // bloquer le pool TCP et freezer toute navigation. Le quota
+            // est désormais chargé à la demande quand l'utilisateur ouvre
+            // un remote (loadSpaceIfNeeded), avec un timeout 8s qui ne
+            // bloque jamais le reste de l'UI.
         } catch {
             loadState = .failed(error.localizedDescription)
+        }
+    }
+
+    /// Charge le quota d'un remote spécifique en background. Appelé
+    /// lazily quand l'utilisateur tap sur un remote — sans bloquer la
+    /// navigation. Échec silencieux : on n'affiche juste pas le quota.
+    fileprivate func loadSpaceIfNeeded(for remoteName: String) {
+        guard remoteSpaces[remoteName] == nil else { return }
+        remoteSpaces[remoteName] = "Chargement…"
+        Task {
+            do {
+                let space = try await RemoteService.shared.space(remote: remoteName)
+                await MainActor.run {
+                    remoteSpaces[remoteName] = Self.spaceLabel(space)
+                }
+            } catch {
+                await MainActor.run {
+                    remoteSpaces[remoteName] = "Espace indisponible"
+                }
+            }
         }
     }
 

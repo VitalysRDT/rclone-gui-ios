@@ -661,24 +661,33 @@ public final class TransferQueue {
     /// may not be listening yet at the moment this is invoked.
     public func restoreFromPersistedState(bytesPerSecond: Int64) async {
         let wasPaused = UserDefaults.standard.bool(forKey: Self.persistedPauseKey)
+        // IMPORTANT : on n'appelle PAS pauseAllTransfers() au boot, même
+        // si wasPaused == true. La pause utilise core/bwlimit rate=1b qui
+        // s'applique GLOBALEMENT à rclone : un bwlimit 1 byte/s tue aussi
+        // les operations/list, operations/about et tout RPC qui transfère
+        // du JSON, pas seulement les jobs utilisateur. Au boot, rclone a
+        // de toute façon oublié ses jobs en cours, donc il n'y a rien à
+        // suspendre côté moteur. On garde juste le flag isPausedGlobally
+        // côté Swift pour que la TransferQueue ne démarre PAS de nouveaux
+        // transferts utilisateur tant que la pause n'est pas levée.
+        isPausedGlobally = wasPaused
 
-        // Up to 3 attempts with 0.5s, 1s, 2s backoff covers a slow Go runtime
-        // start without making the launch path feel sluggish on a healthy boot.
         let delays: [UInt64] = [500_000_000, 1_000_000_000, 2_000_000_000]
         for (index, delay) in delays.enumerated() {
             do {
-                if wasPaused {
-                    try await TransferService.shared.pauseAllTransfers()
-                    isPausedGlobally = true
-                } else {
-                    try await TransferService.shared.setBandwidthLimit(bytesPerSecond: bytesPerSecond)
-                    isPausedGlobally = false
-                }
+                try await TransferService.shared.setBandwidthLimit(bytesPerSecond: bytesPerSecond)
                 if index > 0 {
                     await LogService.shared.log(
                         .info,
                         category: "transfer",
-                        message: "Bandwidth/pause state restored after \(index) retry attempt(s)"
+                        message: "Bandwidth state restored after \(index) retry attempt(s)"
+                    )
+                }
+                if wasPaused {
+                    await LogService.shared.log(
+                        .info,
+                        category: "transfer",
+                        message: "Pause utilisateur conservée côté Swift (pas de bwlimit global appliqué pour ne pas freezer les list/about)"
                     )
                 }
                 return
@@ -687,7 +696,7 @@ public final class TransferQueue {
                     await LogService.shared.log(
                         .error,
                         category: "transfer",
-                        message: "Failed restoring bandwidth/pause after \(delays.count) attempts: \(error.localizedDescription)"
+                        message: "Failed restoring bandwidth after \(delays.count) attempts: \(error.localizedDescription)"
                     )
                     return
                 }
