@@ -53,6 +53,15 @@ public actor RemoteService {
 
     private init() {}
 
+    // Cache + inflight dedup pour operations/about. Sans ça, chaque
+    // déclencheur de FilesRootView.load() (boot .task, .onReceive
+    // rcloneConfigurationDidChange, scenePhase, refreshable…) relançait
+    // 6 abouts indépendants. Avec 5 batches en cascade au boot ça
+    // saturait le pool TCP Drive/SFTP et tous les RPC pendaient.
+    private static let spaceCacheTTL: TimeInterval = 60
+    private var spaceCache: [String: (value: RemoteSpaceDTO, expires: Date)] = [:]
+    private var spaceInflight: [String: Task<RemoteSpaceDTO, Error>] = [:]
+
     // MARK: List remotes
 
     /// Names of all remotes in rclone.conf (`config/listremotes`).
@@ -229,26 +238,50 @@ public actor RemoteService {
     // MARK: Remote space
 
     /// `operations/about` for a remote (when the backend supports it).
+    /// Cache 60 s par remote + dedup inflight : si plusieurs vues
+    /// demandent simultanément le quota du même remote, un seul RPC
+    /// est envoyé et toutes attendent le même résultat.
     public func space(remote: String) async throws -> RemoteSpaceDTO {
-        struct Input: Encodable {
-            let fs: String
+        if let cached = spaceCache[remote], cached.expires > Date() {
+            return cached.value
         }
-        struct Output: Decodable {
-            let total: Int64?
-            let used: Int64?
-            let free: Int64?
-            let trashed: Int64?
+        if let inflight = spaceInflight[remote] {
+            return try await inflight.value
         }
-        let resp: Output = try await RcloneCore.shared.rpc(
-            "operations/about",
-            input: Input(fs: "\(remote):")
-        )
-        return RemoteSpaceDTO(
-            total: resp.total,
-            used: resp.used,
-            free: resp.free,
-            trashed: resp.trashed
-        )
+        let task = Task<RemoteSpaceDTO, Error> {
+            struct Input: Encodable { let fs: String }
+            struct Output: Decodable {
+                let total: Int64?
+                let used: Int64?
+                let free: Int64?
+                let trashed: Int64?
+            }
+            let resp: Output = try await RcloneCore.shared.rpc(
+                "operations/about",
+                input: Input(fs: "\(remote):")
+            )
+            return RemoteSpaceDTO(
+                total: resp.total,
+                used: resp.used,
+                free: resp.free,
+                trashed: resp.trashed
+            )
+        }
+        spaceInflight[remote] = task
+        defer { spaceInflight[remote] = nil }
+        do {
+            let value = try await task.value
+            spaceCache[remote] = (value, Date().addingTimeInterval(Self.spaceCacheTTL))
+            return value
+        } catch {
+            throw error
+        }
+    }
+
+    /// Invalide le cache `operations/about` pour forcer un refresh au
+    /// prochain appel (par ex. après import de config ou pull-to-refresh).
+    public func invalidateSpaceCache() {
+        spaceCache.removeAll()
     }
 
     // MARK: Internals
