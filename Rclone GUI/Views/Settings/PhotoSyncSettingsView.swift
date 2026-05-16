@@ -32,6 +32,28 @@ struct PhotoSyncSettingsView: View {
     var body: some View {
         Form {
             Section {
+                AppHeroCard(
+                    title: "Synchro Photos",
+                    subtitle: "Backup opportuniste de ta photothèque vers un remote rclone.",
+                    systemImage: "photo.stack",
+                    tint: .pink
+                ) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: 10)], spacing: 10) {
+                        AppMetricPill(value: "\(stats.pending)", label: "attente", systemImage: "clock", tint: .orange)
+                        AppMetricPill(value: "\(stats.active)", label: "actifs", systemImage: "bolt.fill", tint: .blue)
+                        AppMetricPill(value: "\(stats.completed)", label: "terminés", systemImage: "checkmark.circle", tint: .green)
+                    }
+
+                    if shouldShowProgressBar {
+                        progressBar
+                            .padding(.top, 4)
+                    }
+                }
+                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                .listRowBackground(Color.clear)
+            }
+
+            Section {
                 Toggle("Activer la synchro Photos", isOn: $enabled)
                 Picker("Remote", selection: $selectedRemote) {
                     Text("Choisir…").tag("")
@@ -107,7 +129,7 @@ struct PhotoSyncSettingsView: View {
                     Task { await syncNow() }
                 } label: {
                     if isSyncing {
-                        HStack {
+                        HStack(spacing: 8) {
                             ProgressView()
                             Text("Synchronisation…")
                         }
@@ -149,7 +171,7 @@ struct PhotoSyncSettingsView: View {
                 LabeledContent("Terminés", value: "\(stats.completed)")
                 LabeledContent("Échecs", value: "\(stats.failed)")
             } header: {
-                Text("Etat")
+                Text("État")
             }
 
             if !recentAssets.isEmpty {
@@ -269,11 +291,51 @@ struct PhotoSyncSettingsView: View {
             pending: summary.pendingCount,
             active: summary.activeCount,
             completed: summary.completedCount,
-            failed: summary.failedCount
+            failed: summary.failedCount,
         )
     }
 
-    private func reloadRecentAssets() {
+    /// Total des éléments concernés par la sync en cours : ce qui est déjà
+    /// transféré + ce qui reste à faire (en cours ou en attente). On exclut
+    /// les `failed` pour ne pas gonfler artificiellement le dénominateur ;
+    /// les échecs sont visibles séparément sur la pastille rouge.
+    private var totalItemCount: Int {
+        stats.completed + stats.active + stats.pending
+    }
+
+    private var shouldShowProgressBar: Bool {
+        totalItemCount > 0 && (isSyncing || stats.active > 0 || stats.pending > 0)
+    }
+
+    private var itemProgressRatio: Double {
+        guard totalItemCount > 0 else { return 0 }
+        return min(1.0, Double(stats.completed) / Double(totalItemCount))
+    }
+
+    @ViewBuilder
+    private var progressBar: some View {
+        let total = totalItemCount
+        let ratio = itemProgressRatio
+        let percent = Int((ratio * 100).rounded())
+        VStack(alignment: .leading, spacing: 6) {
+            ProgressView(value: ratio)
+                .progressViewStyle(.linear)
+                .tint(.pink)
+            HStack {
+                Text("\(stats.completed) / \(total) photos et vidéos")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text("\(percent)%")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Progression : \(stats.completed) sur \(total) photos et vidéos, \(percent) pour cent")
+    }
+
+private func reloadRecentAssets() {
         var descriptor = FetchDescriptor<PhotoSyncAsset>(
             sortBy: [SortDescriptor(\.discoveredAt, order: .reverse)]
         )
@@ -284,20 +346,20 @@ struct PhotoSyncSettingsView: View {
     private var authorizationTitle: String {
         switch stats.authorization {
         case .limited:
-            return "Acces Photos limité"
+            return "Accès Photos limité"
         case .denied, .restricted:
-            return "Acces Photos indisponible"
+            return "Accès Photos indisponible"
         case .authorized, .notDetermined, .unknown:
-            return "Acces Photos"
+            return "Accès Photos"
         }
     }
 
     private var authorizationFooter: String {
         switch stats.authorization {
         case .limited:
-            return "iOS ne donne acces qu'a la selection actuelle. Les autres photos ne peuvent pas etre indexees ni synchronisees."
+            return "iOS ne donne accès qu’à la sélection actuelle. Les autres photos ne peuvent pas être indexées ni synchronisées."
         case .denied, .restricted:
-            return "Autorisez l'acces Photos dans Reglages pour synchroniser la phototheque."
+            return "Autorise l’accès Photos dans Réglages pour synchroniser la photothèque."
         case .authorized, .notDetermined, .unknown:
             return ""
         }

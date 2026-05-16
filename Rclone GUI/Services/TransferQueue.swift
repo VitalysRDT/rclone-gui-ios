@@ -584,9 +584,11 @@ public final class TransferQueue {
     // MARK: - Throttle pendant l'activité utilisateur
 
     /// Limite temporaire appliquée pendant que l'utilisateur navigue dans
-    /// l'app. 1 MB/s = compromis : assez bas pour libérer CPU/réseau et
-    /// garder le UI fluide, assez haut pour que le sync ne s'arrête pas.
-    private static let userActivityThrottleBytes: Int64 = 1_048_576
+    /// l'app. 512 KB/s : assez bas pour libérer le réseau et le radio
+    /// cellulaire le temps d'un geste, assez haut pour que la sync ne se
+    /// fige pas. La pleine vitesse est restaurée dès que l'utilisateur
+    /// arrête d'interagir (cf. UserActivityMonitor.inactivityThreshold).
+    private static let userActivityThrottleBytes: Int64 = 524_288
 
     /// Compteur de bypass : TransfersView l'incrémente à .onAppear et le
     /// décrémente à .onDisappear pour ne PAS throttler quand l'utilisateur

@@ -28,10 +28,10 @@ public final class UserActivityMonitor {
     private init() {}
 
     /// Seuil d'inactivité au-delà duquel on considère l'utilisateur comme
-    /// inactif. 5s : assez court pour libérer rapidement le CPU dès que la
-    /// nav s'arrête, assez long pour ne pas flapper pendant une session
-    /// d'interactions rapprochées.
-    private static let inactivityThreshold: TimeInterval = 5
+    /// inactif. 3s : compromis entre réactivité (retour à la pleine vitesse
+    /// dès que la nav s'arrête) et stabilité (pas de flap pendant une
+    /// session d'interactions rapprochées comme un scroll discontinu).
+    private static let inactivityThreshold: TimeInterval = 3
 
     private var lastActivity: Date = .distantPast
     private var observerTask: Task<Void, Never>?
