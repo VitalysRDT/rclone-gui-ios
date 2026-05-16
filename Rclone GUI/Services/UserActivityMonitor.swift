@@ -28,9 +28,11 @@ public final class UserActivityMonitor {
     private init() {}
 
     /// Seuil d'inactivité au-delà duquel on considère l'utilisateur comme
-    /// inactif. 3s : compromis entre réactivité (retour à la pleine vitesse
-    /// dès que la nav s'arrête) et stabilité (pas de flap pendant une
-    /// session d'interactions rapprochées comme un scroll discontinu).
+    /// inactif et où la pleine vitesse de transfert est restaurée. 3 s :
+    /// tout contact écran (tap, scroll, drag, swipe) compte et garde le
+    /// throttle ; touchesMoved/touchesEnded rafraîchissent l'horodatage
+    /// même pendant un long geste, donc la pleine vitesse ne revient qu'à
+    /// 3 s du DERNIER contact, pas du début du geste.
     private static let inactivityThreshold: TimeInterval = 3
 
     private var lastActivity: Date = .distantPast
@@ -120,9 +122,12 @@ public final class UserActivityMonitor {
     }
 }
 
-/// GestureRecognizer transparent qui notifie chaque touchesBegan et
-/// passe immédiatement en .failed pour ne pas consommer l'event. Les
-/// gestures SwiftUI (tap, scroll, drag) continuent de fonctionner.
+/// GestureRecognizer transparent qui notifie à chaque contact (début, mouvement
+/// et fin) et passe immédiatement en .failed pour ne pas consommer l'event.
+/// Capter aussi touchesMoved/touchesEnded est essentiel pour que les drags et
+/// scrolls longs gardent `lastActivity` à jour — sinon un scroll de 10 s ne
+/// rafraîchirait l'horodatage qu'au touchesBegan initial et le throttle se
+/// relâcherait à mi-geste. Les gestures SwiftUI continuent de fonctionner.
 private final class PassthroughGestureRecognizer: UIGestureRecognizer {
     private let onTouch: () -> Void
 
@@ -134,6 +139,14 @@ private final class PassthroughGestureRecognizer: UIGestureRecognizer {
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
         onTouch()
         state = .failed
+    }
+
+    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent) {
+        onTouch()
+    }
+
+    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent) {
+        onTouch()
     }
 
     override func canPrevent(_ preventedGestureRecognizer: UIGestureRecognizer) -> Bool { false }
