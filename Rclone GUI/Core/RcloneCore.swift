@@ -80,10 +80,13 @@ public actor RcloneCore {
 
     /// Send an RPC with `Codable` input/output.
     public func rpc<I: Encodable, O: Decodable>(_ method: String, input: I) async throws -> O {
-        try await ensureInit()
         let inputData = try Self.sharedEncoder.encode(input)
         let inputJSON = String(decoding: inputData, as: UTF8.self)
-        let outputJSON = try await engine.rpcRaw(method: method, inputJSON: inputJSON)
+        // Route via rpcRaw so every typed RPC inherits the instrumentation
+        // (timing, → / ← / ✗ console traces). Without this, only raw RPCs
+        // were visible in the Xcode console and listing calls pretended to
+        // never start.
+        let outputJSON = try await rpcRaw(method, inputJSON)
         let outputData = Data(outputJSON.utf8)
         do {
             return try Self.sharedDecoder.decode(O.self, from: outputData)
