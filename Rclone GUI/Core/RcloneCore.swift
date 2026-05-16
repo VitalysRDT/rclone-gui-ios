@@ -111,6 +111,31 @@ public actor RcloneCore {
         cachedConfigDump = nil
     }
 
+    /// Rewrites the decrypted config file and points the running engine at it.
+    /// Call after import or local config edits so long-lived tabs do not keep
+    /// the previous `config/listremotes` / `config/dump` values.
+    public func reloadConfigurationFromStore() async throws {
+        let confURL = try await ConfigStore.shared.writeDecryptedToTempFile()
+        let confPath = confURL.path
+        engine.setEnv(name: "RCLONE_CONFIG", value: confPath)
+
+        if initialized {
+            struct SetPathInput: Encodable { let path: String }
+            let payloadData = try Self.sharedEncoder.encode(SetPathInput(path: confPath))
+            let pathPayload = String(decoding: payloadData, as: UTF8.self)
+            _ = try await engine.rpcRaw(method: "config/setpath", inputJSON: pathPayload)
+        } else {
+            try await ensureInit()
+        }
+
+        invalidateConfigCache()
+        await LogService.shared.log(
+            .debug,
+            category: "engine",
+            message: "Configuration rclone rechargée depuis \(confPath)"
+        )
+    }
+
     // MARK: - Init
 
     private func ensureInit() async throws {
@@ -187,7 +212,17 @@ public actor RcloneCore {
         #if canImport(RcloneKit)
         return RcloneCore(engine: LibrcloneEngine())
         #else
+        // RcloneKit.xcframework absent. In DEBUG we keep a stubbed engine so the
+        // SwiftUI previews and unit tests can run on bare simulators. In RELEASE
+        // we refuse to ship a non-functional binary to the App Store.
+        #if DEBUG
         return RcloneCore(engine: MockRcloneEngine())
+        #else
+        fatalError(
+            "RcloneKit.xcframework is missing from the Release build. " +
+            "MockRcloneEngine must never reach end users — link RcloneKit before archiving."
+        )
+        #endif
         #endif
     }
 }

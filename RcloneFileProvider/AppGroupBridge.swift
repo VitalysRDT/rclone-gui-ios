@@ -18,9 +18,14 @@
 //      <container>/pending-fetches/<itemIdentifier>.json
 //          { "remote": "r2-vitalys", "path": "Movies/four-lions-2010.mp4",
 //            "destPath": "/.../FetchedFiles/<random>.mp4" }
+//      <container>/pending-fetches/<itemIdentifier>.json.status
+//          { "stage": "running", "jobID": 42, "bytesTransferred": 1234,
+//            "bytesTotal": 9999, "updatedAt": ... }
 //
 //  Fetched files (written by main app, consumed by extension):
 //      <container>/fetched-files/<random>.mp4
+//      This path appears only after the main app has finished downloading
+//      into a sibling `.partial-*` file and moved the complete file into place.
 //
 //  Darwin notifications:
 //      "com.rougetet.rclone-gui.fp.fetch-request" — extension → main
@@ -30,9 +35,23 @@
 
 import Foundation
 import FileProvider
+import CryptoKit
 
 public enum FileProviderBridge {
     public static let appGroupIdentifier = "group.com.rougetet.rclone-gui"
+
+    /// Redacts a potentially-sensitive identifier (remote name, user path) before
+    /// writing it to the App Group diagnostics log. Keeps a short prefix and a
+    /// stable SHA-256 fingerprint so logs remain useful for de-duplication
+    /// across runs without exposing user content (App Store Privacy 5.1.1).
+    static func redact(_ value: String) -> String {
+        if value.isEmpty { return "<empty>" }
+        let digest = SHA256.hash(data: Data(value.utf8))
+        let hex = digest.compactMap { String(format: "%02x", $0) }.joined().prefix(8)
+        let prefix = value.prefix(2)
+        return "\(prefix)…#\(hex)(\(value.count))"
+    }
+
 
     public static var containerURL: URL {
         if let url = FileManager.default.containerURL(
@@ -88,6 +107,10 @@ public enum FileProviderBridge {
         pendingFetchesDir.appending(path: requestID).appendingPathExtension("json")
     }
 
+    public static func pendingFetchStatusURL(requestID: String) -> URL {
+        pendingFetchURL(requestID: requestID).appendingPathExtension("status")
+    }
+
     public static var fetchedFilesDir: URL {
         containerURL.appending(path: "fetched-files", directoryHint: .isDirectory)
     }
@@ -128,12 +151,17 @@ public enum FileProviderBridge {
     /// Une .appex iOS est limitée en mémoire (~256 Mo) et le combo Go runtime + librclone
     /// + déchiffrement crypt fait jetsam. L'app principale (1.5 Go RAM) gère ça sans souci.
     /// Polling de la destination toutes les 250ms jusqu'à apparition (ou timeout).
+    /// La destination est un marqueur de completion : l'app principale ne doit
+    /// la créer qu'après avoir fini le téléchargement dans un `.partial-*`.
     public static func requestFetchViaMainApp(
         requestID: String,
         remote: String,
         path: String,
         destination: URL,
-        timeout: TimeInterval
+        progress: Progress? = nil,
+        activationTimeout: TimeInterval = 20,
+        staleStatusTimeout: TimeInterval = 60,
+        maxDuration: TimeInterval = 6 * 60 * 60
     ) async throws {
         try ensureDirectoriesExist()
         // Nettoyage défensif au cas où un fichier de précédente exécution traîne.
@@ -147,28 +175,36 @@ public enum FileProviderBridge {
             createdAt: .now
         )
         let pendingURL = pendingFetchURL(requestID: requestID)
+        let statusURL = pendingFetchStatusURL(requestID: requestID)
+        let errorURL = pendingURL.appendingPathExtension("error")
         let data = try JSONEncoder().encode(pending)
         try data.write(to: pendingURL, options: [.atomic])
+        try? FileManager.default.removeItem(at: statusURL)
+        try? FileManager.default.removeItem(at: errorURL)
 
-        appendDiagnostic("ipc fetch request id=\(requestID) remote=\(remote) path=\(path)")
+        defer {
+            cleanupFetchIPC(pendingURL: pendingURL)
+        }
+
+        appendDiagnostic("ipc fetch request id=\(requestID) remote=\(redact(remote)) path=\(redact(path))")
         postDarwinNotification(notificationFetchRequest)
 
-        let deadline = Date().addingTimeInterval(timeout)
-        while Date() < deadline {
+        let startedAt = Date()
+        var didSeeStatus = false
+        while Date().timeIntervalSince(startedAt) < maxDuration {
             try Task.checkCancellation()
             if FileManager.default.fileExists(atPath: destination.path) {
                 appendDiagnostic("ipc fetch ready id=\(requestID)")
-                try? FileManager.default.removeItem(at: pendingURL)
+                if let progress {
+                    progress.completedUnitCount = progress.totalUnitCount
+                }
                 return
             }
 
             // L'app principale écrit aussi un .error sibling si elle échoue.
-            let errorURL = pendingURL.appendingPathExtension("error")
             if let errorData = try? Data(contentsOf: errorURL),
                let message = String(data: errorData, encoding: .utf8) {
                 appendDiagnostic("ipc fetch error id=\(requestID) message=\(message)")
-                try? FileManager.default.removeItem(at: pendingURL)
-                try? FileManager.default.removeItem(at: errorURL)
                 throw NSError(
                     domain: NSFileProviderErrorDomain,
                     code: NSFileProviderError.serverUnreachable.rawValue,
@@ -176,16 +212,72 @@ public enum FileProviderBridge {
                 )
             }
 
+            if let status = readFetchStatus(at: statusURL) {
+                didSeeStatus = true
+                update(progress: progress, with: status)
+
+                if status.stage == "failed" {
+                    throw NSError(
+                        domain: NSFileProviderErrorDomain,
+                        code: NSFileProviderError.serverUnreachable.rawValue,
+                        userInfo: [NSLocalizedDescriptionKey: status.message ?? "Téléchargement impossible"]
+                    )
+                }
+
+                if Date().timeIntervalSince(status.updatedAt) > staleStatusTimeout {
+                    appendDiagnostic("ipc fetch stale status id=\(requestID)")
+                    throw NSError(
+                        domain: NSFileProviderErrorDomain,
+                        code: NSFileProviderError.serverUnreachable.rawValue,
+                        userInfo: [NSLocalizedDescriptionKey: "Téléchargement interrompu. Rouvrez Rclone GUI puis réessayez."]
+                    )
+                }
+            } else if !didSeeStatus, Date().timeIntervalSince(startedAt) > activationTimeout {
+                appendDiagnostic("ipc fetch activation timeout id=\(requestID)")
+                throw NSError(
+                    domain: NSFileProviderErrorDomain,
+                    code: NSFileProviderError.serverUnreachable.rawValue,
+                    userInfo: [NSLocalizedDescriptionKey: "Lancez Rclone GUI puis réessayez (l'app n'est pas active)."]
+                )
+            }
+
             try? await Task.sleep(for: .milliseconds(250))
         }
 
-        try? FileManager.default.removeItem(at: pendingURL)
-        appendDiagnostic("ipc fetch timeout id=\(requestID)")
+        appendDiagnostic("ipc fetch max duration timeout id=\(requestID)")
         throw NSError(
             domain: NSFileProviderErrorDomain,
             code: NSFileProviderError.serverUnreachable.rawValue,
-            userInfo: [NSLocalizedDescriptionKey: "Lancez Rclone GUI puis réessayez (l'app n'est pas active)."]
+            userInfo: [NSLocalizedDescriptionKey: "Téléchargement trop long. Rouvrez Rclone GUI puis réessayez."]
         )
+    }
+
+    private static func readFetchStatus(at url: URL) -> FetchStatus? {
+        guard FileManager.default.fileExists(atPath: url.path),
+              let data = try? Data(contentsOf: url),
+              let status = try? JSONDecoder().decode(FetchStatus.self, from: data) else {
+            return nil
+        }
+        return status
+    }
+
+    private static func update(progress: Progress?, with status: FetchStatus) {
+        guard let progress else { return }
+
+        if status.bytesTotal > 0 {
+            progress.totalUnitCount = max(status.bytesTotal, 1)
+            let completed = min(max(status.bytesTransferred, 1), progress.totalUnitCount - 1)
+            progress.completedUnitCount = max(progress.completedUnitCount, completed)
+        } else {
+            progress.totalUnitCount = max(progress.totalUnitCount, 100)
+            progress.completedUnitCount = max(progress.completedUnitCount, 1)
+        }
+    }
+
+    private static func cleanupFetchIPC(pendingURL: URL) {
+        try? FileManager.default.removeItem(at: pendingURL)
+        try? FileManager.default.removeItem(at: pendingURL.appendingPathExtension("status"))
+        try? FileManager.default.removeItem(at: pendingURL.appendingPathExtension("error"))
     }
 
     public static func ensureDirectoriesExist() throws {
@@ -250,7 +342,7 @@ public enum FileProviderBridge {
         let data = try JSONEncoder().encode(pending)
         try data.write(to: pendingURL, options: [.atomic])
 
-        appendDiagnostic("ipc stream request id=\(requestID) remote=\(remote) path=\(path)")
+        appendDiagnostic("ipc stream request id=\(requestID) remote=\(redact(remote)) path=\(redact(path))")
         postDarwinNotification(notificationFetchRequest)
 
         let deadline = Date().addingTimeInterval(timeout)
@@ -332,7 +424,7 @@ public enum FileProviderBridge {
         let data = try JSONEncoder().encode(pending)
         try data.write(to: pendingURL, options: [.atomic])
 
-        appendDiagnostic("ipc list request id=\(requestID) remote=\(remote) path=\(path)")
+        appendDiagnostic("ipc list request id=\(requestID) remote=\(redact(remote)) path=\(redact(path))")
         postDarwinNotification(notificationFetchRequest)
 
         let deadline = Date().addingTimeInterval(timeout)
@@ -395,7 +487,8 @@ public struct PendingFetch: Codable, Sendable {
     public let path: String
     public let destPath: String
     public let createdAt: Date
-    /// "full" (default) = download le fichier complet vers destPath.
+    /// "full" (default) = download le fichier complet vers un temporaire,
+    /// puis publication finale vers destPath.
     /// "stream-url" = démarre un serveur HTTP loopback côté app principale et
     /// écrit l'URL+token dans <AppGroup>/streaming-urls/<key>.json.
     public let kind: String?
@@ -407,6 +500,31 @@ public struct PendingFetch: Codable, Sendable {
         self.destPath = destPath
         self.createdAt = createdAt
         self.kind = kind
+    }
+}
+
+public struct FetchStatus: Codable, Sendable {
+    public let stage: String
+    public let jobID: Int?
+    public let bytesTransferred: Int64
+    public let bytesTotal: Int64
+    public let updatedAt: Date
+    public let message: String?
+
+    public init(
+        stage: String,
+        jobID: Int?,
+        bytesTransferred: Int64,
+        bytesTotal: Int64,
+        updatedAt: Date,
+        message: String? = nil
+    ) {
+        self.stage = stage
+        self.jobID = jobID
+        self.bytesTransferred = bytesTransferred
+        self.bytesTotal = bytesTotal
+        self.updatedAt = updatedAt
+        self.message = message
     }
 }
 

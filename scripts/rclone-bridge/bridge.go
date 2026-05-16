@@ -5,9 +5,24 @@
 package rclonebridge
 
 import (
+	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
+	"io"
+	"mime"
+	"net"
+	"net/http"
 	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
 
+	"github.com/rclone/rclone/fs"
+	"github.com/rclone/rclone/fs/operations"
 	"github.com/rclone/rclone/librclone/librclone"
 
 	// Blank imports: each subsystem registers its rc.Calls in its own
@@ -31,6 +46,8 @@ type RPCResult struct {
 	Output string
 	Status int
 }
+
+var streamSessions sync.Map // map[string]*http.Server
 
 // SetEnv updates a process environment variable. Must be used instead of
 // the host's setenv(3) when the host is Swift on iOS: gomobile boots the
@@ -89,4 +106,160 @@ func Finalize() {
 func RPC(method, inputJSON string) *RPCResult {
 	out, status := librclone.RPC(method, inputJSON)
 	return &RPCResult{Output: out, Status: status}
+}
+
+// StartFileHTTP starts a loopback-only HTTP server that serves one rclone
+// object with byte-range support. The returned URL contains an unguessable
+// token and is safe to pass to AVPlayer. Call StopFileHTTP with the returned
+// session id when playback ends.
+//
+// Return format:
+//   {"id":"...","url":"http://127.0.0.1:12345/file?token=..."}
+func StartFileHTTP(remote, remotePath string) string {
+	id := randomHex(16)
+	token := randomHex(24)
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return jsonError(err)
+	}
+
+	mux := http.NewServeMux()
+	// Server-level timeouts protect against orphaned sessions if AVPlayer
+	// crashes mid-playback. ReadHeaderTimeout caps slow-headers, IdleTimeout
+	// reclaims sockets sitting idle between range reads. No WriteTimeout: a
+	// long movie may legitimately take hours to stream.
+	server := &http.Server{
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second,
+		IdleTimeout:       2 * time.Minute,
+	}
+	mux.HandleFunc("/file", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("token") != token {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		// Use the request context so client disconnects cancel rclone reads
+		// instead of leaving them hanging until the next GC pass.
+		ctx := r.Context()
+		f, obj, err := openObject(ctx, remote, remotePath)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		_ = f
+
+		size := obj.Size()
+		contentType := mime.TypeByExtension(filepath.Ext(remotePath))
+		if contentType == "" {
+			contentType = "application/octet-stream"
+		}
+		w.Header().Set("Accept-Ranges", "bytes")
+		w.Header().Set("Content-Type", contentType)
+		if size >= 0 {
+			w.Header().Set("Content-Length", strconv.FormatInt(size, 10))
+		}
+
+		if r.Method == http.MethodHead {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		var options []fs.OpenOption
+		var copyLimit int64 = -1
+		rangeHeader := r.Header.Get("Range")
+		if rangeHeader != "" && size >= 0 {
+			rangeOption, err := fs.ParseRangeOption(rangeHeader)
+			if err != nil {
+				http.Error(w, "bad range", http.StatusRequestedRangeNotSatisfiable)
+				return
+			}
+			start, limit := rangeOption.Decode(size)
+			end := size - 1
+			if limit >= 0 {
+				end = start + limit - 1
+				copyLimit = limit
+			}
+			options = append(options, rangeOption)
+			w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", start, end, size))
+			w.Header().Set("Content-Length", strconv.FormatInt(end-start+1, 10))
+			w.WriteHeader(http.StatusPartialContent)
+		}
+
+		rc, err := operations.Open(ctx, obj, options...)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		defer rc.Close()
+
+		if copyLimit >= 0 {
+			_, _ = io.CopyN(w, rc, copyLimit)
+			return
+		}
+		_, _ = io.Copy(w, rc)
+	})
+
+	streamSessions.Store(id, server)
+	go func() {
+		_ = server.Serve(listener)
+		streamSessions.Delete(id)
+	}()
+
+	payload := map[string]string{
+		"id":  id,
+		"url": "http://" + listener.Addr().String() + "/file?token=" + token,
+	}
+	out, err := json.Marshal(payload)
+	if err != nil {
+		return jsonError(err)
+	}
+	return string(out)
+}
+
+// StopFileHTTP shuts down a streaming server created by StartFileHTTP.
+func StopFileHTTP(id string) {
+	if value, ok := streamSessions.Load(id); ok {
+		if server, ok := value.(*http.Server); ok {
+			_ = server.Shutdown(context.Background())
+		}
+		streamSessions.Delete(id)
+	}
+}
+
+func openObject(ctx context.Context, remote, remotePath string) (fs.Fs, fs.Object, error) {
+	fsName := remote
+	if !strings.HasSuffix(fsName, ":") {
+		fsName += ":"
+	}
+	f, err := fs.NewFs(ctx, fsName)
+	if err != nil {
+		return nil, nil, err
+	}
+	obj, err := f.NewObject(ctx, remotePath)
+	if err != nil {
+		return nil, nil, err
+	}
+	return f, obj, nil
+}
+
+func randomHex(bytes int) string {
+	buf := make([]byte, bytes)
+	if _, err := rand.Read(buf); err != nil {
+		return "fallback"
+	}
+	return hex.EncodeToString(buf)
+}
+
+func jsonError(err error) string {
+	out, marshalErr := json.Marshal(map[string]string{"error": err.Error()})
+	if marshalErr != nil {
+		return `{"error":"unknown"}`
+	}
+	return string(out)
 }
