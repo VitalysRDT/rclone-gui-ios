@@ -561,11 +561,36 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
     }
 
     public func configure(enabled: Bool, remote: String?, folder: String, requiresPower: Bool, allowsCellular: Bool) {
+        let previousRemote = UserDefaults.standard.string(forKey: "photoSync.remote") ?? ""
+        let previousFolder = UserDefaults.standard.string(forKey: "photoSync.folder") ?? ""
+        let newRemote = remote ?? ""
+        let newFolder = folder.isEmpty ? "Phototheque" : folder
+
         UserDefaults.standard.set(enabled, forKey: "photoSync.enabled")
-        UserDefaults.standard.set(remote ?? "", forKey: "photoSync.remote")
-        UserDefaults.standard.set(folder.isEmpty ? "Phototheque" : folder, forKey: "photoSync.folder")
+        UserDefaults.standard.set(newRemote, forKey: "photoSync.remote")
+        UserDefaults.standard.set(newFolder, forKey: "photoSync.folder")
         self.requiresExternalPower = requiresPower
         self.allowsCellular = allowsCellular
+
+        // Quand l'utilisateur change le remote cible (ou le dossier), les
+        // photos déjà marquées "completed" pointaient vers l'ANCIEN remote.
+        // Sans reset, elles ne seraient jamais uploadées sur le nouveau et
+        // l'utilisateur croirait sa photothèque sauvegardée alors qu'elle
+        // est ailleurs. On bascule en .pending + reset des remotePaths
+        // pour forcer une ré-indexation au prochain scan.
+        let remoteChanged = !previousRemote.isEmpty && previousRemote != newRemote
+        let folderChanged = !previousFolder.isEmpty && previousFolder != newFolder
+        if remoteChanged || folderChanged {
+            Task { @MainActor in
+                resetUploadedAssetsForReindex(
+                    previousRemote: previousRemote,
+                    newRemote: newRemote,
+                    previousFolder: previousFolder,
+                    newFolder: newFolder
+                )
+            }
+        }
+
         if !enabled {
             shouldContinueUntilEmpty = false
             continuationTask?.cancel()
@@ -574,6 +599,42 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         if enabled {
             Task { await registerPhotoObserverIfNeeded() }
             scheduleBackgroundProcessing()
+        }
+    }
+
+    /// Remet les photos `completed`/`failed` en `pending` quand le remote
+    /// ou le dossier cible change, pour que la prochaine sync ré-uploade
+    /// l'historique vers la nouvelle destination. Les paths distants
+    /// stockés sont aussi vidés (ils pointaient vers l'ancien remote).
+    @MainActor
+    private func resetUploadedAssetsForReindex(
+        previousRemote: String,
+        newRemote: String,
+        previousFolder: String,
+        newFolder: String
+    ) {
+        guard let modelContext else { return }
+        let descriptor = FetchDescriptor<PhotoSyncAsset>(
+            predicate: #Predicate { $0.statusRaw == "completed" || $0.statusRaw == "failed" }
+        )
+        guard let assets = try? modelContext.fetch(descriptor), !assets.isEmpty else { return }
+        for asset in assets {
+            asset.status = .pending
+            asset.remotePaths = []
+            asset.remoteHash = nil
+            asset.verificationStatus = nil
+            asset.lastError = nil
+            asset.lastAttemptAt = nil
+            asset.completedAt = nil
+            asset.retryCount = 0
+        }
+        try? modelContext.save()
+        Task {
+            await LogService.shared.log(
+                .info,
+                category: "photos",
+                message: "Cible photos changée (\(previousRemote)/\(previousFolder) → \(newRemote)/\(newFolder)) : \(assets.count) photos repassées en pending pour ré-upload"
+            )
         }
     }
 
