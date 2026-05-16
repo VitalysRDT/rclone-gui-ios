@@ -34,24 +34,49 @@ public struct LibrcloneEngine: RcloneEngine {
         RclonebridgeDiagnostic()
     }
 
-    public func initialize() async throws {
-        RclonebridgeInitialize()
+    public nonisolated func initialize() async throws {
+        // RclonebridgeInitialize est synchrone et peut prendre quelques
+        // ms — on le pousse hors du main thread pour ne pas freezer l'UI
+        // au tout premier RPC.
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            DispatchQueue.global(qos: .userInitiated).async {
+                RclonebridgeInitialize()
+                continuation.resume()
+            }
+        }
     }
 
-    public func rpcRaw(method: String, inputJSON: String) async throws -> String {
-        guard let result = RclonebridgeRPC(method, inputJSON) else {
-            throw RcloneError.rcloneError(
-                code: 0,
-                method: method,
-                message: "rclonebridge returned nil — bridge not initialised?"
-            )
+    public nonisolated func rpcRaw(method: String, inputJSON: String) async throws -> String {
+        // RclonebridgeRPC est un appel Go/cgo synchrone qui bloque le
+        // thread appelant pendant toute la durée du RPC (qui peut être
+        // 10+ secondes pour un Drive qui ne répond pas). Sans ce hop
+        // explicite sur DispatchQueue.global, l'appel s'exécutait sur
+        // le MainActor (le projet utilise MainActor par défaut) et
+        // freezait l'UI + toutes les autres tâches Swift, donnant
+        // l'illusion d'une app qui « tourne en rond ».
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<String, Error>) in
+            DispatchQueue.global(qos: .userInitiated).async {
+                guard let result = RclonebridgeRPC(method, inputJSON) else {
+                    continuation.resume(throwing: RcloneError.rcloneError(
+                        code: 0,
+                        method: method,
+                        message: "rclonebridge returned nil — bridge not initialised?"
+                    ))
+                    return
+                }
+                let output = result.output
+                let status = Int(result.status)
+                if (200..<300).contains(status) {
+                    continuation.resume(returning: output)
+                } else {
+                    continuation.resume(throwing: RcloneError.rcloneError(
+                        code: status,
+                        method: method,
+                        message: output
+                    ))
+                }
+            }
         }
-        let output = result.output
-        let status = Int(result.status)
-        if (200..<300).contains(status) {
-            return output
-        }
-        throw RcloneError.rcloneError(code: status, method: method, message: output)
     }
 }
 #endif
