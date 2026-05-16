@@ -49,7 +49,31 @@ public actor RcloneCore {
     /// Send a raw RPC call. Lazily initializes the engine on first use.
     public func rpcRaw(_ method: String, _ inputJSON: String = "{}") async throws -> String {
         try await ensureInit()
-        return try await engine.rpcRaw(method: method, inputJSON: inputJSON)
+        let started = Date()
+        let inputPreview = inputJSON.count > 200 ? String(inputJSON.prefix(200)) + "…" : inputJSON
+        await LogService.shared.log(
+            .debug,
+            category: "rpc",
+            message: "→ \(method) input=\(inputPreview)"
+        )
+        do {
+            let result = try await engine.rpcRaw(method: method, inputJSON: inputJSON)
+            let ms = Int(Date().timeIntervalSince(started) * 1000)
+            await LogService.shared.log(
+                .debug,
+                category: "rpc",
+                message: "← \(method) ok in \(ms)ms (\(result.count) bytes)"
+            )
+            return result
+        } catch {
+            let ms = Int(Date().timeIntervalSince(started) * 1000)
+            await LogService.shared.log(
+                .error,
+                category: "rpc",
+                message: "✗ \(method) FAILED in \(ms)ms : \(error.localizedDescription)"
+            )
+            throw error
+        }
     }
 
     // MARK: - Typed RPC helpers

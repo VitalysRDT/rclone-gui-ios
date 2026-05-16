@@ -118,7 +118,30 @@ public actor RemoteService {
             remote: path,
             opt: ListOptions(recurse: false, noModTime: false, showHash: false)
         )
-        let output: Output = try await RcloneCore.shared.rpc("operations/list", input: input)
+        let started = Date()
+        await LogService.shared.log(
+            .info,
+            category: "list",
+            message: "operations/list start remote=\(remote) path=\(path.isEmpty ? "/" : path)"
+        )
+        let output: Output
+        do {
+            output = try await RcloneCore.shared.rpc("operations/list", input: input)
+        } catch {
+            let ms = Int(Date().timeIntervalSince(started) * 1000)
+            await LogService.shared.log(
+                .error,
+                category: "list",
+                message: "operations/list FAIL remote=\(remote) path=\(path) after \(ms)ms : \(error.localizedDescription)"
+            )
+            throw error
+        }
+        let ms = Int(Date().timeIntervalSince(started) * 1000)
+        await LogService.shared.log(
+            .info,
+            category: "list",
+            message: "operations/list ok remote=\(remote) path=\(path) entries=\(output.list.count) in \(ms)ms"
+        )
 
         return output.list.map { raw in
             RemoteEntryDTO(

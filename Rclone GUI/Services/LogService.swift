@@ -97,6 +97,17 @@ public actor LogService {
             let overflow = ring.count - maxEntries
             ring.removeFirst(max(overflow, 100))
         }
+        #if DEBUG
+        // Mirror vers la console Xcode en DEBUG : sans ça, le ring buffer
+        // reste invisible quand on debug depuis Xcode (Cmd+R).
+        let icon: String
+        switch level {
+        case .info:  icon = "ℹ️"
+        case .debug: icon = "🔧"
+        case .error: icon = "❌"
+        }
+        print("\(icon) [\(category)] \(message)")
+        #endif
     }
 
     public func entries(filter: LogLevel? = nil, category: String? = nil) -> [LogEntry] {
