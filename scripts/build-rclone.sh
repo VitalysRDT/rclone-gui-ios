@@ -146,16 +146,26 @@ gomobile bind \
     -tags="rclone_no_serve_dlna" \
     .
 
-# --- dSYM extraction ---------------------------------------------------------
+# --- Static archive → dynamic framework --------------------------------------
 #
-# gomobile does not emit a .dSYM bundle. We extract one ourselves with
-# `dsymutil` from the binary that gomobile just produced, then place it inside
-# the xcframework under ios-arm64/dSYMs/ and declare DebugSymbolsPath in the
-# xcframework Info.plist so Xcode picks it up at archive time.
-# Requirement: App Store Connect refuses uploads missing dSYMs.
+# gomobile bind emits an `ar` static archive packaged inside a .framework
+# directory. When Xcode archives an app that embeds this "framework", it
+# auto-generates a tiny stub dylib for it (you can see the line
+# "Injecting stub binary into codeless framework" in the build log). That
+# stub carries an LC_UUID that App Store Connect then demands a dSYM for —
+# and there is no dSYM because the static archive has no debug map that
+# dsymutil understands. Result: archive upload rejected with
+# "did not include a dSYM for the RcloneKit.framework with the UUIDs [...]"
+#
+# Fix: convert the static archive into a real iOS dynamic library before
+# leaving build-rclone.sh. We force-load every object from the .a into the
+# dylib, give it the @rpath install name Xcode expects, then dsymutil can
+# extract a dSYM with a UUID that matches the binary one-to-one.
 
 SLICE_DIR="$XCFRAMEWORK/ios-arm64"
-FRAMEWORK_BINARY="$SLICE_DIR/RcloneKit.framework/RcloneKit"
+FRAMEWORK_DIR="$SLICE_DIR/RcloneKit.framework"
+FRAMEWORK_BINARY="$FRAMEWORK_DIR/RcloneKit"
+STATIC_ARCHIVE="$FRAMEWORK_DIR/RcloneKit.a"
 DSYM_DIR="$SLICE_DIR/dSYMs"
 DSYM_BUNDLE="$DSYM_DIR/RcloneKit.framework.dSYM"
 
@@ -163,6 +173,48 @@ if [ ! -f "$FRAMEWORK_BINARY" ]; then
     echo "ERROR: Expected framework binary not found at $FRAMEWORK_BINARY"
     exit 1
 fi
+
+# Read project deployment target so the wrapper dylib has the same min iOS.
+DEPLOY_TARGET=$(grep -m1 "IPHONEOS_DEPLOYMENT_TARGET" "$PROJECT_ROOT/Rclone GUI.xcodeproj/project.pbxproj" \
+    | awk '{print $3}' | tr -d ';' || echo "16.0")
+echo ""
+echo "Wrapping gomobile static archive into dynamic framework (iOS $DEPLOY_TARGET)..."
+
+# Move .a aside, build dylib in its place.
+mv "$FRAMEWORK_BINARY" "$STATIC_ARCHIVE"
+
+SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
+xcrun --sdk iphoneos clang \
+    -isysroot "$SDK_PATH" \
+    -arch arm64 \
+    -target "arm64-apple-ios${DEPLOY_TARGET}" \
+    -dynamiclib \
+    -Wl,-force_load,"$STATIC_ARCHIVE" \
+    -framework Foundation \
+    -framework CoreFoundation \
+    -framework Security \
+    -lresolv \
+    -install_name "@rpath/RcloneKit.framework/RcloneKit" \
+    -Xlinker -object_path_lto -Xlinker "$STATIC_ARCHIVE.lto.o" \
+    -o "$FRAMEWORK_BINARY"
+
+# We no longer need the raw archive next to the dylib (Xcode would refuse the
+# framework if both are present at archive time).
+rm -f "$STATIC_ARCHIVE" "$STATIC_ARCHIVE.lto.o"
+
+# Sanity: confirm the binary is now a real Mach-O dylib with an LC_UUID.
+if ! file "$FRAMEWORK_BINARY" | grep -q "dynamically linked shared library"; then
+    echo "ERROR: wrapper did not produce a dylib:"
+    file "$FRAMEWORK_BINARY"
+    exit 1
+fi
+
+# --- dSYM extraction ---------------------------------------------------------
+#
+# Now that RcloneKit is a real dylib carrying DWARF + an LC_UUID, dsymutil
+# can extract a matching .dSYM. We place it inside the xcframework under
+# ios-arm64/dSYMs/ and declare DebugSymbolsPath in the xcframework Info.plist
+# so Xcode picks it up at archive time.
 
 echo ""
 echo "Extracting dSYM with dsymutil..."
