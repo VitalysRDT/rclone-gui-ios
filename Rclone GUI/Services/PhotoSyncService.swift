@@ -1083,8 +1083,17 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         let interBatchMs: Int = lastBatchEndedAt.map { Self.elapsedMs(since: $0) } ?? 0
         lastBatchEndedAt = nil
 
-        let activeCount = try activePhotoAssetCount()
-        let limit = Self.enqueueCapacity(activeCount: activeCount, requestedLimit: requestedLimit, limits: limits)
+        // Cap = enqueueBatchSize uniquement. L'ancien
+        // `enqueueCapacity(activeCount:)` était pertinent quand on
+        // poussait N copyfile concurrents via TransferQueue ; depuis
+        // qu'on fait 1 seul sync/copy par batch via le pipeline, le
+        // cap activeCount provoquait un bug critique : pendant qu'un
+        // batch était en .enqueued (10 records), capacity tombait à 0
+        // → producer voyait nil → croyait avoir fini → pipeline #1
+        // se terminait → heartbeat relançait pipeline #2 → conflit
+        // sur le batchDir résiduel + Swift.CancellationError sur
+        // l'upload en cours.
+        let limit = requestedLimit
         guard limit > 0 else { return nil }
 
         let fetchPendingStarted = ContinuousClock.now
