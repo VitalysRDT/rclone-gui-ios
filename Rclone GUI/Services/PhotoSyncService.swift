@@ -809,12 +809,32 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         do {
             let authorizationStatus = try await ensurePhotoAuthorization()
             let indexResult = try await indexLibrary()
-            let enqueuedCount = try await enqueuePending(
-                remote: remote,
-                folder: configuredFolder,
-                requestedLimit: requestedLimit,
-                includeFailedRetries: includeFailedRetries
-            )
+            let enqueuedCount: Int
+            if continueUntilEmpty {
+                // Mode pipeline rclone-like : on prépare le batch N+1
+                // pendant que sync/copy(N) tourne. Drainage complet,
+                // re-loop intégré donc on n'a PAS besoin de
+                // scheduleContinuationIfNeeded en sortie.
+                enqueuedCount = await runPipeline(
+                    remote: remote,
+                    folder: configuredFolder,
+                    requestedLimit: requestedLimit,
+                    includeFailedRetries: includeFailedRetries
+                )
+            } else {
+                // Mode 1-shot : 1 batch unique, sans pipeline.
+                if let prepared = try await prepareBatch(
+                    remote: remote,
+                    folder: configuredFolder,
+                    requestedLimit: requestedLimit,
+                    includeFailedRetries: includeFailedRetries
+                ) {
+                    await uploadPreparedBatch(prepared, remote: remote, folder: configuredFolder)
+                    enqueuedCount = prepared.enqueuedCount
+                } else {
+                    enqueuedCount = 0
+                }
+            }
             let summary = await statusSnapshot(
                 authorizationStatus: authorizationStatus,
                 visibleAssetCount: indexResult.visibleAssetCount,
@@ -822,8 +842,12 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
                 enqueuedCount: enqueuedCount
             )
             if continueUntilEmpty {
+                // Pipeline a déjà drainé toutes les pending (boucle while
+                // interne). Plus besoin de scheduleContinuationIfNeeded
+                // — c'était la source du bug 2-runSync-concurrents
+                // (heartbeat tickait pendant le sleep 200ms et lançait
+                // un 2e runSync en parallèle).
                 finishFullSyncIfDrained(summary)
-                scheduleContinuationIfNeeded()
             }
             return summary
         } catch is CancellationError {
@@ -995,13 +1019,17 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         return ids
     }
 
-    private func enqueuePending(
+    /// Prépare un batch (phase 1+2+3) sans lancer le sync/copy.
+    /// Renvoie nil si rien à préparer. Le caller doit ensuite appeler
+    /// `uploadPreparedBatch` pour lancer le sync/copy — ce découpage
+    /// permet de PIPELINER (préparer le batch N+1 pendant que N upload).
+    private func prepareBatch(
         remote: String,
         folder: String,
         requestedLimit: Int,
         includeFailedRetries: Bool
-    ) async throws -> Int {
-        guard let modelContext else { return 0 }
+    ) async throws -> PreparedBatch? {
+        guard let modelContext else { return nil }
         let prepStarted = ContinuousClock.now
         await LogService.shared.log(
             .info,
@@ -1015,7 +1043,7 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
 
         let activeCount = try activePhotoAssetCount()
         let limit = Self.enqueueCapacity(activeCount: activeCount, requestedLimit: requestedLimit, limits: limits)
-        guard limit > 0 else { return 0 }
+        guard limit > 0 else { return nil }
 
         let fetchPendingStarted = ContinuousClock.now
         var pendingDescriptor = FetchDescriptor<PhotoSyncAsset>(
@@ -1050,7 +1078,7 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         eligibleMs = Self.elapsedMs(since: eligibleStarted)
         #endif
 
-        guard !records.isEmpty else { return 0 }
+        guard !records.isEmpty else { return nil }
 
         // Mode rclone copy batché : on prépare un dossier temporaire qui
         // reproduit l'arborescence remote cible (sans le préfixe
@@ -1291,55 +1319,142 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
             message: "\(Self.perfTs()) T_prep=\(totalPrepMs)ms (inter_batch=\(interBatchMs), fetch_pending=\(fetchPendingMs), fetch_failed=\(fetchFailedMs), eligible=\(eligibleMs), exports=\(exportTotalMs) [avg=\(exportAvg)/n=\(exportCount)], hashes=\(hashTotalMs) [n=\(hashCount), avg=\(hashAvg)], moves=\(moveTotalMs), saves=\(saveTotalMs), dedup_skips=\(dedupSkips)) → \(batchedRecords.count) photos prêtes"
         )
 
-        guard !batchedRecords.isEmpty else { return 0 }
+        guard !batchedRecords.isEmpty else {
+            try? FileManager.default.removeItem(at: batchDir)
+            return nil
+        }
 
-        // Lance UN seul sync/copy équivalent à
-        //   rclone copy /tmp/rclonePhotoBatch-<uuid> <remote>:<baseFolder>
-        // rclone se charge du parallélisme, du retry et du skip
-        // (size+mtime ou hash) pour les fichiers déjà présents.
-        let totalBytes = batchedRecords.reduce(Int64(0)) { $0 + $1.bytes }
+        return PreparedBatch(
+            batchDir: batchDir,
+            records: batchedRecords,
+            totalBytes: batchedRecords.reduce(Int64(0)) { $0 + $1.bytes },
+            enqueuedCount: enqueuedCount
+        )
+    }
+
+    /// Représente un batch prêt à uploader : tous les fichiers sont déjà
+    /// exportés depuis PhotoKit, hashés, dédupliqués et placés dans
+    /// `batchDir`. Le sync/copy reste à lancer.
+    struct PreparedBatch {
+        let batchDir: URL
+        let records: [(asset: PhotoSyncAsset, remotePaths: [String], bytes: Int64)]
+        let totalBytes: Int64
+        let enqueuedCount: Int
+    }
+
+    /// Lance le sync/copy d'un batch déjà préparé puis marque les records
+    /// completed (ou failed en cas d'erreur) et nettoie le batchDir. C'est
+    /// la 2e moitié de l'ancien `enqueuePending` — séparée pour qu'un
+    /// orchestrateur puisse PRÉPARER le batch suivant pendant qu'on
+    /// attend cet upload (pipelining à la rclone CLI).
+    private func uploadPreparedBatch(
+        _ batch: PreparedBatch,
+        remote: String,
+        folder: String
+    ) async {
+        defer { try? FileManager.default.removeItem(at: batch.batchDir) }
         await LogService.shared.log(
             .info,
             category: "photos",
-            message: "rclone copy \(batchDir.lastPathComponent) → \(remote):\(folder) (\(batchedRecords.count) photos, \(ByteCountFormatter.string(fromByteCount: totalBytes, countStyle: .file)))"
+            message: "rclone copy \(batch.batchDir.lastPathComponent) → \(remote):\(folder) (\(batch.records.count) photos, \(ByteCountFormatter.string(fromByteCount: batch.totalBytes, countStyle: .file)))"
         )
-        // Le bypass throttle est posé au niveau runSync (couvre toute la
-        // durée de la sync), pas par batch — sans ça l'UserActivityMonitor
-        // remettait le bwlimit entre deux batchs au moindre tap.
 
         do {
             let jobID = try await TransferService.shared.copyDirAsync(
-                srcFs: batchDir.path,
+                srcFs: batch.batchDir.path,
                 dstFs: "\(remote):\(folder)",
                 createEmptySrcDirs: false
             )
             try await waitForRcloneJob(jobID: jobID)
-            for entry in batchedRecords {
+            for entry in batch.records {
                 entry.asset.status = .completed
                 entry.asset.completedAt = .now
                 entry.asset.lastError = nil
             }
-            try? modelContext.save()
+            try? modelContext?.save()
             await LogService.shared.log(
                 .info,
                 category: "photos",
-                message: "rclone copy ok : \(batchedRecords.count) photos uploadées sur \(remote):\(folder)"
+                message: "rclone copy ok : \(batch.records.count) photos uploadées sur \(remote):\(folder)"
             )
-            scheduleContinuationIfNeeded()
         } catch {
-            for entry in batchedRecords {
+            for entry in batch.records {
                 entry.asset.status = .failed
                 entry.asset.retryCount += 1
                 entry.asset.lastError = error.localizedDescription
             }
-            try? modelContext.save()
+            try? modelContext?.save()
             await LogService.shared.log(
                 .error,
                 category: "photos",
-                message: "rclone copy échoué : \(error.localizedDescription) (\(batchedRecords.count) photos repassent en failed)"
+                message: "rclone copy échoué : \(error.localizedDescription) (\(batch.records.count) photos repassent en failed)"
             )
         }
-        return enqueuedCount
+    }
+
+    /// Orchestrateur pipeline rclone-like : prépare le batch N+1 PENDANT
+    /// que le sync/copy(N) tourne. Tant qu'il y a du pending, on chevauche
+    /// 1 prep et 1 upload pour éliminer le gap entre 2 batchs.
+    /// Comme rclone CLI qui empile transferts + checkers, on ne fait
+    /// qu'1 upload concurrent (le moteur rclone parallélise déjà
+    /// l'intérieur du sync/copy via NumberOfCheckers/Transfers).
+    private func runPipeline(
+        remote: String,
+        folder: String,
+        requestedLimit: Int,
+        includeFailedRetries: Bool
+    ) async -> Int {
+        var totalEnqueued = 0
+        // Prep le 1er batch synchrone (rien à uploader en parallèle).
+        var current: PreparedBatch?
+        do {
+            current = try await prepareBatch(
+                remote: remote,
+                folder: folder,
+                requestedLimit: requestedLimit,
+                includeFailedRetries: includeFailedRetries
+            )
+        } catch {
+            await LogService.shared.log(
+                .error,
+                category: "photos",
+                message: "prepareBatch initial échoué : \(error.localizedDescription)"
+            )
+            return 0
+        }
+
+        while let batch = current {
+            totalEnqueued += batch.enqueuedCount
+            // Lance l'upload du batch courant en arrière-plan (Task).
+            let uploadTask = Task { [weak self] in
+                await self?.uploadPreparedBatch(batch, remote: remote, folder: folder)
+            }
+            // En parallèle, prepare le batch suivant.
+            let nextPrepTask = Task { [weak self] () -> PreparedBatch? in
+                guard let self else { return nil }
+                do {
+                    return try await self.prepareBatch(
+                        remote: remote,
+                        folder: folder,
+                        requestedLimit: requestedLimit,
+                        includeFailedRetries: includeFailedRetries
+                    )
+                } catch {
+                    await LogService.shared.log(
+                        .error,
+                        category: "photos",
+                        message: "prepareBatch (pipeline) échoué : \(error.localizedDescription)"
+                    )
+                    return nil
+                }
+            }
+            // Attend que l'upload courant termine (waitForRcloneJob).
+            await uploadTask.value
+            // Récupère le batch suivant (déjà prêt si la prep a fini en
+            // moins de temps que l'upload — sinon on attend le résidu).
+            current = await nextPrepTask.value
+        }
+        return totalEnqueued
     }
 
     /// Boucle d'attente sur un job rclone asynchrone (`sync/copy`,
