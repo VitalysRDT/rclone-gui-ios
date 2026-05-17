@@ -26,9 +26,13 @@ struct TransfersView: View {
     @State private var terminalDisplayLimit: Int = 50
     private static let terminalPageSize = 50
 
+    /// Progression live du batch rclone copy PhotoSync en cours. Mise à
+    /// jour par un poll 500ms tant que la vue est à l'écran.
+    @State private var photoSyncProgress: PhotoBatchLiveProgress?
+
     var body: some View {
         Group {
-            if transfers.isEmpty {
+            if transfers.isEmpty && photoSyncProgress == nil {
                 VStack {
                     AppEmptyStateView(
                         title: "Aucun transfert",
@@ -81,6 +85,13 @@ struct TransfersView: View {
         .sensoryFeedback(.selection, trigger: hapticTrigger)
         .task {
             isPausedGlobally = TransferQueue.shared.isPausedGlobally
+            // Poll live de la progression PhotoSync. Cadence adaptative :
+            // 500ms tant qu'un batch tourne, 2s sinon (économie batterie).
+            // SwiftUI cancel la closure à disappear.
+            while !Task.isCancelled {
+                photoSyncProgress = PhotoSyncService.shared.liveBatchProgress
+                try? await Task.sleep(for: photoSyncProgress != nil ? .milliseconds(500) : .seconds(2))
+            }
         }
         .onAppear {
             // L'utilisateur regarde l'écran Transferts pour voir le débit
@@ -126,6 +137,11 @@ struct TransfersView: View {
     @ViewBuilder
     private var transfersList: some View {
         let list = List {
+            if let progress = photoSyncProgress {
+                Section("Sync photos en cours") {
+                    photoSyncProgressRow(progress)
+                }
+            }
             Section {
                 TransferOverviewCard(transfers: transfers)
                     .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
@@ -239,6 +255,55 @@ struct TransfersView: View {
             modelContext.delete(transfer)
         }
         try? modelContext.save()
+    }
+
+    // MARK: - PhotoSync live progress row
+
+    @ViewBuilder
+    private func photoSyncProgressRow(_ progress: PhotoBatchLiveProgress) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Label("rclone copy → cloud", systemImage: "photo.on.rectangle.angled")
+                    .font(.subheadline)
+                    .foregroundStyle(.pink)
+                Spacer()
+                if progress.speedBytesPerSec > 1 {
+                    Label(ByteCountFormatter.string(fromByteCount: Int64(progress.speedBytesPerSec), countStyle: .file) + "/s", systemImage: "speedometer")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+            }
+            if progress.bytesTotal > 0 {
+                ProgressView(value: Double(progress.bytesTransferred), total: Double(progress.bytesTotal))
+                    .tint(.pink)
+            } else {
+                ProgressView()
+            }
+            HStack {
+                Text("\(ByteCountFormatter.string(fromByteCount: progress.bytesTransferred, countStyle: .file)) / \(ByteCountFormatter.string(fromByteCount: progress.bytesTotal, countStyle: .file))")
+                Spacer()
+                if let etaSeconds = progress.etaSeconds, etaSeconds > 0 {
+                    Text("≈ " + formatETA(seconds: etaSeconds))
+                }
+            }
+            .font(.caption.monospacedDigit())
+            .foregroundStyle(.secondary)
+            if let filename = progress.currentFilename, !filename.isEmpty {
+                Text(filename)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    private func formatETA(seconds: Int64) -> String {
+        let s = Int(seconds)
+        if s < 60 { return "\(s)s" }
+        if s < 3600 { return "\(s/60)m \(s%60)s" }
+        return "\(s/3600)h \((s%3600)/60)m"
     }
 }
 

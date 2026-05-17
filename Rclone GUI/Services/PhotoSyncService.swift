@@ -171,10 +171,10 @@ struct PhotoSyncLimits: Sendable, Equatable {
     /// HEIC ≈ 200-300 MB, soit ~10s sur réseau correct — la UI reste
     /// fluide grâce au yield entre exports PhotoKit.
     var enqueueBatchSize = 50
-    /// How many TransferQueue jobs we want active in parallel for photo sync.
-    /// rclone-bridge handles concurrent jobs fine; the cap exists mostly so
-    /// the user's manual transfers don't get crowded out.
-    var maxActiveUploads = 5
+    /// Cap réel par batch rclone copy. Aligné sur enqueueBatchSize maintenant
+    /// qu'on a UN seul job sync/copy par batch (vs N copyfile avant). Sans
+    /// ça, enqueueCapacity cappait à 5 et le batch restait minuscule.
+    var maxActiveUploads = 50
     var maxRetries = 3
 
     static let standard = PhotoSyncLimits()
@@ -744,8 +744,14 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         }
 
         isSyncing = true
+        // Bypass throttle 512KB/s tant qu'une sync photo tourne (couvre
+        // toute la durée — export + sync/copy + verify), pas seulement
+        // un batch isolé. Sans ça l'UserActivityMonitor remettait le
+        // bwlimit entre deux batches dès qu'un tap était détecté.
+        TransferQueue.shared.incrementActivityBypass()
         defer {
             isSyncing = false
+            TransferQueue.shared.decrementActivityBypass()
             scheduleBackgroundProcessing()
         }
 
@@ -1065,13 +1071,9 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
             category: "photos",
             message: "rclone copy \(batchDir.lastPathComponent) → \(remote):\(folder) (\(batchedRecords.count) photos, \(ByteCountFormatter.string(fromByteCount: totalBytes, countStyle: .file)))"
         )
-        // Désactive le throttle 512KB/s pendant le batch : ce throttle
-        // existe pour les transferts manuels quand l'utilisateur navigue,
-        // pas pour la sync background photothèque qui doit avancer plein
-        // débit. decrementActivityBypass dans le defer garantit qu'on
-        // restaure même en cas d'exception.
-        TransferQueue.shared.incrementActivityBypass()
-        defer { TransferQueue.shared.decrementActivityBypass() }
+        // Le bypass throttle est posé au niveau runSync (couvre toute la
+        // durée de la sync), pas par batch — sans ça l'UserActivityMonitor
+        // remettait le bwlimit entre deux batchs au moindre tap.
 
         do {
             let jobID = try await TransferService.shared.copyDirAsync(
