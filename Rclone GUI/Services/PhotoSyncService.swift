@@ -235,6 +235,18 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
     /// bannière live affichée même pendant l'inter-batch (200ms où
     /// liveBatchProgress redevient nil entre deux sync/copy).
     public var isSyncingPublic: Bool { isSyncing }
+
+    /// Timestamp du dernier `indexLibrary()` complet. Permet de skipper
+    /// le scan PhotoKit (coûteux : ~1-2s sur 18k photos) entre deux
+    /// batches consécutifs — l'index ne change pas significativement
+    /// en 60s, et photoLibraryDidChange réinitialise déjà ce cache.
+    private var lastFullIndexAt: Date?
+    private static let indexCacheTTL: TimeInterval = 60
+
+    /// Invalide le cache d'index — force un scan PhotoKit complet au
+    /// prochain runSync. Appelé par photoLibraryDidChange et après un
+    /// changement de filtres / album.
+    public func invalidateIndexCache() { lastFullIndexAt = nil }
     /// Periodic safety net that re-kicks the continuation if it ever stalls
     /// (e.g. transferDidFinish failed to match a remotePath because of a
     /// path-normalisation drift, or the queue dropped a callback). Set up
@@ -845,6 +857,9 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
 
     nonisolated public func photoLibraryDidChange(_ changeInstance: PHChange) {
         Task { @MainActor in
+            // Invalide le cache d'index — il y a vraiment du nouveau à
+            // découvrir côté PhotoKit, le scan complet redevient utile.
+            PhotoSyncService.shared.invalidateIndexCache()
             guard PhotoSyncService.shared.isEnabled else { return }
             guard PhotoSyncService.shared.autoSyncOnImport else { return }
             guard !PhotoSyncService.shared.isPausedByUser else { return }
@@ -867,11 +882,23 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
             return PhotoSyncIndexResult(visibleAssetCount: 0, newlyIndexedCount: 0)
         }
 
+        // Skip le scan PhotoKit si on l'a fait il y a < 60s. C'est le
+        // chemin chaud entre deux batches de continuation : sans ça,
+        // chaque batch démarre par un scan complet de 18k+ photos
+        // (~1-2s) avant même de pouvoir exporter quoi que ce soit, ce
+        // qui crée le "Préparation du prochain batch…" long visible.
+        // photoLibraryDidChange invalide ce cache via lastFullIndexAt
+        // = nil quand la photothèque change.
+        if let last = lastFullIndexAt, Date().timeIntervalSince(last) < Self.indexCacheTTL {
+            return PhotoSyncIndexResult(visibleAssetCount: 0, newlyIndexedCount: 0)
+        }
+
         let existingIDs = try await indexedIdentifiers()
         let scan = try await Task.detached(priority: .utility) {
             try Task.checkCancellation()
             return Self.scanPhotoLibrary(excluding: existingIDs)
         }.value
+        lastFullIndexAt = Date()
         guard !scan.candidates.isEmpty else {
             return PhotoSyncIndexResult(visibleAssetCount: scan.visibleAssetCount, newlyIndexedCount: 0)
         }
