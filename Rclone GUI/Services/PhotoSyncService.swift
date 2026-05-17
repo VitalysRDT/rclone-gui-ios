@@ -191,14 +191,17 @@ public struct PhotoSyncRunSummary: Sendable, Equatable {
 
 struct PhotoSyncLimits: Sendable, Equatable {
     var indexSaveBatchSize = 250
-    /// Batch nominal de 500 photos par sync/copy — gros lot comme un
-    /// vrai `rclone copy`. Adapté dynamiquement à la baisse par
-    /// `PhotoSyncService.adaptiveBatchSize` si l'espace tmp dispo
-    /// ne permet pas. Le pipeline garde 2 batchs en avance (buffer)
-    /// pour qu'aucun gap n'apparaisse entre 2 sync/copy.
-    var enqueueBatchSize = 500
+    /// Batch nominal de 50 photos — sweet spot observé empiriquement :
+    /// PhotoKit gère 4 exports parallel sans throttler (~80ms/photo).
+    /// Au-delà (testé 91 et 500), iOS thrash et les exports
+    /// individuels passent à 30-55s, ce qui annule tout gain.
+    /// Pour ressembler à un vrai `rclone copy` continu, c'est le
+    /// BUFFER du pipeline (maxPipelineBuffer=4) qui maintient 200
+    /// photos pré-exportées en réserve, garantissant que le sync/copy
+    /// ne fait jamais d'attente entre 2 batchs.
+    var enqueueBatchSize = 50
     /// Cap réel par batch rclone copy. Aligné sur enqueueBatchSize.
-    var maxActiveUploads = 500
+    var maxActiveUploads = 50
     var maxRetries = 3
 
     static let standard = PhotoSyncLimits()
@@ -310,26 +313,27 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         sessionStartedAt = Date()
     }
 
-    /// Adapte le batch size aux contraintes d'espace disque tmp. On
-    /// estime ~8 MB par photo HEIC et on s'autorise au max 25 % de
-    /// l'espace libre OU 4 GB hard cap. Si l'espace dispo ne permet
-    /// même pas 10 photos, on bascule sur 10 (minimum viable).
-    /// Renvoie un cap effectif à passer en `requestedLimit` aux
-    /// fonctions du pipeline.
+    /// Adapte le batch size aux contraintes d'espace disque tmp.
+    /// Cap dur à 50 photos par batch (sweet spot PhotoKit — au-delà
+    /// iOS thrash et les exports passent de 80ms à 30-55s). Si
+    /// l'espace tmp est trop étroit pour 50 × 8 MB = 400 MB, on
+    /// rétrograde jusqu'à un min de 10.
     nonisolated static func adaptiveBatchSize(_ requested: Int) -> Int {
+        let hardCap = 50 // sweet spot empirique PhotoKit
+        let nominal = min(requested, hardCap)
         let bytesPerPhotoEstimate: UInt64 = 8 * 1024 * 1024 // 8 MB
-        let hardCapBytes: UInt64 = 4 * 1024 * 1024 * 1024   // 4 GB
         let attrs = try? FileManager.default.attributesOfFileSystem(
             forPath: NSTemporaryDirectory()
         )
         guard let attrs, let freeNum = attrs[.systemFreeSize] as? NSNumber else {
-            // Fallback prudent quand on ne sait pas mesurer.
-            return min(requested, 100)
+            return nominal
         }
         let free = freeNum.uint64Value
-        let allowedBytes = min(free / 4, hardCapBytes)
+        // 25 % de l'espace libre max pour le batch en prep (le reste
+        // peut être consommé par les 3 autres batchs du buffer).
+        let allowedBytes = free / 4
         let allowedCount = Int(allowedBytes / bytesPerPhotoEstimate)
-        return max(10, min(requested, allowedCount))
+        return max(10, min(nominal, allowedCount))
     }
 
     /// Convertit un délai `ContinuousClock` depuis `since` en millisecondes
@@ -1500,7 +1504,11 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
     /// matière à uploader si la prep ralentit ou si PhotoKit bloque.
     private var pipelineBuffer: [PreparedBatch] = []
     private var pipelineProducerDone = false
-    private static let maxPipelineBuffer = 2
+    /// Nombre de batchs préparés en avance dans le buffer du pipeline.
+    /// Avec 4 buffers × 50 photos = 200 photos toujours prêtes à
+    /// uploader → le sync/copy n'attend jamais. Au-delà, on consomme
+    /// trop de tmp et la prep prend trop d'avance pour rien.
+    private static let maxPipelineBuffer = 4
 
     /// Orchestrateur pipeline rclone-like streaming. Producer prépare en
     /// continu jusqu'à `maxPipelineBuffer` batchs en avance. Consumer
