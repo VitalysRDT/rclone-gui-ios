@@ -191,15 +191,14 @@ public struct PhotoSyncRunSummary: Sendable, Equatable {
 
 struct PhotoSyncLimits: Sendable, Equatable {
     var indexSaveBatchSize = 250
-    /// Nombre de photos par batch rclone copy. Réduit à 10 : amorce
-    /// l'upload en ~3-5s (vs 22s pour batch=50). Le coût d'init d'un
-    /// job sync/copy étant négligeable côté librclone, on préfère
-    /// streamer rapidement les petits batchs pour que l'utilisateur
-    /// voie le compteur avancer. Le throughput global reste bon parce
-    /// que le pipeline garde 2 batchs en avance (buffer).
-    var enqueueBatchSize = 10
+    /// Batch nominal de 500 photos par sync/copy — gros lot comme un
+    /// vrai `rclone copy`. Adapté dynamiquement à la baisse par
+    /// `PhotoSyncService.adaptiveBatchSize` si l'espace tmp dispo
+    /// ne permet pas. Le pipeline garde 2 batchs en avance (buffer)
+    /// pour qu'aucun gap n'apparaisse entre 2 sync/copy.
+    var enqueueBatchSize = 500
     /// Cap réel par batch rclone copy. Aligné sur enqueueBatchSize.
-    var maxActiveUploads = 10
+    var maxActiveUploads = 500
     var maxRetries = 3
 
     static let standard = PhotoSyncLimits()
@@ -309,6 +308,28 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         uploadedThisSession = 0
         sessionInitialPending = pendingNow
         sessionStartedAt = Date()
+    }
+
+    /// Adapte le batch size aux contraintes d'espace disque tmp. On
+    /// estime ~8 MB par photo HEIC et on s'autorise au max 25 % de
+    /// l'espace libre OU 4 GB hard cap. Si l'espace dispo ne permet
+    /// même pas 10 photos, on bascule sur 10 (minimum viable).
+    /// Renvoie un cap effectif à passer en `requestedLimit` aux
+    /// fonctions du pipeline.
+    nonisolated static func adaptiveBatchSize(_ requested: Int) -> Int {
+        let bytesPerPhotoEstimate: UInt64 = 8 * 1024 * 1024 // 8 MB
+        let hardCapBytes: UInt64 = 4 * 1024 * 1024 * 1024   // 4 GB
+        let attrs = try? FileManager.default.attributesOfFileSystem(
+            forPath: NSTemporaryDirectory()
+        )
+        guard let attrs, let freeNum = attrs[.systemFreeSize] as? NSNumber else {
+            // Fallback prudent quand on ne sait pas mesurer.
+            return min(requested, 100)
+        }
+        let free = freeNum.uint64Value
+        let allowedBytes = min(free / 4, hardCapBytes)
+        let allowedCount = Int(allowedBytes / bytesPerPhotoEstimate)
+        return max(10, min(requested, allowedCount))
     }
 
     /// Convertit un délai `ContinuousClock` depuis `since` en millisecondes
@@ -1499,10 +1520,14 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         // Reset compteurs de session pour la bannière X/Y.
         let pendingAtStart = (try? pendingWorkCount(includeFailedRetries: includeFailedRetries)) ?? 0
         resetSessionCounters(pendingNow: pendingAtStart)
+        // Cap dynamique selon l'espace tmp dispo. Si l'iPhone manque
+        // d'espace on rétrograde de 500 vers une valeur sûre — un
+        // gros batch consomme jusqu'à ~4 GB de tmp avant l'upload.
+        let effectiveLimit = Self.adaptiveBatchSize(requestedLimit)
         await LogService.shared.log(
             .info,
             category: "photos",
-            message: "PhotoSync session start : \(pendingAtStart) photos en attente"
+            message: "PhotoSync session start : \(pendingAtStart) photos en attente · batch=\(effectiveLimit) (demandé=\(requestedLimit))"
         )
 
         pipelineBuffer = []
@@ -1559,7 +1584,7 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
                     guard let batch = try await self.prepareBatch(
                         remote: remote,
                         folder: folder,
-                        requestedLimit: requestedLimit,
+                        requestedLimit: effectiveLimit,
                         includeFailedRetries: includeFailedRetries
                     ) else {
                         self.pipelineProducerDone = true
