@@ -135,6 +135,20 @@ public struct PhotoBatchLiveProgress: Sendable, Equatable {
     public let speedBytesPerSec: Double
     public let etaSeconds: Int64?
     public let currentFilename: String?
+    /// Liste complète des fichiers actuellement en cours de transfert
+    /// côté rclone (vide si aucun ou rclone n'expose pas le détail).
+    /// Permet d'afficher dans l'UI une vue type « transferts fichier
+    /// par fichier » comme la sortie de `rclone copy --progress`.
+    public let transferringFiles: [TransferringFile]
+
+    public struct TransferringFile: Sendable, Equatable, Identifiable {
+        public let name: String
+        public let bytesTransferred: Int64
+        public let bytesTotal: Int64
+        public let speedBytesPerSec: Double
+        public let etaSeconds: Int64?
+        public var id: String { name }
+    }
 }
 
 public struct PhotoSyncRunSummary: Sendable, Equatable {
@@ -1495,6 +1509,41 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         pipelineProducerDone = false
         var totalEnqueued = 0
 
+        // Heartbeat stats toutes les 10s pour rassurer l'utilisateur
+        // que la sync progresse même si l'UI semble figée (la nav
+        // app peut être ailleurs). Cancel à la fin du runPipeline
+        // via le defer.
+        let statsHeartbeat = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(10))
+                if Task.isCancelled { return }
+                guard let self else { return }
+                let counts = self.photoSyncCounts()
+                let total = counts.completed + counts.active + counts.pending + counts.failed
+                let pct = total > 0
+                    ? Int((Double(counts.completed) / Double(total) * 100).rounded())
+                    : 0
+                let speedStr: String
+                if let live = self.liveBatchProgress, live.speedBytesPerSec > 1 {
+                    speedStr = ByteCountFormatter.string(fromByteCount: Int64(live.speedBytesPerSec), countStyle: .file) + "/s"
+                } else {
+                    speedStr = "—"
+                }
+                let eta: String
+                if let live = self.liveBatchProgress, let etaSec = live.etaSeconds, etaSec > 0 {
+                    eta = " · ETA batch ~\(etaSec)s"
+                } else {
+                    eta = ""
+                }
+                await LogService.shared.log(
+                    .info,
+                    category: "photos",
+                    message: "PROGRESS : \(counts.completed)/\(total) (\(pct)%) · pending=\(counts.pending) · active=\(counts.active) · failed=\(counts.failed) · \(speedStr)\(eta)"
+                )
+            }
+        }
+        defer { statsHeartbeat.cancel() }
+
         // Producer : prepare en continu jusqu'au buffer plein, puis se
         // met en pause via backpressure.
         let producer = Task { @MainActor [weak self] in
@@ -1560,12 +1609,22 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
             // valeur cohérente jusqu'au prochain snapshot.
             if let stats = try? await TransferService.shared.coreStats() {
                 let primary = stats.transferring.first
+                let files = stats.transferring.map {
+                    PhotoBatchLiveProgress.TransferringFile(
+                        name: $0.name,
+                        bytesTransferred: $0.bytesTransferred,
+                        bytesTotal: $0.bytesTotal,
+                        speedBytesPerSec: $0.speed,
+                        etaSeconds: $0.eta
+                    )
+                }
                 liveBatchProgress = PhotoBatchLiveProgress(
                     bytesTransferred: stats.transferredBytes,
                     bytesTotal: stats.totalBytes,
                     speedBytesPerSec: stats.globalSpeed,
                     etaSeconds: primary?.eta,
-                    currentFilename: primary?.name
+                    currentFilename: primary?.name,
+                    transferringFiles: files
                 )
             }
             let status = try await TransferService.shared.jobStatus(jobID: jobID)

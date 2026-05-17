@@ -377,17 +377,7 @@ private struct PhotoSyncActivityCard: View {
                 statusLine
                 progressBlock
                 metricsGrid
-                if let currentFilename {
-                    Label {
-                        Text(currentFilename)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                    } icon: {
-                        Image(systemName: "doc")
-                    }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                }
+                transferringFilesList
                 if summary?.isLimitedAccess == true {
                     Label("Accès Photos limité: seule la sélection autorisée est synchronisée.", systemImage: "photo.badge.exclamationmark")
                         .font(.caption.weight(.medium))
@@ -471,39 +461,95 @@ private struct PhotoSyncActivityCard: View {
         }
     }
 
-    private var actions: some View {
-        HStack(spacing: 8) {
-            Button(action: onTogglePause) {
-                Label(summary?.pausedByUser == true ? "Reprendre" : "Pause", systemImage: summary?.pausedByUser == true ? "play.fill" : "pause.fill")
+    /// Affichage des fichiers actuellement en cours de transfert (rclone
+    /// `core/stats.transferring`). Reproduit le comportement de la sortie
+    /// `rclone copy --progress` qui liste fichier par fichier avec son
+    /// avancement et son débit. Limité à 5 lignes pour ne pas envahir
+    /// la card. Caché si rien en cours.
+    @ViewBuilder
+    private var transferringFilesList: some View {
+        if let files = liveProgress?.transferringFiles, !files.isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Label("Transferts en cours", systemImage: "arrow.up.doc.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text("\(files.count)")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+                ForEach(files.prefix(5)) { file in
+                    TransferringFileRow(file: file)
+                }
+                if files.count > 5 {
+                    Text("+\(files.count - 5) autre(s)")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
             }
-            .buttonStyle(.borderedProminent)
-            .tint(summary?.pausedByUser == true ? .green : .pink)
+            .padding(.top, 4)
+        }
+    }
+
+    private var actions: some View {
+        HStack(spacing: 12) {
+            Button(action: onTogglePause) {
+                actionIcon(
+                    summary?.pausedByUser == true ? "play.fill" : "pause.fill",
+                    tint: summary?.pausedByUser == true ? .green : .pink,
+                    filled: true
+                )
+            }
+            .buttonStyle(.plain)
             .disabled(!hasConfiguredDestination || summary == nil || isActionInProgress)
+            .accessibilityLabel(summary?.pausedByUser == true ? "Reprendre PhotoSync" : "Mettre PhotoSync en pause")
 
             Button(action: onRetryFailed) {
-                Label("Réessayer", systemImage: "arrow.clockwise")
+                actionIcon("arrow.clockwise", tint: .purple)
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.plain)
             .disabled((summary?.failedCount ?? 0) == 0 || summary?.pausedByUser == true || !hasConfiguredDestination || isActionInProgress)
+            .accessibilityLabel("Réessayer les échecs PhotoSync")
 
             Spacer(minLength: 0)
 
             NavigationLink {
                 PhotoSyncStatsView()
             } label: {
-                Image(systemName: "chart.line.uptrend.xyaxis")
+                actionIcon("chart.line.uptrend.xyaxis", tint: .primary)
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.plain)
             .accessibilityLabel("Ouvrir les statistiques PhotoSync")
 
             NavigationLink {
                 PhotoSyncSettingsView()
             } label: {
-                Image(systemName: "gearshape")
+                actionIcon("gearshape", tint: .primary)
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.plain)
             .accessibilityLabel("Ouvrir la configuration PhotoSync")
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.top, 2)
+    }
+
+    private func actionIcon(_ systemImage: String, tint: Color, filled: Bool = false) -> some View {
+        Image(systemName: systemImage)
+            .font(.title3.weight(.semibold))
+            .foregroundStyle(filled ? Color.white : tint)
+            .frame(width: 48, height: 48)
+            .background(
+                filled ? tint : tint.opacity(0.10),
+                in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+            )
+            .overlay {
+                if !filled {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .stroke(.quaternary)
+                }
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     private var statusTitle: String {
@@ -805,5 +851,55 @@ private struct FilterEmptyRow: View {
         case .failed:
             return "Aucun transfert échoué"
         }
+    }
+}
+
+/// Ligne d'un fichier en cours de transfert (style « rclone copy --progress »).
+/// Affiche le nom (tronqué), une mini-barre de progression et le débit/ETA.
+private struct TransferringFileRow: View {
+    let file: PhotoBatchLiveProgress.TransferringFile
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 6) {
+                Image(systemName: "doc")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                Text(displayName)
+                    .font(.caption.monospacedDigit())
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Spacer(minLength: 4)
+                if file.speedBytesPerSec > 1 {
+                    Text(ByteCountFormatter.string(fromByteCount: Int64(file.speedBytesPerSec), countStyle: .file) + "/s")
+                        .font(.caption2.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+            }
+            if file.bytesTotal > 0 {
+                let clamped = min(Double(file.bytesTransferred), Double(file.bytesTotal))
+                ProgressView(value: clamped, total: Double(file.bytesTotal))
+                    .progressViewStyle(.linear)
+                    .tint(.pink.opacity(0.7))
+                    .frame(height: 3)
+                HStack {
+                    Text("\(ByteCountFormatter.string(fromByteCount: file.bytesTransferred, countStyle: .file)) / \(ByteCountFormatter.string(fromByteCount: file.bytesTotal, countStyle: .file))")
+                        .font(.caption2.monospacedDigit())
+                        .foregroundStyle(.tertiary)
+                    Spacer()
+                    if let eta = file.etaSeconds, eta > 0 {
+                        Text("≈ \(eta)s")
+                            .font(.caption2.monospacedDigit())
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Affiche juste le nom de fichier (sans le chemin parent) pour
+    /// économiser de l'espace horizontal.
+    private var displayName: String {
+        (file.name as NSString).lastPathComponent
     }
 }
