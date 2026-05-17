@@ -129,6 +129,24 @@ extension PhotoSyncFilters: Codable {
 /// Avancement live d'un batch rclone copy en cours, alimenté par
 /// `core/stats` toutes les 500ms pendant la sync photo. Nil quand
 /// aucun batch n'est actif.
+/// Progression live de la commande « Vérifier l'intégrité sur le
+/// remote » qui re-stat tous les assets déjà marqués completed/skipped
+/// pour confirmer leur présence et leur hash MD5 sur le serveur.
+public struct PhotoSyncVerifyProgress: Sendable, Equatable {
+    public let totalToCheck: Int
+    public let checked: Int
+    public let verified: Int
+    public let missing: Int
+    public let mismatch: Int
+    public let unsupported: Int
+    public let isRunning: Bool
+
+    public var percentage: Double {
+        guard totalToCheck > 0 else { return 0 }
+        return Double(checked) / Double(totalToCheck)
+    }
+}
+
 public struct PhotoBatchLiveProgress: Sendable, Equatable {
     public let bytesTransferred: Int64
     public let bytesTotal: Int64
@@ -256,6 +274,11 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
     /// PhotoSyncSettingsView (bar de progression + débit + ETA).
     /// `nil` entre deux batches.
     public private(set) var liveBatchProgress: PhotoBatchLiveProgress?
+
+    /// Progression live de la vérification d'intégrité remote. Nil quand
+    /// aucune vérif n'est en cours. La UI peut poll cette valeur dans sa
+    /// boucle .task pour afficher X/Y et le détail (verified, missing, …).
+    public private(set) var verifyProgress: PhotoSyncVerifyProgress?
 
     /// Exposition publique de isSyncing pour que TransfersView garde la
     /// bannière live affichée même pendant l'inter-batch (200ms où
@@ -1776,6 +1799,181 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         if aggregatedStatus == "mismatch" {
             await LogService.shared.log(.error, category: "photos", message: "Hash distant ne correspond pas pour \(localIdentifier).")
         }
+    }
+
+    /// Helper pur : stat chaque chemin remote et compare le hash MD5
+    /// au localHash fourni. Pas d'accès SwiftData, peut être appelé en
+    /// boucle. Réutilisé par `verifyAsset` (post-upload best-effort)
+    /// et `verifyAllUploadedAssets` (audit manuel).
+    /// Status agrégé : « verified » (tous matchent), « mismatch » (au
+    /// moins un hash diffère), « missing » (stat échoué), « unsupported »
+    /// (backend sans hash MD5).
+    private static func compareRemote(
+        paths: [String],
+        localHash: String?,
+        remote: String
+    ) async -> (status: String, foundHash: String?) {
+        guard !paths.isEmpty else { return ("missing", nil) }
+        var aggregated = "verified"
+        var lastHash: String?
+        for path in paths {
+            let remoteHash: String?
+            do {
+                let entry = try await RemoteService.shared.stat(remote: remote, path: path)
+                remoteHash = entry?.hashMD5
+                if entry == nil {
+                    aggregated = "missing"
+                    continue
+                }
+            } catch {
+                aggregated = "missing"
+                continue
+            }
+            guard let remoteHash, !remoteHash.isEmpty else {
+                if aggregated == "verified" { aggregated = "unsupported" }
+                continue
+            }
+            lastHash = remoteHash
+            if let local = localHash, !local.isEmpty {
+                if local.lowercased() != remoteHash.lowercased() {
+                    aggregated = "mismatch"
+                    break
+                }
+            } else {
+                if aggregated == "verified" { aggregated = "unsupported" }
+            }
+        }
+        return (aggregated, lastHash)
+    }
+
+    /// Audit manuel déclenché par le bouton « Vérifier l'intégrité ».
+    /// Re-stat tous les assets `.completed` / `.skipped` sur le remote.
+    /// - `.missing` → repassés en `.pending` pour re-upload au prochain cycle
+    /// - `.mismatch` → conservés mais marqués (alerte UI possible plus tard)
+    /// - `.verified` / `.unsupported` → status mis à jour, asset inchangé
+    public func verifyAllUploadedAssets() async {
+        guard let modelContext else { return }
+        guard let remote = configuredRemote, !remote.isEmpty else {
+            await LogService.shared.log(.error, category: "photos", message: "Vérification impossible : aucun remote configuré.")
+            return
+        }
+        if verifyProgress?.isRunning == true {
+            await LogService.shared.log(.info, category: "photos", message: "Vérification déjà en cours, ignoré.")
+            return
+        }
+
+        let descriptor = FetchDescriptor<PhotoSyncAsset>(
+            predicate: #Predicate { $0.statusRaw == "completed" || $0.statusRaw == "skipped" }
+        )
+        guard let assets = try? modelContext.fetch(descriptor) else {
+            await LogService.shared.log(.error, category: "photos", message: "Vérification : fetch SwiftData échoué.")
+            return
+        }
+        guard !assets.isEmpty else {
+            await LogService.shared.log(.info, category: "photos", message: "Vérification : aucune photo uploadée à auditer.")
+            return
+        }
+
+        await LogService.shared.log(
+            .info,
+            category: "photos",
+            message: "Vérification d'intégrité démarrée : \(assets.count) photos à auditer sur \(remote)"
+        )
+
+        verifyProgress = PhotoSyncVerifyProgress(
+            totalToCheck: assets.count, checked: 0,
+            verified: 0, missing: 0, mismatch: 0, unsupported: 0,
+            isRunning: true
+        )
+
+        var verified = 0, missing = 0, mismatch = 0, unsupported = 0
+        var checked = 0
+        let saveEvery = 50
+        let concurrency = 5
+
+        // Capture localIdentifier + paths + localHash hors de la closure
+        // Sendable (PhotoSyncAsset n'est pas Sendable).
+        let snapshots: [(id: String, paths: [String], hash: String?)] = assets.map {
+            ($0.localIdentifier, $0.remotePaths, $0.localHash)
+        }
+
+        var nextIndex = 0
+        await withTaskGroup(of: (String, String, String?).self) { group in
+            // Amorce concurrency tâches
+            while nextIndex < min(concurrency, snapshots.count) {
+                let snap = snapshots[nextIndex]
+                group.addTask {
+                    let result = await Self.compareRemote(paths: snap.paths, localHash: snap.hash, remote: remote)
+                    return (snap.id, result.status, result.foundHash)
+                }
+                nextIndex += 1
+            }
+            // Slide
+            while let (assetId, status, foundHash) = await group.next() {
+                // Localise l'asset SwiftData et applique le résultat
+                let assetDescriptor = FetchDescriptor<PhotoSyncAsset>(
+                    predicate: #Predicate { $0.localIdentifier == assetId }
+                )
+                if let asset = try? modelContext.fetch(assetDescriptor).first {
+                    asset.verificationStatus = status
+                    if let foundHash { asset.remoteHash = foundHash }
+                    if status == "missing" {
+                        asset.status = .pending
+                        asset.remotePaths = []
+                        asset.remoteHash = nil
+                        asset.completedAt = nil
+                        asset.retryCount = 0
+                        asset.lastError = "Fichier manquant sur le remote — re-upload programmé"
+                    }
+                }
+
+                switch status {
+                case "verified": verified += 1
+                case "missing": missing += 1
+                case "mismatch": mismatch += 1
+                case "unsupported": unsupported += 1
+                default: break
+                }
+                checked += 1
+
+                // Save batché pour ne pas hammer SwiftData
+                if checked % saveEvery == 0 {
+                    try? modelContext.save()
+                }
+
+                // Push progress
+                verifyProgress = PhotoSyncVerifyProgress(
+                    totalToCheck: assets.count, checked: checked,
+                    verified: verified, missing: missing,
+                    mismatch: mismatch, unsupported: unsupported,
+                    isRunning: true
+                )
+
+                // Démarre la tâche suivante si reste à faire
+                if nextIndex < snapshots.count {
+                    let snap = snapshots[nextIndex]
+                    group.addTask {
+                        let result = await Self.compareRemote(paths: snap.paths, localHash: snap.hash, remote: remote)
+                        return (snap.id, result.status, result.foundHash)
+                    }
+                    nextIndex += 1
+                }
+            }
+        }
+
+        // Save final + état terminal
+        try? modelContext.save()
+        verifyProgress = PhotoSyncVerifyProgress(
+            totalToCheck: assets.count, checked: checked,
+            verified: verified, missing: missing,
+            mismatch: mismatch, unsupported: unsupported,
+            isRunning: false
+        )
+        await LogService.shared.log(
+            .info,
+            category: "photos",
+            message: "Vérification terminée : \(verified) OK, \(missing) manquantes (repassées en pending), \(mismatch) hash différents, \(unsupported) non vérifiables"
+        )
     }
 
     /// Cherche un asset déjà uploadé qui partage exactement le même MD5.

@@ -26,6 +26,7 @@ struct PhotoSyncSettingsView: View {
     @State private var recentAssets: [PhotoSyncAsset] = []
     @State private var selectedAlbumCount = 0
     @State private var suspensionReason: String?
+    @State private var verifyProgress: PhotoSyncVerifyProgress?
     @State private var activeFilterCount = 0
 
     @AppStorage("photosync.notificationsEnabled") private var notificationsEnabled = false
@@ -196,6 +197,38 @@ struct PhotoSyncSettingsView: View {
                         Label("Vider les échecs", systemImage: "trash")
                     }
                 }
+
+                Button {
+                    Task { await verifyIntegrity() }
+                } label: {
+                    if let vp = verifyProgress, vp.isRunning {
+                        Label("Vérification : \(vp.checked) / \(vp.totalToCheck)", systemImage: "checkmark.shield")
+                    } else {
+                        Label("Vérifier l'intégrité sur le remote", systemImage: "checkmark.shield")
+                    }
+                }
+                .disabled(selectedRemote.isEmpty || verifyProgress?.isRunning == true)
+
+                if let vp = verifyProgress {
+                    VStack(alignment: .leading, spacing: 4) {
+                        if vp.totalToCheck > 0 {
+                            ProgressView(value: vp.percentage)
+                                .tint(.blue)
+                        }
+                        HStack(spacing: 12) {
+                            Label("\(vp.verified)", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
+                            Label("\(vp.missing)", systemImage: "questionmark.circle.fill").foregroundStyle(.orange)
+                            if vp.mismatch > 0 {
+                                Label("\(vp.mismatch)", systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red)
+                            }
+                            if vp.unsupported > 0 {
+                                Label("\(vp.unsupported)", systemImage: "info.circle").foregroundStyle(.secondary)
+                            }
+                        }
+                        .font(.caption.monospacedDigit())
+                    }
+                    .padding(.vertical, 4)
+                }
             } header: {
                 Text("Contrôles")
             } footer: {
@@ -278,11 +311,16 @@ struct PhotoSyncSettingsView: View {
             // rien ne bouge). SwiftUI cancels la .task à disappear donc
             // pas de timer manuel à libérer.
             while !Task.isCancelled {
-                let interval: Duration = PhotoSyncService.shared.liveBatchProgress != nil
-                    ? .seconds(1)
-                    : .seconds(4)
+                let interval: Duration
+                if PhotoSyncService.shared.liveBatchProgress != nil
+                    || PhotoSyncService.shared.verifyProgress?.isRunning == true {
+                    interval = .seconds(1)
+                } else {
+                    interval = .seconds(4)
+                }
                 try? await Task.sleep(for: interval)
                 await reloadStats()
+                verifyProgress = PhotoSyncService.shared.verifyProgress
                 #if os(iOS)
                 suspensionReason = PhotoSyncService.shared.suspensionReason
                 #endif
@@ -384,6 +422,25 @@ struct PhotoSyncSettingsView: View {
             message = "\(removed) échec(s) supprimé(s) de l'historique."
         }
         await reloadStats()
+    }
+
+    /// Bouton « Vérifier l'intégrité sur le remote » : re-stat tous les
+    /// assets déjà completed/skipped et reset en .pending ceux qui sont
+    /// manquants côté serveur. Les ré-uploads partent automatiquement
+    /// au prochain cycle du pipeline.
+    private func verifyIntegrity() async {
+        await PhotoSyncService.shared.verifyAllUploadedAssets()
+        // Sync final du progress (la closure ci-dessous le tient à jour)
+        verifyProgress = PhotoSyncService.shared.verifyProgress
+        if let vp = verifyProgress, !vp.isRunning {
+            var parts: [String] = []
+            if vp.verified > 0 { parts.append("\(vp.verified) OK") }
+            if vp.missing > 0 { parts.append("\(vp.missing) manquantes (re-upload programmé)") }
+            if vp.mismatch > 0 { parts.append("\(vp.mismatch) hash différents") }
+            if vp.unsupported > 0 { parts.append("\(vp.unsupported) non vérifiables") }
+            message = "Vérification : " + parts.joined(separator: " · ")
+            await reloadStats()
+        }
     }
 
     private func formatBytes(_ bytes: Int64) -> String {
