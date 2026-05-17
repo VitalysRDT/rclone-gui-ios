@@ -191,16 +191,15 @@ public struct PhotoSyncRunSummary: Sendable, Equatable {
 
 struct PhotoSyncLimits: Sendable, Equatable {
     var indexSaveBatchSize = 250
-    /// Fenêtre logique de 200 photos par sync/copy — verdict du débat
-    /// à 4 IA : on garde l'horizon LARGE pour rclone (un seul gros
-    /// job par fenêtre, réutilisation socket SSH, moins de sessions
-    /// SFTP totales), mais on découple la concurrence PhotoKit
-    /// (limitée à 1-2 exports actifs via exportConcurrencyForCurrentLoad)
-    /// pour ne pas thrash iOS. Avec 4 batchs buffer = 800 photos en
-    /// réserve, le sync/copy ne fait jamais d'attente.
-    var enqueueBatchSize = 200
+    /// Sweet spot empirique : 10 photos par batch. Tester 50, 85, 200
+    /// a systématiquement fait dégénérer les exports (PhotoKit
+    /// déprio dès qu'il y a 50+ records .exporting dans la queue
+    /// SwiftData, même avec concurrence limitée à 2). Avec batch=10
+    /// + concurrence=4, exports stables à ~80ms/photo, T_prep ~6s,
+    /// 1 batch / 30s en SFTP — c'est la config qui MARCHE.
+    var enqueueBatchSize = 10
     /// Cap réel par batch rclone copy. Aligné sur enqueueBatchSize.
-    var maxActiveUploads = 200
+    var maxActiveUploads = 10
     var maxRetries = 3
 
     static let standard = PhotoSyncLimits()
@@ -292,12 +291,12 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
     /// le motif observé empiriquement : avec 4 exports + 1 upload SFTP
     /// les exports passent de 80ms à 17000ms à cause de la contention.
     private var exportConcurrencyForCurrentLoad: Int {
-        // Verdict du débat à 4 IA : PhotoKit thrash IO/mémoire au-delà
-        // de 3 exports simultanés (confirmé par les logs prod : 4
-        // parallel → exports passent de 80ms à 30-55s sous charge).
-        // 2 idle, 1 pendant upload — laisse PhotoKit + SFTP coexister
-        // sans contention CPU.
-        isUploadingBatch ? 1 : 2
+        // Sweet spot empirique CONFIRMÉ par les logs prod (commit
+        // 733a1a3 / 67cf208) : 4 idle / 2 active. Le débat 4 IA a
+        // proposé 2/1 mais en prod c'est PIRE car PhotoKit déprio
+        // dès qu'il y a trop de records .exporting en file —
+        // l'ennemi c'est le nombre total en queue, pas la concurrence.
+        isUploadingBatch ? 2 : 4
     }
 
     /// Compteur global de la session en cours. uploadedThisSession est
@@ -317,13 +316,10 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         sessionStartedAt = Date()
     }
 
-    /// Adapte la fenêtre logique aux contraintes d'espace disque tmp.
-    /// Cap dur à 200 photos (verdict débat 4 IA : fenêtres larges OK
-    /// tant que la concurrence PhotoKit reste à 1-2 exports actifs).
-    /// Si l'espace tmp est trop étroit pour 200 × 8 MB = 1.6 GB, on
-    /// rétrograde jusqu'à un min de 20.
+    /// Cap dur à 10 photos. La fenêtre adaptative ne sert plus que
+    /// si l'espace tmp est CRITIQUEMENT bas (descend jusqu'à 5).
     nonisolated static func adaptiveBatchSize(_ requested: Int) -> Int {
-        let hardCap = 200 // fenêtre logique large pour rclone
+        let hardCap = 10
         let nominal = min(requested, hardCap)
         let bytesPerPhotoEstimate: UInt64 = 8 * 1024 * 1024 // 8 MB
         let attrs = try? FileManager.default.attributesOfFileSystem(
@@ -333,11 +329,9 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
             return nominal
         }
         let free = freeNum.uint64Value
-        // 25 % de l'espace libre max pour le batch en prep (le reste
-        // peut être consommé par les 3 autres batchs du buffer).
         let allowedBytes = free / 4
         let allowedCount = Int(allowedBytes / bytesPerPhotoEstimate)
-        return max(20, min(nominal, allowedCount))
+        return max(5, min(nominal, allowedCount))
     }
 
     /// Convertit un délai `ContinuousClock` depuis `since` en millisecondes
@@ -1509,10 +1503,9 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
     private var pipelineBuffer: [PreparedBatch] = []
     private var pipelineProducerDone = false
     /// Nombre de batchs préparés en avance dans le buffer du pipeline.
-    /// Avec 4 buffers × 50 photos = 200 photos toujours prêtes à
-    /// uploader → le sync/copy n'attend jamais. Au-delà, on consomme
-    /// trop de tmp et la prep prend trop d'avance pour rien.
-    private static let maxPipelineBuffer = 4
+    /// 2 batchs × 10 photos = 20 photos en réserve. Au-delà, trop
+    /// de records .exporting en file déclenche le throttle PhotoKit.
+    private static let maxPipelineBuffer = 2
 
     /// Orchestrateur pipeline rclone-like streaming. Producer prépare en
     /// continu jusqu'à `maxPipelineBuffer` batchs en avance. Consumer
