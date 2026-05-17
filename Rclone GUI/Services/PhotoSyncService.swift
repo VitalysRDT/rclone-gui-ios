@@ -264,6 +264,24 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         let atto = dur.components.attoseconds
         return Int(s) * 1000 + Int(atto / 1_000_000_000_000_000)
     }
+
+    /// Formatter partagé pour les timestamps `HH:mm:ss.SSS` des logs
+    /// `[batch-perf]`. Statique pour éviter de recréer un formatter à
+    /// chaque log dans la boucle d'exports parallèles.
+    nonisolated static let perfTimeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm:ss.SSS"
+        f.locale = Locale(identifier: "en_US_POSIX")
+        return f
+    }()
+
+    /// Préfixe `[HH:mm:ss.SSS]` à insérer en tête de chaque message
+    /// `[batch-perf]` pour visualiser le chevauchement des exports
+    /// parallèles. Toujours basé sur l'horloge système (heure réelle),
+    /// indépendamment de ContinuousClock.
+    nonisolated static func perfTs() -> String {
+        "[" + perfTimeFormatter.string(from: Date()) + "]"
+    }
     /// Periodic safety net that re-kicks the continuation if it ever stalls
     /// (e.g. transferDidFinish failed to match a remotePath because of a
     /// path-normalisation drift, or the queue dropped a callback). Set up
@@ -910,12 +928,17 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
             await LogService.shared.log(
                 .debug,
                 category: "batch-perf",
-                message: "indexLibrary cache=HIT (skip scan)"
+                message: "\(Self.perfTs()) indexLibrary cache=HIT (skip scan)"
             )
             return PhotoSyncIndexResult(visibleAssetCount: 0, newlyIndexedCount: 0)
         }
 
         let indexStarted = ContinuousClock.now
+        await LogService.shared.log(
+            .debug,
+            category: "batch-perf",
+            message: "\(Self.perfTs()) indexLibrary scan PhotoKit start"
+        )
         let existingIDs = try await indexedIdentifiers()
         let scan = try await Task.detached(priority: .utility) {
             try Task.checkCancellation()
@@ -926,7 +949,7 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         await LogService.shared.log(
             .debug,
             category: "batch-perf",
-            message: "indexLibrary cache=MISS, scan PhotoKit en \(indexMs)ms (\(scan.candidates.count) nouveaux candidats)"
+            message: "\(Self.perfTs()) indexLibrary cache=MISS, scan PhotoKit en \(indexMs)ms (\(scan.candidates.count) nouveaux candidats)"
         )
         guard !scan.candidates.isEmpty else {
             return PhotoSyncIndexResult(visibleAssetCount: scan.visibleAssetCount, newlyIndexedCount: 0)
@@ -980,6 +1003,11 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
     ) async throws -> Int {
         guard let modelContext else { return 0 }
         let prepStarted = ContinuousClock.now
+        await LogService.shared.log(
+            .info,
+            category: "batch-perf",
+            message: "\(Self.perfTs()) enqueuePending start (requestedLimit=\(requestedLimit))"
+        )
         // Délai depuis la fin du sync/copy précédent. Couvre marquage
         // .completed, sleep 200ms, re-entry runSync, auth, indexLibrary.
         let interBatchMs: Int = lastBatchEndedAt.map { Self.elapsedMs(since: $0) } ?? 0
@@ -1049,6 +1077,11 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
 
         // Phase 1 : marque tous les records .exporting d'un coup + 1 seul
         // save SwiftData (vs 1 par record auparavant).
+        await LogService.shared.log(
+            .info,
+            category: "batch-perf",
+            message: "\(Self.perfTs()) phase1 mark .exporting (\(records.count) records)"
+        )
         for record in records {
             try Task.checkCancellation()
             record.status = .exporting
@@ -1058,42 +1091,71 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         let phase1Save = ContinuousClock.now
         try? modelContext.save()
         saveTotalMs += Self.elapsedMs(since: phase1Save)
+        await LogService.shared.log(
+            .info,
+            category: "batch-perf",
+            message: "\(Self.perfTs()) phase1 done (save=\(Self.elapsedMs(since: phase1Save))ms)"
+        )
 
-        // Phase 2 : exports PhotoKit en PARALLÈLE (4 simultanés). C'était
-        // le goulot identifié par batch-perf : 487ms/photo × 50 séquentiels
-        // = 24s. En parallèle on doit tomber à ~6s pour 50.
+        // Phase 2 : exports PhotoKit en PARALLÈLE (4 simultanés).
         let concurrencyLimit = 4
         let identifiers = records.map { $0.localIdentifier }
         let exportsStarted = ContinuousClock.now
+        await LogService.shared.log(
+            .info,
+            category: "batch-perf",
+            message: "\(Self.perfTs()) phase2 exports start (limit=\(concurrencyLimit), n=\(identifiers.count))"
+        )
         let exportResults: [String: Result<[ExportedResource], Error>] = await withTaskGroup(
-            of: (String, Result<[ExportedResource], Error>).self
+            of: (String, Result<[ExportedResource], Error>, Int).self
         ) { group in
             var result: [String: Result<[ExportedResource], Error>] = [:]
             var nextIndex = 0
+            let totalCount = identifiers.count
             // Amorce les `concurrencyLimit` premières tâches.
-            while nextIndex < min(concurrencyLimit, identifiers.count) {
+            while nextIndex < min(concurrencyLimit, totalCount) {
                 let id = identifiers[nextIndex]
+                let idx = nextIndex
+                await LogService.shared.log(
+                    .debug,
+                    category: "batch-perf",
+                    message: "\(Self.perfTs()) export #\(idx + 1)/\(totalCount) start id=\(id.suffix(10))"
+                )
                 group.addTask {
+                    let started = ContinuousClock.now
                     do {
                         let exports = try await Self.exportResourcesDetached(forLocalIdentifier: id)
-                        return (id, .success(exports))
+                        return (id, .success(exports), Self.elapsedMs(since: started))
                     } catch {
-                        return (id, .failure(error))
+                        return (id, .failure(error), Self.elapsedMs(since: started))
                     }
                 }
                 nextIndex += 1
             }
             // À chaque task qui termine, démarre la suivante (sliding window).
-            while let (id, res) = await group.next() {
+            while let (id, res, ms) = await group.next() {
                 result[id] = res
-                if nextIndex < identifiers.count {
+                let doneIdx = result.count
+                await LogService.shared.log(
+                    .debug,
+                    category: "batch-perf",
+                    message: "\(Self.perfTs()) export done \(doneIdx)/\(totalCount) in \(ms)ms id=\(id.suffix(10))"
+                )
+                if nextIndex < totalCount {
                     let nextID = identifiers[nextIndex]
+                    let idx = nextIndex
+                    await LogService.shared.log(
+                        .debug,
+                        category: "batch-perf",
+                        message: "\(Self.perfTs()) export #\(idx + 1)/\(totalCount) start id=\(nextID.suffix(10))"
+                    )
                     group.addTask {
+                        let started = ContinuousClock.now
                         do {
                             let exports = try await Self.exportResourcesDetached(forLocalIdentifier: nextID)
-                            return (nextID, .success(exports))
+                            return (nextID, .success(exports), Self.elapsedMs(since: started))
                         } catch {
-                            return (nextID, .failure(error))
+                            return (nextID, .failure(error), Self.elapsedMs(since: started))
                         }
                     }
                     nextIndex += 1
@@ -1103,12 +1165,23 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         }
         exportTotalMs = Self.elapsedMs(since: exportsStarted)
         exportCount = identifiers.count
+        await LogService.shared.log(
+            .info,
+            category: "batch-perf",
+            message: "\(Self.perfTs()) phase2 done in \(exportTotalMs)ms (wall clock, parallèle ×\(concurrencyLimit))"
+        )
 
         // Phase 3 : pour chaque record (séquentiel, MainActor), récupère
         // son export, hash si besoin, dedup, move dans batchDir, marque
         // .enqueued. SwiftData ne supporte pas la concurrence ; cette
         // phase reste séquentielle. Pas besoin de save par record — on
         // sauvegarde une seule fois à la fin.
+        let phase3Started = ContinuousClock.now
+        await LogService.shared.log(
+            .info,
+            category: "batch-perf",
+            message: "\(Self.perfTs()) phase3 hash+dedup+move start"
+        )
         for record in records {
             try Task.checkCancellation()
             let localIdentifier = record.localIdentifier
@@ -1201,6 +1274,12 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         let phase3Save = ContinuousClock.now
         try? modelContext.save()
         saveTotalMs += Self.elapsedMs(since: phase3Save)
+        let phase3Ms = Self.elapsedMs(since: phase3Started)
+        await LogService.shared.log(
+            .info,
+            category: "batch-perf",
+            message: "\(Self.perfTs()) phase3 done in \(phase3Ms)ms (hash=\(hashTotalMs) [n=\(hashCount)], moves=\(moveTotalMs), final_save=\(Self.elapsedMs(since: phase3Save))ms)"
+        )
 
         // Log de synthèse : où est passé le temps de préparation ?
         let totalPrepMs = Self.elapsedMs(since: prepStarted)
@@ -1209,7 +1288,7 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         await LogService.shared.log(
             .info,
             category: "batch-perf",
-            message: "T_prep=\(totalPrepMs)ms (inter_batch=\(interBatchMs), fetch_pending=\(fetchPendingMs), fetch_failed=\(fetchFailedMs), eligible=\(eligibleMs), exports=\(exportTotalMs) [avg=\(exportAvg)/n=\(exportCount)], hashes=\(hashTotalMs) [n=\(hashCount), avg=\(hashAvg)], moves=\(moveTotalMs), saves=\(saveTotalMs), dedup_skips=\(dedupSkips)) → \(batchedRecords.count) photos prêtes"
+            message: "\(Self.perfTs()) T_prep=\(totalPrepMs)ms (inter_batch=\(interBatchMs), fetch_pending=\(fetchPendingMs), fetch_failed=\(fetchFailedMs), eligible=\(eligibleMs), exports=\(exportTotalMs) [avg=\(exportAvg)/n=\(exportCount)], hashes=\(hashTotalMs) [n=\(hashCount), avg=\(hashAvg)], moves=\(moveTotalMs), saves=\(saveTotalMs), dedup_skips=\(dedupSkips)) → \(batchedRecords.count) photos prêtes"
         )
 
         guard !batchedRecords.isEmpty else { return 0 }
@@ -1294,7 +1373,7 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
                     await LogService.shared.log(
                         .info,
                         category: "batch-perf",
-                        message: "batch fini, début préparation du suivant"
+                        message: "\(Self.perfTs()) batch fini, début préparation du suivant"
                     )
                     return
                 }
