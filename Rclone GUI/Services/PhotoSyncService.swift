@@ -165,11 +165,10 @@ public struct PhotoSyncRunSummary: Sendable, Equatable {
 
 struct PhotoSyncLimits: Sendable, Equatable {
     var indexSaveBatchSize = 250
-    /// Nombre de photos par batch rclone copy. Bumpé à 50 (vs 10) depuis
-    /// qu'on utilise sync/copy en lot : le coût d'init du job rclone est
-    /// constant, donc plus le batch est gros, mieux on amortit. 50 photos
-    /// HEIC ≈ 200-300 MB, soit ~10s sur réseau correct — la UI reste
-    /// fluide grâce au yield entre exports PhotoKit.
+    /// Nombre de photos par batch rclone copy. 50 photos HEIC ≈ 200-300 MB,
+    /// soit ~10-30s sur SFTP iOS. Compromis entre amortissement du coût
+    /// d'init du job et latence de la bannière live qui apparaît dès le
+    /// premier tick (500ms).
     var enqueueBatchSize = 50
     /// Cap réel par batch rclone copy. Aligné sur enqueueBatchSize maintenant
     /// qu'on a UN seul job sync/copy par batch (vs N copyfile avant). Sans
@@ -231,6 +230,11 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
     /// PhotoSyncSettingsView (bar de progression + débit + ETA).
     /// `nil` entre deux batches.
     public private(set) var liveBatchProgress: PhotoBatchLiveProgress?
+
+    /// Exposition publique de isSyncing pour que TransfersView garde la
+    /// bannière live affichée même pendant l'inter-batch (200ms où
+    /// liveBatchProgress redevient nil entre deux sync/copy).
+    public var isSyncingPublic: Bool { isSyncing }
     /// Periodic safety net that re-kicks the continuation if it ever stalls
     /// (e.g. transferDidFinish failed to match a remotePath because of a
     /// path-normalisation drift, or the queue dropped a callback). Set up
@@ -1302,11 +1306,10 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         guard shouldContinueUntilEmpty else { return }
         continuationTask?.cancel()
         continuationTask = Task { @MainActor in
-            // Délai allongé à 1s (vs 250ms) : laisse SwiftUI traiter les
-            // taps utilisateur (tab switch, ouverture Remotes) entre deux
-            // batches de sync. Throughput inchangé — la prochaine batch
-            // démarre dès que le user est inactif 1s.
-            try? await Task.sleep(for: .seconds(1))
+            // Délai court (200ms) entre deux batches : on enchaîne vite
+            // pour drainer le backlog rapidement. Suffisant pour que
+            // SwiftUI place un cycle de rendu et traite un éventuel tap.
+            try? await Task.sleep(for: .milliseconds(200))
             await PhotoSyncService.shared.continueFullSyncIfNeeded()
         }
     }

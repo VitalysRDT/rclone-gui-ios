@@ -29,10 +29,13 @@ struct TransfersView: View {
     /// Progression live du batch rclone copy PhotoSync en cours. Mise à
     /// jour par un poll 500ms tant que la vue est à l'écran.
     @State private var photoSyncProgress: PhotoBatchLiveProgress?
+    /// True tant qu'une session de sync photo tourne (couvre les
+    /// inter-batches où progress redevient nil pendant 200ms).
+    @State private var photoSyncIsRunning = false
 
     var body: some View {
         Group {
-            if transfers.isEmpty && photoSyncProgress == nil {
+            if transfers.isEmpty && photoSyncProgress == nil && !photoSyncIsRunning {
                 VStack {
                     AppEmptyStateView(
                         title: "Aucun transfert",
@@ -90,7 +93,11 @@ struct TransfersView: View {
             // SwiftUI cancel la closure à disappear.
             while !Task.isCancelled {
                 photoSyncProgress = PhotoSyncService.shared.liveBatchProgress
-                try? await Task.sleep(for: photoSyncProgress != nil ? .milliseconds(500) : .seconds(2))
+                photoSyncIsRunning = PhotoSyncService.shared.isSyncingPublic
+                // 300ms tant que ça tourne (réactivité), 2s sinon
+                let interval: Duration = (photoSyncIsRunning || photoSyncProgress != nil)
+                    ? .milliseconds(300) : .seconds(2)
+                try? await Task.sleep(for: interval)
             }
         }
         .onAppear {
@@ -137,9 +144,15 @@ struct TransfersView: View {
     @ViewBuilder
     private var transfersList: some View {
         let list = List {
-            if let progress = photoSyncProgress {
+            if photoSyncIsRunning || photoSyncProgress != nil {
                 Section("Sync photos en cours") {
-                    photoSyncProgressRow(progress)
+                    if let progress = photoSyncProgress {
+                        photoSyncProgressRow(progress)
+                    } else {
+                        Label("Préparation du prochain batch…", systemImage: "hourglass")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
             Section {
@@ -274,7 +287,11 @@ struct TransfersView: View {
                 }
             }
             if progress.bytesTotal > 0 {
-                ProgressView(value: Double(progress.bytesTransferred), total: Double(progress.bytesTotal))
+                // Clamp : core/stats peut renvoyer bytesTransferred >
+                // bytesTotal en fin de job (stats accumulées vs total
+                // estimé) → ProgressView warne et le bar dépasse 100%.
+                let clamped = min(Double(progress.bytesTransferred), Double(progress.bytesTotal))
+                ProgressView(value: clamped, total: Double(progress.bytesTotal))
                     .tint(.pink)
             } else {
                 ProgressView()
