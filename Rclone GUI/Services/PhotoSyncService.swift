@@ -1090,7 +1090,11 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         let batchDir = FileManager.default.temporaryDirectory
             .appending(path: "rclonePhotoBatch-\(UUID().uuidString)", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: batchDir, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: batchDir) }
+        // NB : pas de `defer { removeItem(batchDir) }` ici — c'est
+        // uploadPreparedBatch qui supprime le batchDir une fois le
+        // sync/copy terminé. Sans ce changement, le batch était
+        // supprimé dès que prepareBatch retournait → erreur rclone
+        // « directory not found » au moment du sync/copy.
         var batchedRecords: [(asset: PhotoSyncAsset, remotePaths: [String], bytes: Int64)] = []
 
         var enqueuedCount = 0
