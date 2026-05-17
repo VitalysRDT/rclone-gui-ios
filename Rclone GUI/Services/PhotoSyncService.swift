@@ -243,10 +243,27 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
     private var lastFullIndexAt: Date?
     private static let indexCacheTTL: TimeInterval = 60
 
+    /// Timestamp (haute résolution) du moment où le dernier sync/copy
+    /// rclone s'est terminé. Sert à mesurer dans `enqueuePending`
+    /// combien de temps a duré la « préparation du prochain batch »
+    /// (marquage .completed + sleep 200ms + re-entry runSync + auth +
+    /// indexLibrary). Catégorie `batch-perf`. nil avant le 1er batch.
+    private var lastBatchEndedAt: ContinuousClock.Instant?
+
     /// Invalide le cache d'index — force un scan PhotoKit complet au
     /// prochain runSync. Appelé par photoLibraryDidChange et après un
     /// changement de filtres / album.
     public func invalidateIndexCache() { lastFullIndexAt = nil }
+
+    /// Convertit un délai `ContinuousClock` depuis `since` en millisecondes
+    /// entières. Utilisé par les logs `[batch-perf]`.
+    nonisolated static func elapsedMs(since: ContinuousClock.Instant) -> Int {
+        let dur = ContinuousClock.now - since
+        // dur.components.seconds + attoseconds → ms
+        let s = dur.components.seconds
+        let atto = dur.components.attoseconds
+        return Int(s) * 1000 + Int(atto / 1_000_000_000_000_000)
+    }
     /// Periodic safety net that re-kicks the continuation if it ever stalls
     /// (e.g. transferDidFinish failed to match a remotePath because of a
     /// path-normalisation drift, or the queue dropped a callback). Set up
@@ -890,15 +907,27 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         // photoLibraryDidChange invalide ce cache via lastFullIndexAt
         // = nil quand la photothèque change.
         if let last = lastFullIndexAt, Date().timeIntervalSince(last) < Self.indexCacheTTL {
+            await LogService.shared.log(
+                .debug,
+                category: "batch-perf",
+                message: "indexLibrary cache=HIT (skip scan)"
+            )
             return PhotoSyncIndexResult(visibleAssetCount: 0, newlyIndexedCount: 0)
         }
 
+        let indexStarted = ContinuousClock.now
         let existingIDs = try await indexedIdentifiers()
         let scan = try await Task.detached(priority: .utility) {
             try Task.checkCancellation()
             return Self.scanPhotoLibrary(excluding: existingIDs)
         }.value
         lastFullIndexAt = Date()
+        let indexMs = Self.elapsedMs(since: indexStarted)
+        await LogService.shared.log(
+            .debug,
+            category: "batch-perf",
+            message: "indexLibrary cache=MISS, scan PhotoKit en \(indexMs)ms (\(scan.candidates.count) nouveaux candidats)"
+        )
         guard !scan.candidates.isEmpty else {
             return PhotoSyncIndexResult(visibleAssetCount: scan.visibleAssetCount, newlyIndexedCount: 0)
         }
@@ -950,18 +979,28 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         includeFailedRetries: Bool
     ) async throws -> Int {
         guard let modelContext else { return 0 }
+        let prepStarted = ContinuousClock.now
+        // Délai depuis la fin du sync/copy précédent. Couvre marquage
+        // .completed, sleep 200ms, re-entry runSync, auth, indexLibrary.
+        let interBatchMs: Int = lastBatchEndedAt.map { Self.elapsedMs(since: $0) } ?? 0
+        lastBatchEndedAt = nil
+
         let activeCount = try activePhotoAssetCount()
         let limit = Self.enqueueCapacity(activeCount: activeCount, requestedLimit: requestedLimit, limits: limits)
         guard limit > 0 else { return 0 }
 
+        let fetchPendingStarted = ContinuousClock.now
         var pendingDescriptor = FetchDescriptor<PhotoSyncAsset>(
             predicate: #Predicate { $0.statusRaw == "pending" },
             sortBy: [SortDescriptor(\.creationDate, order: .forward)]
         )
         pendingDescriptor.fetchLimit = limit
         var records = try modelContext.fetch(pendingDescriptor)
+        let fetchPendingMs = Self.elapsedMs(since: fetchPendingStarted)
 
+        var fetchFailedMs = 0
         if includeFailedRetries && records.count < limit {
+            let fetchFailedStarted = ContinuousClock.now
             var failedDescriptor = FetchDescriptor<PhotoSyncAsset>(
                 predicate: #Predicate { $0.statusRaw == "failed" },
                 sortBy: [SortDescriptor(\.creationDate, order: .forward)]
@@ -971,17 +1010,16 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
                 .filter { $0.retryCount < limits.maxRetries }
                 .prefix(limit - records.count)
             records.append(contentsOf: retryableFailures)
+            fetchFailedMs = Self.elapsedMs(since: fetchFailedStarted)
         }
 
-        // Privacy guard — apply the album filter to the upload queue, not just
-        // the indexer. Without this check, pending records that were indexed
-        // before the user narrowed their album selection would still be
-        // uploaded, leaking photos outside the chosen scope. See Sprint 4
-        // code review issue #1.
+        var eligibleMs = 0
         #if os(iOS)
+        let eligibleStarted = ContinuousClock.now
         if let eligibleIDs = Self.eligibleAssetIDs() {
             records = records.filter { eligibleIDs.contains($0.localIdentifier) }
         }
+        eligibleMs = Self.elapsedMs(since: eligibleStarted)
         #endif
 
         guard !records.isEmpty else { return 0 }
@@ -1000,17 +1038,30 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         var batchedRecords: [(asset: PhotoSyncAsset, remotePaths: [String], bytes: Int64)] = []
 
         var enqueuedCount = 0
+        // Compteurs de perf pour le log de synthèse `[batch-perf]`.
+        var exportTotalMs = 0
+        var exportCount = 0
+        var hashTotalMs = 0
+        var hashCount = 0
+        var moveTotalMs = 0
+        var saveTotalMs = 0
+        var dedupSkips = 0
         for record in records {
             try Task.checkCancellation()
             record.status = .exporting
             record.lastAttemptAt = .now
             record.lastError = nil
+            let s1 = ContinuousClock.now
             try? modelContext.save()
+            saveTotalMs += Self.elapsedMs(since: s1)
 
             do {
                 let localIdentifier = record.localIdentifier
                 let creationDate = record.creationDate
+                let exportStarted = ContinuousClock.now
                 let exports = try await exportResources(forLocalIdentifier: localIdentifier)
+                exportTotalMs += Self.elapsedMs(since: exportStarted)
+                exportCount += 1
                 var remotePaths: [String] = []
                 var bytes: Int64 = 0
                 // Hash de la ressource principale (la 1re export). On l'utilise
@@ -1019,9 +1070,12 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
                 // off-MainActor, donc transparent côté UI même pour de gros
                 // fichiers. Échec de hash = log info, pas blocant.
                 if let primary = exports.first, record.localHash == nil {
+                    let hashStarted = ContinuousClock.now
                     if let hash = try? await Self.computeMD5(url: primary.url) {
                         record.localHash = hash
                     }
+                    hashTotalMs += Self.elapsedMs(since: hashStarted)
+                    hashCount += 1
                 }
                 // Déduplication par hash : si un autre asset déjà terminé a
                 // le même MD5, on n'uploade pas une deuxième fois. On copie
@@ -1037,7 +1091,10 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
                     record.byteCount = duplicate.byteCount
                     record.completedAt = .now
                     record.lastError = nil
+                    let s2 = ContinuousClock.now
                     try? modelContext.save()
+                    saveTotalMs += Self.elapsedMs(since: s2)
+                    dedupSkips += 1
                     await LogService.shared.log(.info, category: "photos", message: "Doublon ignoré (\(hash.prefix(8))) : \(record.localIdentifier)")
                     await Task.yield()
                     continue
@@ -1068,7 +1125,9 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
                     if FileManager.default.fileExists(atPath: localDest.path) {
                         try? FileManager.default.removeItem(at: localDest)
                     }
+                    let moveStarted = ContinuousClock.now
                     try FileManager.default.moveItem(at: exported.url, to: localDest)
+                    moveTotalMs += Self.elapsedMs(since: moveStarted)
                     remotePaths.append(remotePath)
                     bytes += exported.bytes
                     await Task.yield()
@@ -1077,7 +1136,9 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
                 record.byteCount = bytes
                 record.status = .enqueued
                 record.lastError = nil
+                let s3 = ContinuousClock.now
                 try? modelContext.save()
+                saveTotalMs += Self.elapsedMs(since: s3)
                 batchedRecords.append((record, remotePaths, bytes))
                 enqueuedCount += 1
             } catch {
@@ -1089,6 +1150,16 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
             }
             await Task.yield()
         }
+
+        // Log de synthèse : où est passé le temps de préparation ?
+        let totalPrepMs = Self.elapsedMs(since: prepStarted)
+        let exportAvg = exportCount > 0 ? exportTotalMs / exportCount : 0
+        let hashAvg = hashCount > 0 ? hashTotalMs / hashCount : 0
+        await LogService.shared.log(
+            .info,
+            category: "batch-perf",
+            message: "T_prep=\(totalPrepMs)ms (inter_batch=\(interBatchMs), fetch_pending=\(fetchPendingMs), fetch_failed=\(fetchFailedMs), eligible=\(eligibleMs), exports=\(exportTotalMs) [avg=\(exportAvg)/n=\(exportCount)], hashes=\(hashTotalMs) [n=\(hashCount), avg=\(hashAvg)], moves=\(moveTotalMs), saves=\(saveTotalMs), dedup_skips=\(dedupSkips)) → \(batchedRecords.count) photos prêtes"
+        )
 
         guard !batchedRecords.isEmpty else { return 0 }
 
@@ -1165,7 +1236,17 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
             }
             let status = try await TransferService.shared.jobStatus(jobID: jobID)
             if status.finished {
-                if status.success { return }
+                if status.success {
+                    // Marque la fin du batch pour mesurer le délai inter-batch
+                    // côté enqueuePending suivant.
+                    lastBatchEndedAt = ContinuousClock.now
+                    await LogService.shared.log(
+                        .info,
+                        category: "batch-perf",
+                        message: "batch fini, début préparation du suivant"
+                    )
+                    return
+                }
                 throw NSError(
                     domain: "rclone.job",
                     code: jobID,
