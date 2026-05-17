@@ -890,6 +890,19 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
 
         guard !records.isEmpty else { return 0 }
 
+        // Mode rclone copy batché : on prépare un dossier temporaire qui
+        // reproduit l'arborescence remote cible (sans le préfixe
+        // baseFolder), on y déplace les fichiers exportés de PhotoKit,
+        // puis on lance UN seul `sync/copy /tmp/batchDir remote:baseFolder`
+        // équivalent à `rclone copy /tmp/batchDir remote:baseFolder` en
+        // CLI — rclone gère lui-même la parallélisation, le retry et le
+        // skip-if-already-uploaded.
+        let batchDir = FileManager.default.temporaryDirectory
+            .appending(path: "rclonePhotoBatch-\(UUID().uuidString)", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: batchDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: batchDir) }
+        var batchedRecords: [(asset: PhotoSyncAsset, remotePaths: [String], bytes: Int64)] = []
+
         var enqueuedCount = 0
         for record in records {
             try Task.checkCancellation()
@@ -940,18 +953,28 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
                         creationDate: creationDate,
                         filename: exported.url.lastPathComponent
                     )
-                    try await TransferQueue.shared.enqueueUpload(
-                        local: exported.url,
-                        remote: remote,
-                        path: remotePath,
-                        sourceKind: .photoLibrary
+                    // Calcule le chemin relatif dans batchDir en retirant
+                    // le préfixe baseFolder/ pour que sync/copy place les
+                    // fichiers au bon endroit dans remote:baseFolder.
+                    let relPath: String
+                    if remotePath.hasPrefix(folder + "/") {
+                        relPath = String(remotePath.dropFirst(folder.count + 1))
+                    } else {
+                        relPath = remotePath
+                    }
+                    let localDest = batchDir.appending(path: relPath)
+                    try FileManager.default.createDirectory(
+                        at: localDest.deletingLastPathComponent(),
+                        withIntermediateDirectories: true
                     )
+                    // Move (intra-APFS, instantané) : on n'a plus besoin
+                    // du fichier exporté ailleurs.
+                    if FileManager.default.fileExists(atPath: localDest.path) {
+                        try? FileManager.default.removeItem(at: localDest)
+                    }
+                    try FileManager.default.moveItem(at: exported.url, to: localDest)
                     remotePaths.append(remotePath)
                     bytes += exported.bytes
-                    // Cède le MainActor entre chaque enqueueUpload : sans
-                    // ça, 25 records × 1-2 fichiers × ~50ms d'enqueue MainActor
-                    // = MainActor pinné 1-3s, UI complètement gelée (tab switch
-                    // impossible, Remotes inaccessible).
                     await Task.yield()
                 }
                 record.remotePaths = remotePaths
@@ -959,6 +982,7 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
                 record.status = .enqueued
                 record.lastError = nil
                 try? modelContext.save()
+                batchedRecords.append((record, remotePaths, bytes))
                 enqueuedCount += 1
             } catch {
                 record.status = .failed
@@ -967,14 +991,72 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
                 try? modelContext.save()
                 await LogService.shared.log(.error, category: "photos", message: "Asset \(record.localIdentifier) non enqueue : \(error.localizedDescription)")
             }
-            // Yield également entre records pour garantir qu'un tap
-            // utilisateur (tab switch, NavigationLink) puisse être traité
-            // entre deux exports — un export PhotoKit peut se terminer
-            // instantanément si l'asset est déjà sur device, et la boucle
-            // enchaînerait sans laisser SwiftUI rendre.
             await Task.yield()
         }
+
+        guard !batchedRecords.isEmpty else { return 0 }
+
+        // Lance UN seul sync/copy équivalent à
+        //   rclone copy /tmp/rclonePhotoBatch-<uuid> <remote>:<baseFolder>
+        // rclone se charge du parallélisme, du retry et du skip
+        // (size+mtime ou hash) pour les fichiers déjà présents.
+        let totalBytes = batchedRecords.reduce(Int64(0)) { $0 + $1.bytes }
+        await LogService.shared.log(
+            .info,
+            category: "photos",
+            message: "rclone copy \(batchDir.lastPathComponent) → \(remote):\(folder) (\(batchedRecords.count) photos, \(ByteCountFormatter.string(fromByteCount: totalBytes, countStyle: .file)))"
+        )
+        do {
+            let jobID = try await TransferService.shared.copyDirAsync(
+                srcFs: batchDir.path,
+                dstFs: "\(remote):\(folder)",
+                createEmptySrcDirs: false
+            )
+            try await waitForRcloneJob(jobID: jobID)
+            for entry in batchedRecords {
+                entry.asset.status = .completed
+                entry.asset.completedAt = .now
+                entry.asset.lastError = nil
+            }
+            try? modelContext.save()
+            await LogService.shared.log(
+                .info,
+                category: "photos",
+                message: "rclone copy ok : \(batchedRecords.count) photos uploadées sur \(remote):\(folder)"
+            )
+            scheduleContinuationIfNeeded()
+        } catch {
+            for entry in batchedRecords {
+                entry.asset.status = .failed
+                entry.asset.retryCount += 1
+                entry.asset.lastError = error.localizedDescription
+            }
+            try? modelContext.save()
+            await LogService.shared.log(
+                .error,
+                category: "photos",
+                message: "rclone copy échoué : \(error.localizedDescription) (\(batchedRecords.count) photos repassent en failed)"
+            )
+        }
         return enqueuedCount
+    }
+
+    /// Boucle d'attente sur un job rclone asynchrone (`sync/copy`,
+    /// `sync/move`…). Throw si le job échoue ou si la Task est annulée.
+    private func waitForRcloneJob(jobID: Int) async throws {
+        while true {
+            try Task.checkCancellation()
+            try await Task.sleep(nanoseconds: 500_000_000)
+            let status = try await TransferService.shared.jobStatus(jobID: jobID)
+            if status.finished {
+                if status.success { return }
+                throw NSError(
+                    domain: "rclone.job",
+                    code: jobID,
+                    userInfo: [NSLocalizedDescriptionKey: status.error ?? "Job rclone échoué"]
+                )
+            }
+        }
     }
 
     public func transferDidFinish(destinationPath: String, success: Bool, error: String?) {
