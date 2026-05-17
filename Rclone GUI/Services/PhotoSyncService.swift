@@ -85,6 +85,17 @@ public struct PhotoSyncFilters: Codable, Sendable, Equatable {
     }
 }
 
+/// Avancement live d'un batch rclone copy en cours, alimenté par
+/// `core/stats` toutes les 500ms pendant la sync photo. Nil quand
+/// aucun batch n'est actif.
+public struct PhotoBatchLiveProgress: Sendable, Equatable {
+    public let bytesTransferred: Int64
+    public let bytesTotal: Int64
+    public let speedBytesPerSec: Double
+    public let etaSeconds: Int64?
+    public let currentFilename: String?
+}
+
 public struct PhotoSyncRunSummary: Sendable, Equatable {
     public let authorization: PhotoSyncAuthorizationState
     public let visibleAssetCount: Int
@@ -172,6 +183,13 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
     /// session length. Lives in-memory only — restarted from zero on cold launch.
     private var throughputSamples: [(date: Date, bytes: Int64)] = []
     private let throughputWindow: TimeInterval = 30
+
+    /// Progression live du batch rclone copy en cours. Mise à jour par
+    /// `waitForRcloneJob` à chaque tick de polling, lue par
+    /// `statusSnapshot` pour qu'elle apparaisse dans la hero card de
+    /// PhotoSyncSettingsView (bar de progression + débit + ETA).
+    /// `nil` entre deux batches.
+    public private(set) var liveBatchProgress: PhotoBatchLiveProgress?
     /// Periodic safety net that re-kicks the continuation if it ever stalls
     /// (e.g. transferDidFinish failed to match a remotePath because of a
     /// path-normalisation drift, or the queue dropped a callback). Set up
@@ -1043,10 +1061,26 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
 
     /// Boucle d'attente sur un job rclone asynchrone (`sync/copy`,
     /// `sync/move`…). Throw si le job échoue ou si la Task est annulée.
+    /// À chaque tick, met à jour `liveBatchProgress` à partir de
+    /// `core/stats` pour que la UI affiche un compteur live.
     private func waitForRcloneJob(jobID: Int) async throws {
+        defer { liveBatchProgress = nil }
         while true {
             try Task.checkCancellation()
             try await Task.sleep(nanoseconds: 500_000_000)
+            // Met à jour la progression LIVE avant de vérifier le statut
+            // — si le job vient juste de finir, on garde une dernière
+            // valeur cohérente jusqu'au prochain snapshot.
+            if let stats = try? await TransferService.shared.coreStats() {
+                let primary = stats.transferring.first
+                liveBatchProgress = PhotoBatchLiveProgress(
+                    bytesTransferred: stats.transferredBytes,
+                    bytesTotal: stats.totalBytes,
+                    speedBytesPerSec: stats.globalSpeed,
+                    etaSeconds: primary?.eta,
+                    currentFilename: primary?.name
+                )
+            }
             let status = try await TransferService.shared.jobStatus(jobID: jobID)
             if status.finished {
                 if status.success { return }
@@ -1315,10 +1349,23 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         }
         let counts = photoSyncCounts()
         recordThroughputSample(transferred: counts.transferredBytes, at: Date())
-        let (bps, eta) = throughputMetrics(
+        let (rollingBps, rollingEta) = throughputMetrics(
             totalBytes: counts.totalBytes,
             transferredBytes: counts.transferredBytes
         )
+        // Quand un batch rclone copy est en vol, on remplace les compteurs
+        // basés sur l'état persisté (qui ne bougent qu'à la fin du batch
+        // entier) par la progression LIVE issue de core/stats.
+        let live = liveBatchProgress
+        let transferred = live.map { counts.transferredBytes + $0.bytesTransferred } ?? counts.transferredBytes
+        let total = live.map { max(counts.totalBytes, counts.transferredBytes + $0.bytesTotal) } ?? counts.totalBytes
+        let bps = live.map { $0.speedBytesPerSec } ?? rollingBps
+        let eta: TimeInterval?
+        if let etaSeconds = live?.etaSeconds, etaSeconds > 0 {
+            eta = TimeInterval(etaSeconds)
+        } else {
+            eta = rollingEta
+        }
         return PhotoSyncRunSummary(
             authorization: authorization,
             visibleAssetCount: visibleCount,
@@ -1329,8 +1376,8 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
             activeCount: counts.active,
             completedCount: counts.completed,
             failedCount: counts.failed,
-            totalBytes: counts.totalBytes,
-            transferredBytes: counts.transferredBytes,
+            totalBytes: total,
+            transferredBytes: transferred,
             averageBytesPerSecond: bps,
             estimatedTimeRemaining: eta,
             pausedByUser: isPausedByUser
