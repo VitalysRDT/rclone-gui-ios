@@ -165,12 +165,12 @@ public struct PhotoSyncRunSummary: Sendable, Equatable {
 
 struct PhotoSyncLimits: Sendable, Equatable {
     var indexSaveBatchSize = 250
-    /// How many records we enqueue per `runSync` pass. Réduit de 25 → 10
-    /// pour borner la durée d'un cycle MainActor à ~700ms-1.5s max (vs
-    /// 1.75-3.75s avant) : SwiftUI peut rendre les tabs entre deux batches.
-    /// Throughput global préservé via `scheduleContinuationIfNeeded` qui
-    /// chaîne les batches dès qu'un slot se libère côté maxActiveUploads.
-    var enqueueBatchSize = 10
+    /// Nombre de photos par batch rclone copy. Bumpé à 50 (vs 10) depuis
+    /// qu'on utilise sync/copy en lot : le coût d'init du job rclone est
+    /// constant, donc plus le batch est gros, mieux on amortit. 50 photos
+    /// HEIC ≈ 200-300 MB, soit ~10s sur réseau correct — la UI reste
+    /// fluide grâce au yield entre exports PhotoKit.
+    var enqueueBatchSize = 50
     /// How many TransferQueue jobs we want active in parallel for photo sync.
     /// rclone-bridge handles concurrent jobs fine; the cap exists mostly so
     /// the user's manual transfers don't get crowded out.
@@ -1065,6 +1065,14 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
             category: "photos",
             message: "rclone copy \(batchDir.lastPathComponent) → \(remote):\(folder) (\(batchedRecords.count) photos, \(ByteCountFormatter.string(fromByteCount: totalBytes, countStyle: .file)))"
         )
+        // Désactive le throttle 512KB/s pendant le batch : ce throttle
+        // existe pour les transferts manuels quand l'utilisateur navigue,
+        // pas pour la sync background photothèque qui doit avancer plein
+        // débit. decrementActivityBypass dans le defer garantit qu'on
+        // restaure même en cas d'exception.
+        TransferQueue.shared.incrementActivityBypass()
+        defer { TransferQueue.shared.decrementActivityBypass() }
+
         do {
             let jobID = try await TransferService.shared.copyDirAsync(
                 srcFs: batchDir.path,

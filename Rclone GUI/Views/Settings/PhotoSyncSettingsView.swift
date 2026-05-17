@@ -272,14 +272,16 @@ struct PhotoSyncSettingsView: View {
             activeFilterCount = PhotoSyncService.shared.filters.activeCount
             suspensionReason = PhotoSyncService.shared.suspensionReason
             #endif
-            // Live refresh while the view is on screen. SwiftUI cancels the
-            // .task closure when the view disappears, so the loop tears down
-            // automatically — no manual timer management needed.
-            // Interval relâché à 4s (vs 2s) : suffisant pour l'œil humain,
-            // divise par 2 le coût SwiftData fetch et la conso batterie quand
-            // l'écran reste affiché en arrière-plan.
+            // Live refresh while the view is on screen. Cadence adaptative :
+            // 1 s pendant un batch rclone copy actif (pour voir la barre
+            // avancer en temps réel), 4 s sinon (économie batterie quand
+            // rien ne bouge). SwiftUI cancels la .task à disappear donc
+            // pas de timer manuel à libérer.
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(4))
+                let interval: Duration = PhotoSyncService.shared.liveBatchProgress != nil
+                    ? .seconds(1)
+                    : .seconds(4)
+                try? await Task.sleep(for: interval)
                 await reloadStats()
                 #if os(iOS)
                 suspensionReason = PhotoSyncService.shared.suspensionReason
