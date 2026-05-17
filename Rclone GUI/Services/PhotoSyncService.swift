@@ -1046,29 +1046,96 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         var moveTotalMs = 0
         var saveTotalMs = 0
         var dedupSkips = 0
+
+        // Phase 1 : marque tous les records .exporting d'un coup + 1 seul
+        // save SwiftData (vs 1 par record auparavant).
         for record in records {
             try Task.checkCancellation()
             record.status = .exporting
             record.lastAttemptAt = .now
             record.lastError = nil
-            let s1 = ContinuousClock.now
-            try? modelContext.save()
-            saveTotalMs += Self.elapsedMs(since: s1)
+        }
+        let phase1Save = ContinuousClock.now
+        try? modelContext.save()
+        saveTotalMs += Self.elapsedMs(since: phase1Save)
+
+        // Phase 2 : exports PhotoKit en PARALLÈLE (4 simultanés). C'était
+        // le goulot identifié par batch-perf : 487ms/photo × 50 séquentiels
+        // = 24s. En parallèle on doit tomber à ~6s pour 50.
+        let concurrencyLimit = 4
+        let identifiers = records.map { $0.localIdentifier }
+        let exportsStarted = ContinuousClock.now
+        let exportResults: [String: Result<[ExportedResource], Error>] = await withTaskGroup(
+            of: (String, Result<[ExportedResource], Error>).self
+        ) { group in
+            var result: [String: Result<[ExportedResource], Error>] = [:]
+            var nextIndex = 0
+            // Amorce les `concurrencyLimit` premières tâches.
+            while nextIndex < min(concurrencyLimit, identifiers.count) {
+                let id = identifiers[nextIndex]
+                group.addTask {
+                    do {
+                        let exports = try await Self.exportResourcesDetached(forLocalIdentifier: id)
+                        return (id, .success(exports))
+                    } catch {
+                        return (id, .failure(error))
+                    }
+                }
+                nextIndex += 1
+            }
+            // À chaque task qui termine, démarre la suivante (sliding window).
+            while let (id, res) = await group.next() {
+                result[id] = res
+                if nextIndex < identifiers.count {
+                    let nextID = identifiers[nextIndex]
+                    group.addTask {
+                        do {
+                            let exports = try await Self.exportResourcesDetached(forLocalIdentifier: nextID)
+                            return (nextID, .success(exports))
+                        } catch {
+                            return (nextID, .failure(error))
+                        }
+                    }
+                    nextIndex += 1
+                }
+            }
+            return result
+        }
+        exportTotalMs = Self.elapsedMs(since: exportsStarted)
+        exportCount = identifiers.count
+
+        // Phase 3 : pour chaque record (séquentiel, MainActor), récupère
+        // son export, hash si besoin, dedup, move dans batchDir, marque
+        // .enqueued. SwiftData ne supporte pas la concurrence ; cette
+        // phase reste séquentielle. Pas besoin de save par record — on
+        // sauvegarde une seule fois à la fin.
+        for record in records {
+            try Task.checkCancellation()
+            let localIdentifier = record.localIdentifier
+            let creationDate = record.creationDate
+
+            guard let exportResult = exportResults[localIdentifier] else {
+                record.status = .failed
+                record.retryCount += 1
+                record.lastError = "Export PhotoKit manquant (batch)"
+                continue
+            }
+
+            let exports: [ExportedResource]
+            switch exportResult {
+            case .success(let e):
+                exports = e
+            case .failure(let error):
+                record.status = .failed
+                record.retryCount += 1
+                record.lastError = error.localizedDescription
+                await LogService.shared.log(.error, category: "photos", message: "Asset \(localIdentifier) non enqueue : \(error.localizedDescription)")
+                continue
+            }
 
             do {
-                let localIdentifier = record.localIdentifier
-                let creationDate = record.creationDate
-                let exportStarted = ContinuousClock.now
-                let exports = try await exportResources(forLocalIdentifier: localIdentifier)
-                exportTotalMs += Self.elapsedMs(since: exportStarted)
-                exportCount += 1
                 var remotePaths: [String] = []
                 var bytes: Int64 = 0
-                // Hash de la ressource principale (la 1re export). On l'utilise
-                // pour comparer avec le hash distant après upload — c'est la
-                // garantie d'intégrité bout-en-bout. Calculé une seule fois,
-                // off-MainActor, donc transparent côté UI même pour de gros
-                // fichiers. Échec de hash = log info, pas blocant.
                 if let primary = exports.first, record.localHash == nil {
                     let hashStarted = ContinuousClock.now
                     if let hash = try? await Self.computeMD5(url: primary.url) {
@@ -1077,26 +1144,15 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
                     hashTotalMs += Self.elapsedMs(since: hashStarted)
                     hashCount += 1
                 }
-                // Déduplication par hash : si un autre asset déjà terminé a
-                // le même MD5, on n'uploade pas une deuxième fois. On copie
-                // ses `remotePaths` pour que verifyAsset ait un point d'ancrage
-                // si l'utilisateur lance "Vérifier l'intégrité" plus tard, et
-                // on bascule en `.skipped` (statut existant, exclu de pending/
-                // active/completed dans le hero et des octets transférés). Si
-                // le hash est nil (calcul échoué), on continue le flux normal.
                 if let hash = record.localHash, !hash.isEmpty,
-                   let duplicate = findUploadedDuplicate(hash: hash, excluding: record.localIdentifier) {
+                   let duplicate = findUploadedDuplicate(hash: hash, excluding: localIdentifier) {
                     record.status = .skipped
                     record.remotePaths = duplicate.remotePaths
                     record.byteCount = duplicate.byteCount
                     record.completedAt = .now
                     record.lastError = nil
-                    let s2 = ContinuousClock.now
-                    try? modelContext.save()
-                    saveTotalMs += Self.elapsedMs(since: s2)
                     dedupSkips += 1
-                    await LogService.shared.log(.info, category: "photos", message: "Doublon ignoré (\(hash.prefix(8))) : \(record.localIdentifier)")
-                    await Task.yield()
+                    await LogService.shared.log(.info, category: "photos", message: "Doublon ignoré (\(hash.prefix(8))) : \(localIdentifier)")
                     continue
                 }
                 for exported in exports {
@@ -1106,9 +1162,6 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
                         creationDate: creationDate,
                         filename: exported.url.lastPathComponent
                     )
-                    // Calcule le chemin relatif dans batchDir en retirant
-                    // le préfixe baseFolder/ pour que sync/copy place les
-                    // fichiers au bon endroit dans remote:baseFolder.
                     let relPath: String
                     if remotePath.hasPrefix(folder + "/") {
                         relPath = String(remotePath.dropFirst(folder.count + 1))
@@ -1120,8 +1173,6 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
                         at: localDest.deletingLastPathComponent(),
                         withIntermediateDirectories: true
                     )
-                    // Move (intra-APFS, instantané) : on n'a plus besoin
-                    // du fichier exporté ailleurs.
                     if FileManager.default.fileExists(atPath: localDest.path) {
                         try? FileManager.default.removeItem(at: localDest)
                     }
@@ -1130,26 +1181,26 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
                     moveTotalMs += Self.elapsedMs(since: moveStarted)
                     remotePaths.append(remotePath)
                     bytes += exported.bytes
-                    await Task.yield()
                 }
                 record.remotePaths = remotePaths
                 record.byteCount = bytes
                 record.status = .enqueued
                 record.lastError = nil
-                let s3 = ContinuousClock.now
-                try? modelContext.save()
-                saveTotalMs += Self.elapsedMs(since: s3)
                 batchedRecords.append((record, remotePaths, bytes))
                 enqueuedCount += 1
             } catch {
                 record.status = .failed
                 record.retryCount += 1
                 record.lastError = error.localizedDescription
-                try? modelContext.save()
-                await LogService.shared.log(.error, category: "photos", message: "Asset \(record.localIdentifier) non enqueue : \(error.localizedDescription)")
+                await LogService.shared.log(.error, category: "photos", message: "Asset \(localIdentifier) non enqueue : \(error.localizedDescription)")
             }
-            await Task.yield()
         }
+
+        // 1 save final pour toutes les transitions .enqueued / .skipped /
+        // .failed faites en phase 3 (vs 3 saves × 50 records = 150 saves).
+        let phase3Save = ContinuousClock.now
+        try? modelContext.save()
+        saveTotalMs += Self.elapsedMs(since: phase3Save)
 
         // Log de synthèse : où est passé le temps de préparation ?
         let totalPrepMs = Self.elapsedMs(since: prepStarted)
