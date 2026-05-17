@@ -53,46 +53,53 @@ actor RemoteCatalogService {
             throw CatalogError.rpcFailed(error.localizedDescription)
         }
 
-        let response: RcloneProvidersResponse
+        // Decode + merge override sont faits sur MainActor parce que
+        // RcloneProvidersResponse, BackendOverrides, BackendCategory et
+        // FieldSpec.init(from:) sont tous MainActor-isolés (default
+        // isolation du projet). Sans ce hop, le compilateur Swift 6
+        // refuse l'accès depuis l'actor RemoteCatalogService. Coût
+        // négligeable : <50ms pour le decode + merge des 58 backends.
+        let sorted: [BackendSchema]
         do {
-            response = try JSONDecoder().decode(
-                RcloneProvidersResponse.self,
-                from: Data(raw.utf8)
-            )
-        } catch {
+            sorted = try await MainActor.run {
+                let response = try JSONDecoder().decode(
+                    RcloneProvidersResponse.self,
+                    from: Data(raw.utf8)
+                )
+                let merged = response.providers.compactMap { rclone -> BackendSchema? in
+                    guard !BackendOverrides.hiddenOnIOS.contains(rclone.name) else {
+                        return nil
+                    }
+                    let category = BackendOverrides.categoryByBackend[rclone.name]
+                        ?? .specialized
+                    let icon = BackendOverrides.iconByBackend[rclone.name]
+                        ?? "externaldrive"
+                    let frDesc = BackendOverrides.frDescriptionByBackend[rclone.name]
+                        ?? rclone.description
+                    let oauth = BackendOverrides.oauthConfigs[rclone.name]
+                    let fields = rclone.options.map { FieldSpec(from: $0) }
+                    return BackendSchema(
+                        name: rclone.name,
+                        prefix: rclone.prefix,
+                        displayName: frDesc.split(separator: "(").first.map { String($0).trimmingCharacters(in: .whitespaces) } ?? rclone.name,
+                        description: frDesc,
+                        category: category,
+                        icon: icon,
+                        fields: fields,
+                        oauthConfig: oauth
+                    )
+                }
+                return merged.sorted { lhs, rhs in
+                    if lhs.category.displayOrder != rhs.category.displayOrder {
+                        return lhs.category.displayOrder < rhs.category.displayOrder
+                    }
+                    return lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
+                }
+            }
+        } catch let error as DecodingError {
             throw CatalogError.decodingFailed(error.localizedDescription)
-        }
-
-        let merged = response.providers.compactMap { rclone -> BackendSchema? in
-            guard !BackendOverrides.hiddenOnIOS.contains(rclone.name) else {
-                return nil
-            }
-            let category = BackendOverrides.categoryByBackend[rclone.name]
-                ?? .specialized
-            let icon = BackendOverrides.iconByBackend[rclone.name]
-                ?? "externaldrive"
-            let frDesc = BackendOverrides.frDescriptionByBackend[rclone.name]
-                ?? rclone.description
-            let oauth = BackendOverrides.oauthConfigs[rclone.name]
-            let fields = rclone.options.map { FieldSpec(from: $0) }
-
-            return BackendSchema(
-                name: rclone.name,
-                prefix: rclone.prefix,
-                displayName: frDesc.split(separator: "(").first.map { String($0).trimmingCharacters(in: .whitespaces) } ?? rclone.name,
-                description: frDesc,
-                category: category,
-                icon: icon,
-                fields: fields,
-                oauthConfig: oauth
-            )
-        }
-
-        let sorted = merged.sorted { lhs, rhs in
-            if lhs.category.displayOrder != rhs.category.displayOrder {
-                return lhs.category.displayOrder < rhs.category.displayOrder
-            }
-            return lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
+        } catch {
+            throw error
         }
 
         cached = sorted

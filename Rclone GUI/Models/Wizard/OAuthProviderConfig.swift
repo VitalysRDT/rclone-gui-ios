@@ -82,12 +82,26 @@ enum OAuthStrategy: Sendable, Hashable {
 /// Minimal token JSON expected by rclone in `parameters.token`.
 /// rclone re-uses the standard OAuth2 response format produced by
 /// golang.org/x/oauth2 — we mirror it exactly here.
-nonisolated struct RcloneTokenJSON: Codable, Sendable, Hashable {
+struct RcloneTokenJSON: Sendable, Hashable {
     let accessToken: String
     let tokenType: String
     let refreshToken: String
     let expiry: String
     let expiresIn: Int?
+
+    nonisolated init(
+        accessToken: String,
+        tokenType: String,
+        refreshToken: String,
+        expiry: String,
+        expiresIn: Int? = nil
+    ) {
+        self.accessToken = accessToken
+        self.tokenType = tokenType
+        self.refreshToken = refreshToken
+        self.expiry = expiry
+        self.expiresIn = expiresIn
+    }
 
     enum CodingKeys: String, CodingKey {
         case accessToken  = "access_token"
@@ -99,8 +113,34 @@ nonisolated struct RcloneTokenJSON: Codable, Sendable, Hashable {
 
     /// Encode to a JSON string that can be passed verbatim to
     /// `config/create parameters.token`.
-    func encodeToJSON() throws -> String {
+    nonisolated func encodeToJSON() throws -> String {
         let data = try JSONEncoder().encode(self)
         return String(decoding: data, as: UTF8.self)
+    }
+}
+
+// Conformance Codable via extension nonisolated avec init/encode
+// manuels : la conformance synthétisée hériterait du MainActor
+// (default actor isolation du projet) et empêcherait l'usage depuis
+// OAuthBrokerService.parseManualToken qui est nonisolated.
+extension RcloneTokenJSON: Codable {
+    nonisolated init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            accessToken: try c.decode(String.self, forKey: .accessToken),
+            tokenType: try c.decode(String.self, forKey: .tokenType),
+            refreshToken: try c.decode(String.self, forKey: .refreshToken),
+            expiry: try c.decode(String.self, forKey: .expiry),
+            expiresIn: try c.decodeIfPresent(Int.self, forKey: .expiresIn)
+        )
+    }
+
+    nonisolated func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(accessToken, forKey: .accessToken)
+        try c.encode(tokenType, forKey: .tokenType)
+        try c.encode(refreshToken, forKey: .refreshToken)
+        try c.encode(expiry, forKey: .expiry)
+        try c.encodeIfPresent(expiresIn, forKey: .expiresIn)
     }
 }

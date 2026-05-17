@@ -27,7 +27,7 @@ public enum PhotoSyncAuthorizationState: String, Sendable, Equatable {
     }
 }
 
-public struct PhotoSyncFilters: Codable, Sendable, Equatable {
+public struct PhotoSyncFilters: Sendable, Equatable {
     public var includePhotos: Bool
     public var includeVideos: Bool
     public var includeLivePhotos: Bool
@@ -41,7 +41,7 @@ public struct PhotoSyncFilters: Codable, Sendable, Equatable {
     /// les seuls fichiers vraiment lourds en pratique).
     public var maxVideoDurationSeconds: Double?
 
-    public init(
+    public nonisolated init(
         includePhotos: Bool = true,
         includeVideos: Bool = true,
         includeLivePhotos: Bool = true,
@@ -63,10 +63,51 @@ public struct PhotoSyncFilters: Codable, Sendable, Equatable {
         self.maxVideoDurationSeconds = maxVideoDurationSeconds
     }
 
-    public static let allEnabled = PhotoSyncFilters()
+    public nonisolated static let allEnabled = PhotoSyncFilters()
 
     public var isDefault: Bool {
         self == .allEnabled
+    }
+}
+
+// Conformance Codable via extension avec init(from:) / encode(to:)
+// explicitement nonisolated. Sans ça, le projet utilise MainActor
+// comme default isolation et la conformance synthétisée hérite de
+// MainActor, ce qui empêche son utilisation depuis un contexte
+// nonisolated (loadFilters, JSONDecoder appelé hors MainActor).
+extension PhotoSyncFilters: Codable {
+    enum CodingKeys: String, CodingKey {
+        case includePhotos, includeVideos, includeLivePhotos
+        case includeScreenshots, includeSlowMo, includePanoramas
+        case dateRangeStart, dateRangeEnd, maxVideoDurationSeconds
+    }
+
+    public nonisolated init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            includePhotos: try c.decodeIfPresent(Bool.self, forKey: .includePhotos) ?? true,
+            includeVideos: try c.decodeIfPresent(Bool.self, forKey: .includeVideos) ?? true,
+            includeLivePhotos: try c.decodeIfPresent(Bool.self, forKey: .includeLivePhotos) ?? true,
+            includeScreenshots: try c.decodeIfPresent(Bool.self, forKey: .includeScreenshots) ?? true,
+            includeSlowMo: try c.decodeIfPresent(Bool.self, forKey: .includeSlowMo) ?? true,
+            includePanoramas: try c.decodeIfPresent(Bool.self, forKey: .includePanoramas) ?? true,
+            dateRangeStart: try c.decodeIfPresent(Date.self, forKey: .dateRangeStart),
+            dateRangeEnd: try c.decodeIfPresent(Date.self, forKey: .dateRangeEnd),
+            maxVideoDurationSeconds: try c.decodeIfPresent(Double.self, forKey: .maxVideoDurationSeconds)
+        )
+    }
+
+    public nonisolated func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(includePhotos, forKey: .includePhotos)
+        try c.encode(includeVideos, forKey: .includeVideos)
+        try c.encode(includeLivePhotos, forKey: .includeLivePhotos)
+        try c.encode(includeScreenshots, forKey: .includeScreenshots)
+        try c.encode(includeSlowMo, forKey: .includeSlowMo)
+        try c.encode(includePanoramas, forKey: .includePanoramas)
+        try c.encodeIfPresent(dateRangeStart, forKey: .dateRangeStart)
+        try c.encodeIfPresent(dateRangeEnd, forKey: .dateRangeEnd)
+        try c.encodeIfPresent(maxVideoDurationSeconds, forKey: .maxVideoDurationSeconds)
     }
 
     /// Compteur de filtres actifs (i.e. différents du défaut). Sert juste au
