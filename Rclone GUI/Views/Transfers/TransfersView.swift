@@ -541,31 +541,30 @@ private struct PhotoSyncActivityCard: View {
 
     private var progressRatio: Double {
         guard let summary else { return 0 }
-        // Priorité au compteur de session quand une sync tourne (live et
-        // précis), sinon byte progress, sinon ratio completed/total.
-        if let sessionRatio = summary.sessionProgress, isRunning {
-            return sessionRatio
-        }
-        if summary.totalBytes > 0 {
-            return summary.byteProgress
-        }
-        let total = itemTotal
+        // Compteur cumulatif persistent (style `rclone copy -P`) :
+        // completed / (completed + active + pending + failed). Ne
+        // dépend ni de la session courante ni du byte progress du
+        // batch — la barre ne reset jamais entre 2 sessions.
+        let total = summary.completedCount
+            + summary.activeCount
+            + summary.pendingCount
+            + summary.failedCount
         guard total > 0 else { return 0 }
         return min(1.0, Double(summary.completedCount) / Double(total))
     }
 
     private var progressLabel: String {
         guard let summary else { return "Chargement" }
-        // Pendant une session active, affiche le compteur live X/Y
-        // (uploadées sur cette session / pending au démarrage). C'est
-        // ce que rclone CLI montre dans son barre de progression.
-        if isRunning && summary.sessionInitialPending > 0 {
-            let remaining = max(0, summary.sessionInitialPending - summary.sessionUploaded)
-            return "\(summary.sessionUploaded) / \(summary.sessionInitialPending) photos uploadées · \(remaining) restantes"
-        }
-        let total = itemTotal
+        // Compteur cumulatif global X/Y, comme `rclone copy -P`.
+        // Inclut les failed dans le dénominateur pour ne pas perdre
+        // les échecs (qui restent à retraiter).
+        let total = summary.completedCount
+            + summary.activeCount
+            + summary.pendingCount
+            + summary.failedCount
         if total > 0 {
-            return "\(summary.completedCount) / \(total) photos et vidéos"
+            let remaining = max(0, total - summary.completedCount)
+            return "\(summary.completedCount) / \(total) photos uploadées · \(remaining) restantes"
         }
         if summary.indexedCount > 0 {
             return "\(summary.indexedCount) élément(s) indexé(s)"
