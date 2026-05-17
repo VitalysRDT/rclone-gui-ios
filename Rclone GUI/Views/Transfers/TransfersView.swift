@@ -26,20 +26,27 @@ struct TransfersView: View {
     @State private var terminalDisplayLimit: Int = 50
     private static let terminalPageSize = 50
 
-    /// Progression live du batch rclone copy PhotoSync en cours. Mise à
-    /// jour par un poll 500ms tant que la vue est à l'écran.
+    /// Synthèse agrégée du pipeline PhotoSync. C'est la source de vérité de
+    /// l'écran Transferts: les photos ne sont plus représentées comme une
+    /// ligne Transfer par asset, mais comme une activité rclone batchée.
+    @State private var photoSyncSummary: PhotoSyncRunSummary?
+    @State private var photoSyncIsEnabled = false
+    @State private var photoSyncRemote: String?
+    @State private var photoSyncFolder = "Phototheque"
+    @State private var photoSyncActionInProgress = false
+    /// Progression live du batch rclone copy en cours, uniquement utilisée
+    /// pour le fichier courant et l'état inter-batch.
     @State private var photoSyncProgress: PhotoBatchLiveProgress?
-    /// True tant qu'une session de sync photo tourne (couvre les
-    /// inter-batches où progress redevient nil pendant 200ms).
+    /// True tant qu'une session de sync photo tourne.
     @State private var photoSyncIsRunning = false
 
     var body: some View {
         Group {
-            if transfers.isEmpty && photoSyncProgress == nil && !photoSyncIsRunning {
+            if transfers.isEmpty && !shouldShowPhotoSyncCard {
                 VStack {
                     AppEmptyStateView(
                         title: "Aucun transfert",
-                        message: "Lance un téléchargement, un upload ou une sync depuis un dossier.",
+                        message: "Lance un téléchargement, un upload ou active PhotoSync depuis les réglages.",
                         systemImage: "arrow.up.arrow.down",
                         tint: .indigo
                     )
@@ -88,16 +95,11 @@ struct TransfersView: View {
         .sensoryFeedback(.selection, trigger: hapticTrigger)
         .task {
             isPausedGlobally = TransferQueue.shared.isPausedGlobally
-            // Poll live de la progression PhotoSync. Cadence adaptative :
-            // 500ms tant qu'un batch tourne, 2s sinon (économie batterie).
-            // SwiftUI cancel la closure à disappear.
+            await refreshPhotoSyncState()
             while !Task.isCancelled {
-                photoSyncProgress = PhotoSyncService.shared.liveBatchProgress
-                photoSyncIsRunning = PhotoSyncService.shared.isSyncingPublic
-                // 300ms tant que ça tourne (réactivité), 2s sinon
-                let interval: Duration = (photoSyncIsRunning || photoSyncProgress != nil)
-                    ? .milliseconds(300) : .seconds(2)
+                let interval = photoSyncPollingInterval
                 try? await Task.sleep(for: interval)
+                await refreshPhotoSyncState()
             }
         }
         .onAppear {
@@ -141,18 +143,68 @@ struct TransfersView: View {
         }
     }
 
+    private func togglePhotoSyncPause() async {
+        guard let summary = photoSyncSummary else { return }
+        photoSyncActionInProgress = true
+        defer { photoSyncActionInProgress = false }
+
+        if summary.pausedByUser {
+            await PhotoSyncService.shared.resumePhotoSync()
+            transientMessage = "Synchro Photos reprise."
+        } else {
+            await PhotoSyncService.shared.pausePhotoSync()
+            transientMessage = "Synchro Photos en pause."
+        }
+        hapticTrigger &+= 1
+        await refreshPhotoSyncState()
+    }
+
+    private func retryFailedPhotoSync() async {
+        photoSyncActionInProgress = true
+        defer { photoSyncActionInProgress = false }
+
+        let recycled = await PhotoSyncService.shared.retryFailedAssets()
+        transientMessage = recycled > 0
+            ? "\(recycled) photo(s) remise(s) en file."
+            : "Aucun échec PhotoSync à réessayer."
+        hapticTrigger &+= 1
+        await refreshPhotoSyncState()
+    }
+
+    private func refreshPhotoSyncState() async {
+        let service = PhotoSyncService.shared
+        photoSyncIsEnabled = service.isEnabled
+        photoSyncRemote = service.configuredRemote
+        photoSyncFolder = service.configuredFolder
+        photoSyncIsRunning = service.isSyncingPublic
+        photoSyncProgress = service.liveBatchProgress
+        photoSyncSummary = await service.currentSummary()
+        photoSyncIsRunning = service.isSyncingPublic
+        photoSyncProgress = service.liveBatchProgress
+    }
+
     @ViewBuilder
     private var transfersList: some View {
         let list = List {
-            if photoSyncIsRunning || photoSyncProgress != nil {
-                Section("Sync photos en cours") {
-                    if let progress = photoSyncProgress {
-                        photoSyncProgressRow(progress)
-                    } else {
-                        Label("Préparation du prochain batch…", systemImage: "hourglass")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
+            if shouldShowPhotoSyncCard {
+                Section {
+                    PhotoSyncActivityCard(
+                        summary: photoSyncSummary,
+                        liveProgress: photoSyncProgress,
+                        isRunning: photoSyncIsRunning,
+                        isEnabled: photoSyncIsEnabled,
+                        remote: photoSyncRemote,
+                        folder: photoSyncFolder,
+                        isActionInProgress: photoSyncActionInProgress,
+                        onTogglePause: {
+                            Task { await togglePhotoSyncPause() }
+                        },
+                        onRetryFailed: {
+                            Task { await retryFailedPhotoSync() }
+                        }
+                    )
+                    .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 8, trailing: 16))
+                    .listRowBackground(Color.clear)
                 }
             }
             Section {
@@ -259,6 +311,23 @@ struct TransfersView: View {
         transfers.contains { $0.status == .completed || $0.status == .failed }
     }
 
+    private var shouldShowPhotoSyncCard: Bool {
+        photoSyncIsEnabled
+            || photoSyncIsRunning
+            || photoSyncProgress != nil
+            || (photoSyncSummary?.hasTrackedPhotoSyncWork ?? false)
+    }
+
+    private var photoSyncPollingInterval: Duration {
+        if photoSyncIsRunning || photoSyncProgress != nil {
+            return .seconds(1)
+        }
+        if shouldShowPhotoSyncCard {
+            return .seconds(4)
+        }
+        return .seconds(6)
+    }
+
     private func clearCompleted() {
         let descriptor = FetchDescriptor<Transfer>(
             predicate: #Predicate { $0.statusRaw == "completed" || $0.statusRaw == "failed" }
@@ -270,57 +339,298 @@ struct TransfersView: View {
         try? modelContext.save()
     }
 
-    // MARK: - PhotoSync live progress row
+    // MARK: - PhotoSync helpers
+}
 
-    @ViewBuilder
-    private func photoSyncProgressRow(_ progress: PhotoBatchLiveProgress) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Label("rclone copy → cloud", systemImage: "photo.on.rectangle.angled")
-                    .font(.subheadline)
-                    .foregroundStyle(.pink)
-                Spacer()
-                if progress.speedBytesPerSec > 1 {
-                    Label(ByteCountFormatter.string(fromByteCount: Int64(progress.speedBytesPerSec), countStyle: .file) + "/s", systemImage: "speedometer")
-                        .font(.caption.monospacedDigit())
-                        .foregroundStyle(.secondary)
+private extension PhotoSyncRunSummary {
+    var hasTrackedPhotoSyncWork: Bool {
+        indexedCount > 0
+            || pendingCount > 0
+            || activeCount > 0
+            || completedCount > 0
+            || failedCount > 0
+            || totalBytes > 0
+            || transferredBytes > 0
+            || pausedByUser
+    }
+}
+
+private struct PhotoSyncActivityCard: View {
+    let summary: PhotoSyncRunSummary?
+    let liveProgress: PhotoBatchLiveProgress?
+    let isRunning: Bool
+    let isEnabled: Bool
+    let remote: String?
+    let folder: String
+    let isActionInProgress: Bool
+    let onTogglePause: () -> Void
+    let onRetryFailed: () -> Void
+
+    var body: some View {
+        AppHeroCard(
+            title: "PhotoSync rclone",
+            subtitle: subtitle,
+            systemImage: "photo.stack",
+            tint: .pink
+        ) {
+            VStack(alignment: .leading, spacing: 14) {
+                statusLine
+                progressBlock
+                metricsGrid
+                if let currentFilename {
+                    Label {
+                        Text(currentFilename)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    } icon: {
+                        Image(systemName: "doc")
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 }
-            }
-            if progress.bytesTotal > 0 {
-                // Clamp : core/stats peut renvoyer bytesTransferred >
-                // bytesTotal en fin de job (stats accumulées vs total
-                // estimé) → ProgressView warne et le bar dépasse 100%.
-                let clamped = min(Double(progress.bytesTransferred), Double(progress.bytesTotal))
-                ProgressView(value: clamped, total: Double(progress.bytesTotal))
-                    .tint(.pink)
-            } else {
-                ProgressView()
-            }
-            HStack {
-                Text("\(ByteCountFormatter.string(fromByteCount: progress.bytesTransferred, countStyle: .file)) / \(ByteCountFormatter.string(fromByteCount: progress.bytesTotal, countStyle: .file))")
-                Spacer()
-                if let etaSeconds = progress.etaSeconds, etaSeconds > 0 {
-                    Text("≈ " + formatETA(seconds: etaSeconds))
+                if summary?.isLimitedAccess == true {
+                    Label("Accès Photos limité: seule la sélection autorisée est synchronisée.", systemImage: "photo.badge.exclamationmark")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.orange)
                 }
-            }
-            .font(.caption.monospacedDigit())
-            .foregroundStyle(.secondary)
-            if let filename = progress.currentFilename, !filename.isEmpty {
-                Text(filename)
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+                actions
             }
         }
-        .padding(.vertical, 4)
     }
 
-    private func formatETA(seconds: Int64) -> String {
-        let s = Int(seconds)
-        if s < 60 { return "\(s)s" }
-        if s < 3600 { return "\(s/60)m \(s%60)s" }
-        return "\(s/3600)h \((s%3600)/60)m"
+    private var subtitle: String {
+        if let remote, isEnabled {
+            return "Pipeline batché vers \(remote):\(folder)"
+        }
+        if isEnabled {
+            return "Destination rclone à finaliser avant le prochain batch."
+        }
+        if summary?.hasTrackedPhotoSyncWork == true {
+            return "Historique PhotoSync conservé, synchro actuellement inactive."
+        }
+        return "Sauvegarde agrégée de la photothèque via rclone copy."
+    }
+
+    private var statusLine: some View {
+        HStack(spacing: 10) {
+            AppStatusBadge(title: statusTitle, systemImage: statusIcon, tint: statusTint)
+            if let summary, summary.averageBytesPerSecond > 1, !summary.pausedByUser {
+                Label(formatThroughput(summary.averageBytesPerSecond), systemImage: "speedometer")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+            if let summary, let eta = summary.estimatedTimeRemaining, eta > 0, !summary.pausedByUser {
+                Label("≈ \(formatETA(eta))", systemImage: "hourglass")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var progressBlock: some View {
+        if let summary {
+            VStack(alignment: .leading, spacing: 7) {
+                ProgressView(value: progressRatio)
+                    .progressViewStyle(.linear)
+                    .tint(summary.pausedByUser ? .gray : .pink)
+                HStack {
+                    Text(progressLabel)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text("\(Int((progressRatio * 100).rounded()))%")
+                        .font(.caption.monospacedDigit().weight(.semibold))
+                        .foregroundStyle(summary.pausedByUser ? AnyShapeStyle(.secondary) : AnyShapeStyle(Color.pink))
+                }
+                if summary.totalBytes > 0 {
+                    Text("\(formatBytes(summary.transferredBytes)) / \(formatBytes(summary.totalBytes))")
+                        .font(.caption2.monospacedDigit())
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("PhotoSync, \(progressLabel)")
+        } else {
+            HStack(spacing: 10) {
+                ProgressView()
+                Text("Chargement de l'état PhotoSync…")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var metricsGrid: some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 84), spacing: 10)], spacing: 10) {
+            PhotoSyncMetric(value: "\(summary?.pendingCount ?? 0)", label: "attente", systemImage: "clock", tint: .orange)
+            PhotoSyncMetric(value: "\(summary?.activeCount ?? 0)", label: "actifs", systemImage: "bolt.fill", tint: .blue)
+            PhotoSyncMetric(value: "\(summary?.completedCount ?? 0)", label: "terminés", systemImage: "checkmark.circle", tint: .green)
+            PhotoSyncMetric(value: "\(summary?.failedCount ?? 0)", label: "échecs", systemImage: "exclamationmark.triangle", tint: .red)
+        }
+    }
+
+    private var actions: some View {
+        HStack(spacing: 8) {
+            Button(action: onTogglePause) {
+                Label(summary?.pausedByUser == true ? "Reprendre" : "Pause", systemImage: summary?.pausedByUser == true ? "play.fill" : "pause.fill")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(summary?.pausedByUser == true ? .green : .pink)
+            .disabled(!hasConfiguredDestination || summary == nil || isActionInProgress)
+
+            Button(action: onRetryFailed) {
+                Label("Réessayer", systemImage: "arrow.clockwise")
+            }
+            .buttonStyle(.bordered)
+            .disabled((summary?.failedCount ?? 0) == 0 || summary?.pausedByUser == true || !hasConfiguredDestination || isActionInProgress)
+
+            Spacer(minLength: 0)
+
+            NavigationLink {
+                PhotoSyncStatsView()
+            } label: {
+                Image(systemName: "chart.line.uptrend.xyaxis")
+            }
+            .buttonStyle(.bordered)
+            .accessibilityLabel("Ouvrir les statistiques PhotoSync")
+
+            NavigationLink {
+                PhotoSyncSettingsView()
+            } label: {
+                Image(systemName: "gearshape")
+            }
+            .buttonStyle(.bordered)
+            .accessibilityLabel("Ouvrir la configuration PhotoSync")
+        }
+    }
+
+    private var statusTitle: String {
+        guard let summary else { return "Chargement" }
+        if !isEnabled { return "Inactif" }
+        if summary.pausedByUser { return "Pause" }
+        if isRunning, liveProgress != nil { return "rclone copy" }
+        if isRunning { return "Préparation" }
+        if summary.activeCount > 0 { return "En cours" }
+        if summary.pendingCount > 0 { return "En attente" }
+        if summary.failedCount > 0 { return "À vérifier" }
+        if summary.completedCount > 0 { return "À jour" }
+        return "Prêt"
+    }
+
+    private var statusIcon: String {
+        guard let summary else { return "hourglass" }
+        if !isEnabled { return "power" }
+        if summary.pausedByUser { return "pause.fill" }
+        if isRunning, liveProgress != nil { return "arrow.triangle.2.circlepath" }
+        if isRunning { return "hourglass" }
+        if summary.failedCount > 0, summary.pendingCount == 0, summary.activeCount == 0 { return "exclamationmark.triangle.fill" }
+        if summary.completedCount > 0, summary.pendingCount == 0, summary.activeCount == 0 { return "checkmark" }
+        return "photo.stack"
+    }
+
+    private var statusTint: Color {
+        guard let summary else { return .secondary }
+        if !isEnabled { return .secondary }
+        if summary.pausedByUser { return .orange }
+        if summary.failedCount > 0, summary.pendingCount == 0, summary.activeCount == 0, !isRunning { return .red }
+        if isRunning || summary.activeCount > 0 || summary.pendingCount > 0 { return .pink }
+        return .green
+    }
+
+    private var progressRatio: Double {
+        guard let summary else { return 0 }
+        // Priorité au compteur de session quand une sync tourne (live et
+        // précis), sinon byte progress, sinon ratio completed/total.
+        if let sessionRatio = summary.sessionProgress, isRunning {
+            return sessionRatio
+        }
+        if summary.totalBytes > 0 {
+            return summary.byteProgress
+        }
+        let total = itemTotal
+        guard total > 0 else { return 0 }
+        return min(1.0, Double(summary.completedCount) / Double(total))
+    }
+
+    private var progressLabel: String {
+        guard let summary else { return "Chargement" }
+        // Pendant une session active, affiche le compteur live X/Y
+        // (uploadées sur cette session / pending au démarrage). C'est
+        // ce que rclone CLI montre dans son barre de progression.
+        if isRunning && summary.sessionInitialPending > 0 {
+            let remaining = max(0, summary.sessionInitialPending - summary.sessionUploaded)
+            return "\(summary.sessionUploaded) / \(summary.sessionInitialPending) photos uploadées · \(remaining) restantes"
+        }
+        let total = itemTotal
+        if total > 0 {
+            return "\(summary.completedCount) / \(total) photos et vidéos"
+        }
+        if summary.indexedCount > 0 {
+            return "\(summary.indexedCount) élément(s) indexé(s)"
+        }
+        if isRunning {
+            return "Préparation du prochain batch rclone"
+        }
+        return isEnabled ? "Aucun élément en attente" : "PhotoSync désactivé"
+    }
+
+    private var itemTotal: Int {
+        guard let summary else { return 0 }
+        return summary.completedCount + summary.activeCount + summary.pendingCount
+    }
+
+    private var currentFilename: String? {
+        guard let name = liveProgress?.currentFilename, !name.isEmpty else { return nil }
+        return name
+    }
+
+    private var hasConfiguredDestination: Bool {
+        isEnabled && remote != nil
+    }
+
+    private func formatBytes(_ bytes: Int64) -> String {
+        ByteCountFormatter.string(fromByteCount: max(0, bytes), countStyle: .file)
+    }
+
+    private func formatThroughput(_ bps: Double) -> String {
+        "\(ByteCountFormatter.string(fromByteCount: Int64(bps), countStyle: .file))/s"
+    }
+
+    private func formatETA(_ seconds: TimeInterval) -> String {
+        let s = Int(seconds.rounded())
+        if s < 60 { return "\(s) s" }
+        if s < 3600 { return "\(s / 60) min \(s % 60) s" }
+        return "\(s / 3600) h \((s % 3600) / 60) min"
+    }
+}
+
+private struct PhotoSyncMetric: View {
+    let value: String
+    let label: String
+    let systemImage: String
+    let tint: Color
+
+    var body: some View {
+        HStack(spacing: 7) {
+            Image(systemName: systemImage)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(tint)
+                .frame(width: 16)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(value)
+                    .font(.subheadline.weight(.semibold))
+                    .monospacedDigit()
+                Text(label)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(minHeight: 34, alignment: .leading)
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -426,8 +736,8 @@ private struct TransferOverviewCard: View {
 
     private var headlineText: String {
         let n = activeCount
-        if n == 0 { return summary }
-        return n == 1 ? "1 transfert en cours" : "\(n) transferts en cours"
+        if n == 0 { return "Transferts fichiers/rclone" }
+        return n == 1 ? "1 transfert individuel en cours" : "\(n) transferts individuels en cours"
     }
 
     private var byteText: String {
@@ -465,7 +775,7 @@ private struct TransferOverviewCard: View {
 
     private var summary: String {
         let total = transfers.count
-        return "\(total) transfert\(total > 1 ? "s" : "") dans l'historique"
+        return "\(total) opération\(total > 1 ? "s" : "") individuelle\(total > 1 ? "s" : "") dans l'historique"
     }
 }
 
