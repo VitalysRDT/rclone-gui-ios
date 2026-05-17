@@ -439,6 +439,13 @@ private struct PhotoSyncActivityCard: View {
                         .font(.caption2.monospacedDigit())
                         .foregroundStyle(.tertiary)
                 }
+                if let sessionETA = summary.sessionEstimatedRemaining,
+                   sessionETA > 0,
+                   !summary.pausedByUser {
+                    Text("≈ \(formatETA(sessionETA)) restant(e)s")
+                        .font(.caption2.monospacedDigit())
+                        .foregroundStyle(.tertiary)
+                }
             }
             .accessibilityElement(children: .combine)
             .accessibilityLabel("PhotoSync, \(progressLabel)")

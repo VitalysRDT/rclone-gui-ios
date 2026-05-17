@@ -189,6 +189,9 @@ public struct PhotoSyncRunSummary: Sendable, Equatable {
     /// runPipeline.
     public let sessionUploaded: Int
     public let sessionInitialPending: Int
+    /// ETA basé sur le débit en photos/s mesuré depuis le début de la
+    /// session. nil avant le 1er batch complété ou si session inactive.
+    public let sessionEstimatedRemaining: TimeInterval?
 
     public var isLimitedAccess: Bool {
         authorization == .limited
@@ -1521,14 +1524,16 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
 
     /// Buffer de batchs préparés en attente d'upload. Backpressure : le
     /// producer s'arrête tant que `pipelineBuffer.count >= maxPipelineBuffer`.
-    /// 2 batchs en avance = ~20 photos pré-exportées, soit ~30s de
-    /// matière à uploader si la prep ralentit ou si PhotoKit bloque.
+    /// 6 batchs en avance = ~60 photos pré-exportées. Pendant un upload
+    /// de ~30s, le producer prépare jusqu'à 5 batchs (~30s × 6s/batch),
+    /// ce qui élimine la starvation pipeline sans dépasser le seuil
+    /// PhotoKit (seuls 10 records .exporting max à la fois côté PhotoKit).
     private var pipelineBuffer: [PreparedBatch] = []
     private var pipelineProducerDone = false
-    /// Nombre de batchs préparés en avance dans le buffer du pipeline.
-    /// 2 batchs × 10 photos = 20 photos en réserve. Au-delà, trop
-    /// de records .exporting en file déclenche le throttle PhotoKit.
-    private static let maxPipelineBuffer = 2
+    /// 6 batchs × 10 photos = 60 photos en réserve. Le throttle PhotoKit
+    /// ne dépend que du nombre de records .exporting simultanés (cap=10),
+    /// pas du nombre de batchs déjà exportés et en attente dans le buffer.
+    private static let maxPipelineBuffer = 6
 
     /// Orchestrateur pipeline rclone-like streaming. Producer prépare en
     /// continu jusqu'à `maxPipelineBuffer` batchs en avance. Consumer
@@ -2149,6 +2154,17 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         } else {
             eta = rollingEta
         }
+        let sessionETA: TimeInterval?
+        if let startedAt = sessionStartedAt,
+           uploadedThisSession > 0,
+           sessionInitialPending > uploadedThisSession {
+            let elapsed = Date().timeIntervalSince(startedAt)
+            let rate = Double(uploadedThisSession) / elapsed
+            let remaining = sessionInitialPending - uploadedThisSession
+            sessionETA = Double(remaining) / rate
+        } else {
+            sessionETA = nil
+        }
         return PhotoSyncRunSummary(
             authorization: authorization,
             visibleAssetCount: visibleCount,
@@ -2165,7 +2181,8 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
             estimatedTimeRemaining: eta,
             pausedByUser: isPausedByUser,
             sessionUploaded: uploadedThisSession,
-            sessionInitialPending: sessionInitialPending
+            sessionInitialPending: sessionInitialPending,
+            sessionEstimatedRemaining: sessionETA
         )
     }
 
