@@ -20,6 +20,7 @@ struct NameAndBackendView: View {
     @State private var catalog: [BackendSchema] = []
     @State private var loadError: String?
     @State private var isLoading = true
+    @FocusState private var nameFocused: Bool
 
     var body: some View {
         Form {
@@ -89,6 +90,7 @@ struct NameAndBackendView: View {
             TextField("ex : mondrive", text: $state.name)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
+                .focused($nameFocused)
             if state.nameAlreadyExists {
                 Label("Un remote « \(state.name) » existe déjà.",
                       systemImage: "exclamationmark.triangle.fill")
@@ -202,6 +204,15 @@ struct NameAndBackendView: View {
     private func rowButton(for backend: BackendSchema) -> some View {
         Button {
             state.selectedBackend = backend
+            if state.canProceedFromStep1 {
+                nameFocused = false
+                state.useInteractiveCLI = false
+                onNext()
+            } else {
+                // No valid name yet — pull focus to the name field so
+                // the user immediately knows what's blocking them.
+                nameFocused = true
+            }
         } label: {
             BackendListRow(
                 backend: backend,
