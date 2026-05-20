@@ -56,6 +56,8 @@ struct AddRemoteWizard: View {
             OAuthView(state: state, onNext: { state.advance() })
         case .recapAndTest:
             RecapAndTestView(state: state, onCreated: handleCreated)
+        case .interactiveCLI:
+            InteractiveCLIView(state: state, onCreated: handleCreated)
         }
     }
 
@@ -65,6 +67,7 @@ struct AddRemoteWizard: View {
         case .formFields:     return state.selectedBackend?.displayName ?? "Configuration"
         case .oauth:          return "Authentification"
         case .recapAndTest:   return "Récapitulatif"
+        case .interactiveCLI: return "Mode interactif (CLI)"
         }
     }
 

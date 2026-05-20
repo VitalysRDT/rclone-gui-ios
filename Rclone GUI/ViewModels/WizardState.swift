@@ -25,6 +25,7 @@ final class WizardState {
         case formFields
         case oauth
         case recapAndTest
+        case interactiveCLI
     }
 
     // MARK: - Test result
@@ -59,6 +60,10 @@ final class WizardState {
     /// public defaults to avoid shared rate limits).
     var customClientID: String = ""
     var customClientSecret: String = ""
+
+    /// `true` when the user opted into the interactive CLI flow from
+    /// step 1. Bypasses the graphical form/OAuth/recap path entirely.
+    var useInteractiveCLI: Bool = false
 
     // MARK: - Step 3 — OAuth
 
@@ -116,13 +121,17 @@ final class WizardState {
     func advance() {
         switch step {
         case .nameAndBackend:
-            initializeFormValues()
-            step = .formFields
+            if useInteractiveCLI {
+                step = .interactiveCLI
+            } else {
+                initializeFormValues()
+                step = .formFields
+            }
         case .formFields:
             step = requiresOAuthStep ? .oauth : .recapAndTest
         case .oauth:
             step = .recapAndTest
-        case .recapAndTest:
+        case .recapAndTest, .interactiveCLI:
             break
         }
     }
@@ -137,6 +146,9 @@ final class WizardState {
             step = .formFields
         case .recapAndTest:
             step = requiresOAuthStep ? .oauth : .formFields
+        case .interactiveCLI:
+            step = .nameAndBackend
+            useInteractiveCLI = false
         }
     }
 

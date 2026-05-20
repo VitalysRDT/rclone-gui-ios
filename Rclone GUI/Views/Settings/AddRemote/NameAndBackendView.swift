@@ -36,17 +36,50 @@ struct NameAndBackendView: View {
             } else {
                 categorySections
             }
+            advancedSection
         }
         .scrollDismissesKeyboard(.interactively)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Suivant") {
+                    state.useInteractiveCLI = false
                     onNext()
                 }
                 .disabled(!state.canProceedFromStep1)
             }
         }
         .task { await loadCatalog() }
+    }
+
+    private var advancedSection: some View {
+        Section {
+            Button {
+                state.useInteractiveCLI = true
+                onNext()
+            } label: {
+                HStack {
+                    Image(systemName: "terminal")
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Mode interactif (CLI)")
+                            .font(.subheadline.weight(.semibold))
+                        Text("Réplique `rclone config` — utile pour crypt, alias, union, combine et tout backend exigeant des prompts dynamiques.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.leading)
+                    }
+                    Spacer(minLength: 8)
+                    Image(systemName: "chevron.right")
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            .buttonStyle(.plain)
+            .disabled(!state.canProceedFromStep1)
+        } header: {
+            Text("Configuration avancée")
+        } footer: {
+            Text("Le mode interactif est compatible avec 100 % des backends rclone, y compris ceux non listés dans le catalogue graphique.")
+                .font(.caption2)
+        }
     }
 
     // MARK: - Sections
