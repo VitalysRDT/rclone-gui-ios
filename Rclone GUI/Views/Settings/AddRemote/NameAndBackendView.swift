@@ -25,20 +25,23 @@ struct NameAndBackendView: View {
     var body: some View {
         Form {
             nameSection
-            searchSection
-            if isLoading {
-                loadingSection
-            } else if let loadError {
-                errorSection(loadError)
-            } else if filteredCatalog.isEmpty {
-                emptySearchSection
-            } else if !state.searchQuery.isEmpty {
-                resultsSection
-            } else {
-                categorySections
+            if state.nameIsValid && !state.nameAlreadyExists {
+                searchSection
+                if isLoading {
+                    loadingSection
+                } else if let loadError {
+                    errorSection(loadError)
+                } else if filteredCatalog.isEmpty {
+                    emptySearchSection
+                } else if !state.searchQuery.isEmpty {
+                    resultsSection
+                } else {
+                    categorySections
+                }
+                advancedSection
             }
-            advancedSection
         }
+        .animation(.easeInOut(duration: 0.18), value: state.nameIsValid && !state.nameAlreadyExists)
         .scrollDismissesKeyboard(.interactively)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
@@ -50,6 +53,7 @@ struct NameAndBackendView: View {
             }
         }
         .task { await loadCatalog() }
+        .onAppear { nameFocused = true }
     }
 
     private var advancedSection: some View {
@@ -86,11 +90,13 @@ struct NameAndBackendView: View {
     // MARK: - Sections
 
     private var nameSection: some View {
-        Section("Nom du remote") {
+        Section {
             TextField("ex : mondrive", text: $state.name)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .focused($nameFocused)
+                .submitLabel(.next)
+                .onSubmit { nameFocused = false }
             if state.nameAlreadyExists {
                 Label("Un remote « \(state.name) » existe déjà.",
                       systemImage: "exclamationmark.triangle.fill")
@@ -101,6 +107,13 @@ struct NameAndBackendView: View {
                       systemImage: "exclamationmark.triangle.fill")
                     .font(.caption)
                     .foregroundStyle(.red)
+            }
+        } header: {
+            Text("Nom du remote")
+        } footer: {
+            if !state.nameIsValid || state.nameAlreadyExists {
+                Text("Donne d'abord un nom à ton remote pour afficher la liste des connexions disponibles.")
+                    .font(.caption2)
             }
         }
     }
@@ -204,15 +217,11 @@ struct NameAndBackendView: View {
     private func rowButton(for backend: BackendSchema) -> some View {
         Button {
             state.selectedBackend = backend
-            if state.canProceedFromStep1 {
-                nameFocused = false
-                state.useInteractiveCLI = false
-                onNext()
-            } else {
-                // No valid name yet — pull focus to the name field so
-                // the user immediately knows what's blocking them.
-                nameFocused = true
-            }
+            // The backend list is only rendered when the name is valid,
+            // so tapping any row can directly advance the wizard.
+            nameFocused = false
+            state.useInteractiveCLI = false
+            onNext()
         } label: {
             BackendListRow(
                 backend: backend,
