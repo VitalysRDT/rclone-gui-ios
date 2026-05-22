@@ -54,6 +54,31 @@ platform :ios do
     )
   end
 
+  desc "Resubmit existing binary for review after metadata fixes (no rebuild)"
+  lane :resubmit do
+    deliver(
+      api_key: asc_key,
+      skip_binary_upload: true,
+      skip_screenshots: true,
+      skip_metadata: true,
+      submit_for_review: true,
+      reject_if_possible: true,
+      automatic_release: false,
+      force: true,
+      precheck_include_in_app_purchases: false,
+      run_precheck_before_submit: false,
+      submission_information: {
+        add_id_info_uses_idfa: false,
+        export_compliance_uses_encryption: true,
+        export_compliance_is_exempt: true,
+        export_compliance_contains_third_party_cryptography: true,
+        export_compliance_contains_proprietary_cryptography: false,
+        export_compliance_available_on_french_store: true,
+        content_rights_contains_third_party_content: false
+      }
+    )
+  end
+
   desc "Full submission: archive + upload + send for review"
   lane :submit do
     build_app(
