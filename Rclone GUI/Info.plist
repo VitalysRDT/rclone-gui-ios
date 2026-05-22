@@ -5,7 +5,6 @@
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>
-		<string>audio</string>
 		<string>fetch</string>
 		<string>processing</string>
 	</array>
@@ -15,12 +14,19 @@
 	<string>Face ID protège l'accès à votre configuration rclone et à vos identifiants stockés.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Permet d'uploader vos photos et vidéos vers vos remotes rclone.</string>
+	<key>RcloneKeychainAccessGroup</key>
+	<string>$(DEVELOPMENT_TEAM).com.rougetet.rclone-gui</string>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
 		<string>com.rougetet.rclone-gui.transfer-resume</string>
 		<string>com.rougetet.rclone-gui.refresh</string>
+		<string>com.rougetet.rclone-gui.photo-sync</string>
 	</array>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
+	<key>NSSupportsLiveActivitiesFrequentUpdates</key>
+	<true/>
 </dict>
 </plist>
