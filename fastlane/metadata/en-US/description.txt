@@ -38,7 +38,7 @@ FEATURES (all included in the Premium subscription)
 - Exportable local logs for debugging
 
 SUBSCRIPTION TERMS
-The Rclone GUI Premium subscription auto-renews at the end of each period (€1.99/month or €19.99/year). Renewal is billed to your Apple ID within 24 hours of expiration. The free 7-day trial is offered to eligible new users; it converts to a paid subscription at the end of the trial unless cancelled at least 24 hours before expiration, via Settings → Apple ID → Subscriptions.
+The Rclone GUI Premium subscription auto-renews at the end of each period (€1.99/month or €19.99/year). Renewal is billed to your Apple ID within 24 hours before the end of the current period. You can manage your subscription and turn off auto-renewal at any time in Settings → Apple ID → Subscriptions.
 
 Terms of use: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
 Privacy policy: https://vitalysrdt.github.io/rclone-gui-ios/privacy.html
