@@ -131,6 +131,42 @@ public enum FileProviderBridge {
             .appending(path: "diagnostics.log")
     }
 
+    /// Snapshot d'abonnement persisté par l'app principale. L'extension le
+    /// lit au début de chaque entrée publique (enumerator, fetchContents,
+    /// createItem…). Sans abonnement actif → NSFileProviderError.notAuthenticated.
+    public static var subscriptionStatusURL: URL {
+        containerURL.appending(path: "subscription-status.json")
+    }
+
+    /// Renvoie le snapshot persisté ou nil si absent / illisible.
+    /// Comportement par défaut côté extension : si nil → on considère
+    /// l'utilisateur comme non-abonné (paywall hard côté Fichiers.app).
+    public static func readSubscriptionSnapshot() -> ExtensionSubscriptionSnapshot? {
+        guard FileManager.default.fileExists(atPath: subscriptionStatusURL.path),
+              let data = try? Data(contentsOf: subscriptionStatusURL),
+              let snapshot = try? JSONDecoder().decode(ExtensionSubscriptionSnapshot.self, from: data) else {
+            return nil
+        }
+        return snapshot
+    }
+
+    /// Vérifie que l'abonnement est actif. Jette
+    /// NSFileProviderError.notAuthenticated sinon (Fichiers.app affiche
+    /// alors un message demandant de réactiver l'accès dans l'app).
+    public static func ensureSubscriptionActive() throws {
+        if let snapshot = readSubscriptionSnapshot(), snapshot.isUnlocked {
+            return
+        }
+        appendDiagnostic("subscription gate: access denied (no active entitlement)")
+        throw NSError(
+            domain: NSFileProviderErrorDomain,
+            code: NSFileProviderError.notAuthenticated.rawValue,
+            userInfo: [
+                NSLocalizedDescriptionKey: "Abonnement Rclone GUI requis. Ouvrez l'app pour souscrire ou restaurer un achat."
+            ]
+        )
+    }
+
     public static let notificationFetchRequest = "com.rougetet.rclone-gui.fp.fetch-request"
     public static let notificationFetchReady = "com.rougetet.rclone-gui.fp.fetch-ready"
     public static let notificationRefresh = "com.rougetet.rclone-gui.fp.refresh"
@@ -525,6 +561,23 @@ public struct FetchStatus: Codable, Sendable {
         self.bytesTotal = bytesTotal
         self.updatedAt = updatedAt
         self.message = message
+    }
+}
+
+/// Mirror local du SubscriptionSnapshot défini côté main app
+/// (Core/SubscriptionStatus.swift). Codable identique pour decoding cross-target
+/// via JSON. Les deux structs doivent rester synchronisées (mêmes champs et
+/// mêmes valeurs string pour l'enum).
+public struct ExtensionSubscriptionSnapshot: Codable, Sendable {
+    public let entitlement: String
+    public let productID: String?
+    public let expirationDate: Date?
+    public let updatedAt: Date
+
+    /// Considère trial et active comme déverrouillés ; toute autre valeur
+    /// ("none", "expired", inconnue) reste verrouillée.
+    public var isUnlocked: Bool {
+        entitlement == "trial" || entitlement == "active"
     }
 }
 

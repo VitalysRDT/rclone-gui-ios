@@ -86,6 +86,32 @@ public enum AppGroup {
             .appending(path: "diagnostics.log")
     }
 
+    /// Path du snapshot d'abonnement partagé. L'app principale l'écrit
+    /// après chaque résolution StoreKit ; l'extension FileProvider le lit
+    /// au début de chaque opération pour gater l'accès aux remotes.
+    public nonisolated static var subscriptionStatusURL: URL {
+        containerURL.appending(path: "subscription-status.json")
+    }
+
+    /// Écrit atomiquement le snapshot d'abonnement dans l'App Group.
+    /// L'extension FileProvider lit ce fichier à chaque entrée publique.
+    public nonisolated static func writeSubscription(_ snapshot: SubscriptionSnapshot) throws {
+        let data = try JSONEncoder().encode(snapshot)
+        try data.write(to: subscriptionStatusURL, options: [.atomic])
+    }
+
+    /// Lit le snapshot d'abonnement persisté. Retourne nil si le fichier
+    /// n'existe pas (1er lancement, jamais authentifié) ou si la lecture
+    /// échoue (corruption, format incompatible).
+    public nonisolated static func readSubscription() -> SubscriptionSnapshot? {
+        guard FileManager.default.fileExists(atPath: subscriptionStatusURL.path),
+              let data = try? Data(contentsOf: subscriptionStatusURL),
+              let snapshot = try? JSONDecoder().decode(SubscriptionSnapshot.self, from: data) else {
+            return nil
+        }
+        return snapshot
+    }
+
     public nonisolated static var pendingFetchesDir: URL {
         containerURL.appending(path: "pending-fetches", directoryHint: .isDirectory)
     }
@@ -149,6 +175,33 @@ public struct AppGroupPendingFetch: Codable, Sendable {
     public let destPath: String
     public let createdAt: Date
     public let kind: String?
+}
+
+/// Mirror du FetchStatus défini côté extension. Écrit dans
+/// pending-fetches/<requestID>.json.status pendant les materializations Files.app.
+public struct AppGroupFetchStatus: Codable, Sendable {
+    public let stage: String
+    public let jobID: Int?
+    public let bytesTransferred: Int64
+    public let bytesTotal: Int64
+    public let updatedAt: Date
+    public let message: String?
+
+    public init(
+        stage: String,
+        jobID: Int?,
+        bytesTransferred: Int64,
+        bytesTotal: Int64,
+        updatedAt: Date,
+        message: String? = nil
+    ) {
+        self.stage = stage
+        self.jobID = jobID
+        self.bytesTransferred = bytesTransferred
+        self.bytesTotal = bytesTotal
+        self.updatedAt = updatedAt
+        self.message = message
+    }
 }
 
 /// Mirror du StreamSessionInfo défini côté extension. Sérialisé dans

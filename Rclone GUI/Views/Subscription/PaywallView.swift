@@ -166,8 +166,15 @@ struct PaywallView: View {
     private func priceCard(for product: Product) -> some View {
         let isSelected = selectedProductID == product.id
         let isMonthly = product.id == SubscriptionProductID.monthly
+        // Badge dynamique : la mention "X jours gratuits" n'apparait que si
+        // StoreKit confirme (a) qu'un introductory offer est configure sur le
+        // SKU, et (b) que l'utilisateur est encore eligible. Sinon, on n'affiche
+        // rien sur le monthly et le "-16 %" reste sur le yearly.
         let badgeText: String? = {
-            if isMonthly { return "7 JOURS GRATUITS" }
+            if isMonthly, subs.isTrialAvailable(for: product.id),
+               let trial = subs.trialDescription(for: product.id) {
+                return trial.uppercased()
+            }
             if product.id == SubscriptionProductID.yearly { return "-16 %" }
             return nil
         }()
@@ -284,7 +291,10 @@ struct PaywallView: View {
     }
 
     private var primaryCTALabel: String {
-        if selectedProductID == SubscriptionProductID.monthly {
+        // Le libelle "Commencer l'essai gratuit" n'est valide que si Apple a
+        // confirme un intro offer ET l'eligibilite de l'utilisateur. Sinon
+        // on tombe sur "S'abonner" pour ne pas promettre un trial inexistant.
+        if subs.isTrialAvailable(for: selectedProductID) {
             return "Commencer l'essai gratuit"
         }
         return "S'abonner"
