@@ -1,1 +1,1 @@
-Connect S3, Google Drive, Dropbox, OneDrive, Storj and 60+ cloud services. Your files, end-to-end encrypted by rclone crypt, browsable inside the iOS Files app.
+Free 7-day trial, then €1.99/month or €19.99/year. Connect S3, Google Drive, Dropbox, OneDrive, Storj and 60+ cloud services — files end-to-end encrypted by rclone crypt, browsable inside the iOS Files app.

@@ -1,1 +1,1 @@
-Connectez S3, Google Drive, Dropbox, OneDrive, Storj et 60+ services cloud. Vos fichiers, chiffrés bout en bout par rclone crypt, lisibles dans Fichiers iOS.
+Essai gratuit 7 jours, puis 1,99 €/mois ou 19,99 €/an. Connectez S3, Google Drive, Dropbox, OneDrive, Storj et 60+ services cloud — vos fichiers chiffrés bout en bout par rclone crypt, visibles dans Fichiers iOS.

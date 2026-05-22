@@ -1,15 +1,22 @@
 Rclone GUI is a native, open-source iOS client for rclone — the reference tool for managing your personal cloud storage. Connect Amazon S3, Backblaze B2, Cloudflare R2, Storj, Wasabi, Dropbox, Google Drive, Microsoft OneDrive, pCloud, Mega, Box, SFTP, WebDAV, and 60+ other services straight from your iPhone, with no middleman.
 
-CRYPT-FIRST ENCRYPTION
+PREMIUM SUBSCRIPTION REQUIRED
+All Rclone GUI features (remote management, transfers, Files app integration, PhotoSync, crypt decryption, streaming, etc.) require a Premium subscription.
+
+• Free 7-day trial, then €1.99/month or €19.99/year
+• Auto-renewing, cancel anytime in Settings → Apple ID → Subscriptions
+• No feature is usable without an active subscription (beyond onboarding)
+
+CRYPT-FIRST ENCRYPTION (Premium)
 The whole interface is built around rclone "crypt" encryption: encrypted remotes are tagged with a purple lock, filenames are decrypted on the fly so you see the real tree, and file content is decrypted during playback without ever transiting in clear through a third-party server. The cryptographic core uses NaCl secretbox (XSalsa20-Poly1305), executed locally by rclone.
 
-iOS FILES INTEGRATION
+iOS FILES INTEGRATION (Premium)
 A File Provider extension exposes every remote inside Apple's Files app, encrypted ones included. Open a PDF straight from Files, drag and drop documents between apps, and stream video or audio without downloading the full asset.
 
-SMART PHOTO SYNC
+SMART PHOTO SYNC (Premium)
 Automatically sync new photos and videos to the cloud of your choice. Adaptive throttling while you're using the app, background execution, clean resume after a network drop.
 
-GUIDED ADD-REMOTE WIZARD
+GUIDED ADD-REMOTE WIZARD (Premium)
 A step-by-step wizard covers every rclone backend: per-backend forms, tutorials for OAuth providers (Drive, OneDrive, Dropbox), instant validation. Import an existing rclone.conf in one tap, with automatic secret migration to the iOS Keychain.
 
 PRIVACY BY DESIGN
@@ -20,7 +27,7 @@ PRIVACY BY DESIGN
 - OAuth tokens in the iOS Keychain, never in UserDefaults
 - Strict ATS, no network exception
 
-FEATURES
+FEATURES (all included in the Premium subscription)
 - 70+ rclone backends supported
 - Parallel transfers, pause, resume, queue
 - Adaptive bandwidth throttling (cellular / Wi-Fi)
@@ -30,8 +37,13 @@ FEATURES
 - Detailed transfer stats
 - Exportable local logs for debugging
 
+SUBSCRIPTION TERMS
+The Rclone GUI Premium subscription auto-renews at the end of each period (€1.99/month or €19.99/year). Renewal is billed to your Apple ID within 24 hours of expiration. The free 7-day trial is offered to eligible new users; it converts to a paid subscription at the end of the trial unless cancelled at least 24 hours before expiration, via Settings → Apple ID → Subscriptions.
+
+Terms of use: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+Privacy policy: https://vitalysrdt.github.io/rclone-gui-ios/privacy.html
+
 OPEN SOURCE
 Rclone GUI is fully open source: https://github.com/VitalysRDT/rclone-gui-ios
-Privacy policy: https://vitalysrdt.github.io/rclone-gui-ios/privacy.html
 
 This app is not affiliated with Apple, Google, Amazon, Microsoft, Dropbox or any other cloud provider. "rclone" is a trademark of Nick Craig-Wood (rclone author).
