@@ -88,14 +88,17 @@ platform :ios do
       clean: true,
       output_directory: "build/",
       include_symbols: true,
-      include_bitcode: false
+      include_bitcode: false,
+      xcargs: "-allowProvisioningUpdates"
     )
     deliver(
       api_key: asc_key,
       submit_for_review: true,
       automatic_release: false,
       force: true,
+      skip_screenshots: true,
       precheck_include_in_app_purchases: false,
+      run_precheck_before_submit: false,
       submission_information: {
         add_id_info_uses_idfa: false,
         export_compliance_uses_encryption: true,
