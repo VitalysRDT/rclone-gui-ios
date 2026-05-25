@@ -400,14 +400,14 @@ struct FilesRootView: View {
     fileprivate static func spaceLabel(_ space: RemoteSpaceDTO) -> String {
         guard let used = space.used else {
             if let free = space.free {
-                return "\(Self.formattedBytes(free)) libres"
+                return String(localized: "\(Self.formattedBytes(free)) libres")
             }
-            return "Espace indisponible"
+            return String(localized: "Espace indisponible")
         }
         if let total = space.total {
             return "\(Self.formattedBytes(used)) / \(Self.formattedBytes(total))"
         }
-        return "\(Self.formattedBytes(used)) utilisés"
+        return String(localized: "\(Self.formattedBytes(used)) utilisés")
     }
 
     fileprivate static func formattedBytes(_ bytes: Int64) -> String {
@@ -493,9 +493,9 @@ private struct FilesRemoteRow: View {
         case "dropbox": return "Dropbox"
         case "onedrive": return "OneDrive"
         case "box": return "Box"
-        case "crypt": return "Crypt chiffré"
+        case "crypt": return String(localized: "Crypt chiffré")
         case "alias": return "Alias"
-        case "union": return "Union de remotes"
+        case "union": return String(localized: "Union de remotes")
         case "combine": return "Combine"
         case "local": return "Local"
         default: return remote.type
@@ -551,7 +551,7 @@ private struct ActiveTransfersBanner: View {
         if totalAll > 0 {
             return "\(formatted(totalDone)) / \(formatted(totalAll))"
         }
-        return "Préparation…"
+        return String(localized: "Préparation…")
     }
 
     private var progress: Double {

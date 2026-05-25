@@ -169,6 +169,22 @@ public struct PhotoBatchLiveProgress: Sendable, Equatable {
     }
 }
 
+/// C2 : phase courante du pipeline live, observée par les Views pour
+/// éviter le flash 200ms entre 2 batches où `liveBatchProgress` redevient
+/// nil. Permet d'afficher « Préparation du prochain lot… » sur les
+/// dernières lignes de fichier en `opacity(0.6)` au lieu de tout faire
+/// disparaître.
+public enum LiveBatchPhase: Sendable, Equatable {
+    /// Aucun batch en cours, aucun pipeline en flight.
+    case idle
+    /// Sleep inter-batch / Phase 1 SwiftData / Phase 2a dédup pré-export
+    /// / Phase 2 export PhotoKit / Phase 3 hash. Les dernières lignes
+    /// transferringFiles du batch précédent sont conservées pour fluidité.
+    case preparing(lastTransferringFiles: [PhotoBatchLiveProgress.TransferringFile], startedAt: Date)
+    /// `uploadPreparedBatch` actif — c'est l'état canonique « rclone copy ».
+    case uploading(PhotoBatchLiveProgress)
+}
+
 public struct PhotoSyncRunSummary: Sendable, Equatable {
     public let authorization: PhotoSyncAuthorizationState
     public let visibleAssetCount: Int
@@ -208,6 +224,53 @@ public struct PhotoSyncRunSummary: Sendable, Equatable {
         guard sessionInitialPending > 0 else { return nil }
         return min(1.0, Double(sessionUploaded) / Double(sessionInitialPending))
     }
+
+    // MARK: - Unified display counters (used by every PhotoSync surface)
+
+    /// Effective total photo count for the X/Y display: the cumulative
+    /// pipeline length (completed + active + pending + failed) bounded
+    /// below by the discovered library size (`indexedCount`). Failed are
+    /// included so the user doesn't "lose" them visually.
+    public var effectiveTotal: Int {
+        max(completedCount + activeCount + pendingCount + failedCount, indexedCount)
+    }
+
+    /// Monotonic 0..1 progress ratio. Combined with the service-side ratchet,
+    /// this never decreases mid-session even if the indexer discovers new
+    /// pending photos — fixing the "ça reset" perception.
+    public var displayProgress: Double {
+        let total = effectiveTotal
+        guard total > 0 else { return 0 }
+        return min(1.0, Double(completedCount) / Double(total))
+    }
+
+    /// Localized status label "X / Y photos · N restantes". Used by both
+    /// the Transfers card and the Settings progress bar so they show
+    /// identical text.
+    public var displayLabel: String {
+        let total = effectiveTotal
+        if total > 0 {
+            let remaining = max(0, total - completedCount)
+            return String(localized: "\(completedCount) / \(total) photos uploadées · \(remaining) restantes")
+        }
+        if indexedCount > 0 {
+            return String(localized: "\(indexedCount) élément(s) indexé(s)")
+        }
+        return String(localized: "Aucun élément en attente")
+    }
+
+    /// True if any PhotoSync activity has happened (used to decide whether
+    /// the Transfers tab should show the activity card at all).
+    public var hasTrackedPhotoSyncWork: Bool {
+        indexedCount > 0
+            || pendingCount > 0
+            || activeCount > 0
+            || completedCount > 0
+            || failedCount > 0
+            || totalBytes > 0
+            || transferredBytes > 0
+            || pausedByUser
+    }
 }
 
 struct PhotoSyncLimits: Sendable, Equatable {
@@ -230,6 +293,15 @@ struct PhotoSyncCandidate: Sendable, Equatable {
     let localIdentifier: String
     let mediaType: String
     let creationDate: Date?
+    /// Fingerprint pré-export, calculé pendant le scan PhotoKit (sans
+    /// télécharger les bytes iCloud). Format :
+    /// `<localIdentifier>#<modificationDateEpochMs>#<byteCount>`.
+    /// Sert à la Phase 2a (`prepareBatch`) pour skipper les doublons
+    /// AVANT d'envoyer l'export PHAssetResourceManager — qui sinon
+    /// déclenche le téléchargement iCloud complet, même pour un asset
+    /// qui sera `.skipped`. Optionnel pour les anciens enregistrements
+    /// déjà persistés (legacy) → fallback hash post-export MD5.
+    let contentFingerprint: String?
 }
 
 private struct PhotoSyncIndexResult: Sendable {
@@ -277,6 +349,13 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
     /// PhotoSyncSettingsView (bar de progression + débit + ETA).
     /// `nil` entre deux batches.
     public private(set) var liveBatchProgress: PhotoBatchLiveProgress?
+
+    /// C2 : phase courante du pipeline. Évolue idle → preparing →
+    /// uploading → preparing → … → idle. Permet aux Views de continuer
+    /// à afficher les transferringFiles entre 2 batches au lieu d'avoir
+    /// un flash vide pendant ~200ms (le temps que Phase 1/2a/2/3 du
+    /// batch suivant exporte).
+    public private(set) var liveBatchPhase: LiveBatchPhase = .idle
 
     /// Progression live de la vérification d'intégrité remote. Nil quand
     /// aucune vérif n'est en cours. La UI peut poll cette valeur dans sa
@@ -333,6 +412,31 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
     public private(set) var sessionInitialPending: Int = 0
     public private(set) var sessionStartedAt: Date?
 
+    /// Ratchet de l'affichage X/Y : le total visible et le compteur de
+    /// photos uploadées ne descendent JAMAIS pendant une session — même
+    /// si l'indexer découvre soudainement 1000 nouvelles photos.
+    /// Reset à 0 entre 2 cycles complets (`resetSessionCounters`).
+    /// Évite la perception « ça reset » signalée par l'utilisateur.
+    private var ratchetTotal: Int = 0
+    private var ratchetCompleted: Int = 0
+
+    /// Cache des compteurs SwiftData. `photoSyncCounts()` est appelée par
+    /// chaque `statusSnapshot` (≈4 s par View, 10 s par stats heartbeat) ;
+    /// sans cache, c'est 6 `fetchCount` + 1 scan complet `Transfer`
+    /// (potentiellement des milliers de lignes) à chaque tick. Avec un
+    /// TTL d'1 s, on coupe 5/6 des appels SwiftData sans jamais voir
+    /// l'UI se désynchroniser de plus d'une seconde — c'est moins que
+    /// la cadence de polling. Invalidé par les saves du pipeline.
+    private var countsCache: (counts: PhotoSyncCounts, computedAt: Date)?
+    private static let countsCacheTTL: TimeInterval = 1.0
+
+    /// Marque le cache compteurs comme stale. À appeler après chaque
+    /// modification de PhotoSyncAsset.status (Phase 1, Phase 3, upload
+    /// success/fail, transferDidFinish, reconcile, verify, retry, clear).
+    private func invalidateCountsCache() {
+        countsCache = nil
+    }
+
     /// Reset les compteurs de session — appelé au début d'un cycle
     /// drainant (runPipeline). Initialise sessionInitialPending au
     /// nombre de pending courant pour avoir un dénominateur stable.
@@ -340,6 +444,9 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         uploadedThisSession = 0
         sessionInitialPending = pendingNow
         sessionStartedAt = Date()
+        // Reset le ratchet : nouvelle session = nouveau cycle X/Y.
+        ratchetTotal = 0
+        ratchetCompleted = 0
     }
 
     /// Cap dur à 10 photos. La fenêtre adaptative ne sert plus que
@@ -522,20 +629,24 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         // Pull only photoLibrary Transfers in matching statuses; we filter
         // in memory because SwiftData #Predicate can't express
         // "destinationPath in [String]". On exclut .pending et .paused qui
-        // ne matchent jamais le destinationPath d'un asset enqueued/exporting,
-        // et on cape à 5000 pour éviter les scans pathologiques après des
-        // semaines d'usage. Sort par startedAt desc pour que les plus récents
-        // gagnent la collision sur destinationPath en cas de retry.
+        // ne matchent jamais le destinationPath d'un asset enqueued/exporting.
+        // Budget B5 : cap à 200 et fenêtre temporelle 1h — les transfers
+        // plus vieux sont assurément terminaux (staleAfter = 3min) et ne
+        // sont pas pertinents pour la réconciliation. Sort startedAt desc
+        // pour que les plus récents gagnent la collision sur
+        // destinationPath en cas de retry.
+        let oneHourAgo = Date().addingTimeInterval(-3600)
         var transferDescriptor = FetchDescriptor<Transfer>(
             predicate: #Predicate {
                 $0.sourceKindRaw == "photoLibrary"
+                && $0.startedAt >= oneHourAgo
                 && ($0.statusRaw == "running"
                     || $0.statusRaw == "completed"
                     || $0.statusRaw == "failed")
             },
             sortBy: [SortDescriptor(\.startedAt, order: .reverse)]
         )
-        transferDescriptor.fetchLimit = 5000
+        transferDescriptor.fetchLimit = 200
         let allTransfers = (try? modelContext.fetch(transferDescriptor)) ?? []
         // Premier wins (sort desc → le plus récent), pas le dernier.
         let transfersByPath: [String: Transfer] = Dictionary(
@@ -707,6 +818,27 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         } catch {
             await LogService.shared.log(.error, category: "photos", message: "Pause TransferQueue impossible : \(error.localizedDescription)")
         }
+        // E7 : Live Activity transition immédiate (force bypass throttle).
+        #if os(iOS)
+        if #available(iOS 16.2, *) {
+            let counts = photoSyncCounts()
+            let total = max(counts.completed + counts.pending + counts.active + counts.failed, counts.indexed)
+            await PhotoSyncLiveActivity.shared.update(
+                .init(
+                    completed: counts.completed,
+                    total: total,
+                    currentFilename: nil,
+                    speedBytesPerSec: 0,
+                    etaSeconds: nil,
+                    bytesTransferred: counts.transferredBytes,
+                    bytesTotal: counts.totalBytes,
+                    isPaused: true,
+                    phase: .paused
+                ),
+                force: true
+            )
+        }
+        #endif
         await LogService.shared.log(.info, category: "photos", message: "Synchro photos en pause (utilisateur).")
     }
 
@@ -722,6 +854,27 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         } catch {
             await LogService.shared.log(.error, category: "photos", message: "Reprise TransferQueue impossible : \(error.localizedDescription)")
         }
+        // E7 : Live Activity transition immédiate (force bypass throttle).
+        #if os(iOS)
+        if #available(iOS 16.2, *) {
+            let counts = photoSyncCounts()
+            let total = max(counts.completed + counts.pending + counts.active + counts.failed, counts.indexed)
+            await PhotoSyncLiveActivity.shared.update(
+                .init(
+                    completed: counts.completed,
+                    total: total,
+                    currentFilename: nil,
+                    speedBytesPerSec: 0,
+                    etaSeconds: nil,
+                    bytesTransferred: counts.transferredBytes,
+                    bytesTotal: counts.totalBytes,
+                    isPaused: false,
+                    phase: .uploading
+                ),
+                force: true
+            )
+        }
+        #endif
         await LogService.shared.log(.info, category: "photos", message: "Synchro photos reprise.")
         if isEnabled, configuredRemote != nil {
             shouldContinueUntilEmpty = true
@@ -905,10 +1058,55 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         // un batch isolé. Sans ça l'UserActivityMonitor remettait le
         // bwlimit entre deux batches dès qu'un tap était détecté.
         TransferQueue.shared.incrementActivityBypass()
+        // E7 : démarre la Live Activity pour les vrais cycles complets
+        // (continueUntilEmpty == true). Les `syncNow(limit:)` one-shot
+        // sont trop courts pour mériter une activité dédiée.
+        #if os(iOS)
+        if continueUntilEmpty, #available(iOS 16.2, *) {
+            await PhotoSyncLiveActivity.shared.start(
+                remoteLabel: remote,
+                backendKind: "rclone",
+                initialState: .init(
+                    completed: 0,
+                    total: 0,
+                    currentFilename: nil,
+                    speedBytesPerSec: 0,
+                    etaSeconds: nil,
+                    bytesTransferred: 0,
+                    bytesTotal: 0,
+                    isPaused: false,
+                    phase: .preparing
+                )
+            )
+        }
+        #endif
         defer {
             isSyncing = false
             TransferQueue.shared.decrementActivityBypass()
             scheduleBackgroundProcessing()
+            // E7 : ferme la Live Activity. Auto-dismiss 30s sur succès,
+            // immédiat sur cancel/erreur.
+            #if os(iOS)
+            if #available(iOS 16.2, *) {
+                Task { @MainActor in
+                    let counts = self.photoSyncCounts()
+                    await PhotoSyncLiveActivity.shared.end(
+                        terminalState: .init(
+                            completed: counts.completed,
+                            total: max(counts.completed + counts.pending + counts.active + counts.failed, counts.indexed),
+                            currentFilename: nil,
+                            speedBytesPerSec: 0,
+                            etaSeconds: nil,
+                            bytesTransferred: counts.transferredBytes,
+                            bytesTotal: counts.totalBytes,
+                            isPaused: self.isPausedByUser,
+                            phase: counts.failed > 0 && counts.pending == 0 && counts.active == 0 ? .failed : .completed
+                        ),
+                        reason: .successAutoDismiss
+                    )
+                }
+            }
+            #endif
         }
 
         do {
@@ -1091,6 +1289,10 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
                     mediaType: candidate.mediaType,
                     creationDate: candidate.creationDate
                 )
+                // B1 : persiste le fingerprint pré-export dans
+                // `contentHash` (champ jusqu'ici inutilisé). Permet
+                // la dédup Phase 2a avant le moindre download iCloud.
+                record.contentHash = candidate.contentFingerprint
                 modelContext.insert(record)
             }
             try modelContext.save()
@@ -1243,12 +1445,82 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
             message: "\(Self.perfTs()) phase1 done (save=\(Self.elapsedMs(since: phase1Save))ms)"
         )
 
+        // Phase 2a (B1) : dédup PRÉ-export par fingerprint. Avant de
+        // lancer le moindre PHAssetResourceManager.writeData (qui
+        // déclencherait un téléchargement iCloud), on cherche si un
+        // asset déjà `.completed` partage le même `contentHash`. Si
+        // oui, on copie ses `remotePaths` et on bascule directement
+        // en `.skipped` — économise potentiellement plusieurs Go de
+        // bande passante iCloud sur les bibliothèques avec doublons
+        // (asset partagé entre albums, photo cloud + photo locale, etc.).
+        let phase2aStarted = ContinuousClock.now
+        var phase2aSkipped = 0
+        var recordsToExport: [PhotoSyncAsset] = []
+        recordsToExport.reserveCapacity(records.count)
+        for record in records {
+            try Task.checkCancellation()
+            guard let fingerprint = record.contentHash, !fingerprint.isEmpty else {
+                // Pas de fingerprint (asset indexé avant B1, ou KVC
+                // fileSize indisponible) → fallback Phase 3 MD5.
+                recordsToExport.append(record)
+                continue
+            }
+            if let duplicate = findCompletedDuplicate(
+                contentFingerprint: fingerprint,
+                excluding: record.localIdentifier
+            ) {
+                record.status = .skipped
+                record.remotePaths = duplicate.remotePaths
+                record.byteCount = duplicate.byteCount
+                record.completedAt = .now
+                record.lastError = nil
+                phase2aSkipped += 1
+                dedupSkips += 1
+                continue
+            }
+            recordsToExport.append(record)
+        }
+        if phase2aSkipped > 0 {
+            // Save batché pour les transitions `.skipped` (sinon Phase 3
+            // ne voit pas les changements en cas d'interruption).
+            let phase2aSave = ContinuousClock.now
+            try? modelContext.save()
+            saveTotalMs += Self.elapsedMs(since: phase2aSave)
+        }
+        let phase2aMs = Self.elapsedMs(since: phase2aStarted)
+        await LogService.shared.log(
+            .info,
+            category: "batch-perf",
+            message: "\(Self.perfTs()) phase2a pre-dedup skipped=\(phase2aSkipped)/\(records.count) in \(phase2aMs)ms"
+        )
+        // À partir d'ici, `records` n'est utilisé que pour l'itération
+        // Phase 3 (qui filtre via exportResults). On ne touche pas à
+        // `records` pour préserver l'ordre/itération existante : la
+        // boucle Phase 3 sautera les .skipped puisqu'ils n'ont pas
+        // d'entrée dans `exportResults`.
+        let identifiersForExport = recordsToExport.map { $0.localIdentifier }
+        guard !identifiersForExport.isEmpty else {
+            // Tous les records étaient des doublons : on a déjà
+            // appliqué `.skipped`. Aucun batch à uploader (rien à
+            // mettre dans `batchDir`).
+            let totalPrepMs = Self.elapsedMs(since: prepStarted)
+            await LogService.shared.log(
+                .info,
+                category: "batch-perf",
+                message: "\(Self.perfTs()) T_prep=\(totalPrepMs)ms (full-dedup batch, \(phase2aSkipped) skipped) → 0 photos à uploader"
+            )
+            try? FileManager.default.removeItem(at: batchDir)
+            return nil
+        }
+
         // Phase 2 : exports PhotoKit en PARALLÈLE (concurrence adaptative).
         // 4 si idle, 2 si un upload sync/copy tourne en concurrence
         // (sinon les exports se mettent à throttler à 1-17s/photo à cause
         // de la saturation CPU+réseau SFTP).
+        // B1 : on n'exporte QUE `identifiersForExport` (records qui ont
+        // survécu à la dédup Phase 2a — pas les doublons déjà .skipped).
         let concurrencyLimit = exportConcurrencyForCurrentLoad
-        let identifiers = records.map { $0.localIdentifier }
+        let identifiers = identifiersForExport
         let exportsStarted = ContinuousClock.now
         await LogService.shared.log(
             .info,
@@ -1336,6 +1608,13 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
             let localIdentifier = record.localIdentifier
             let creationDate = record.creationDate
 
+            // B1 : records déjà `.skipped` par Phase 2a (dédup pré-export)
+            // n'ont pas d'entrée dans `exportResults`. On les ignore
+            // silencieusement (leur transition est déjà persistée).
+            if record.status == .skipped {
+                continue
+            }
+
             guard let exportResult = exportResults[localIdentifier] else {
                 record.status = .failed
                 record.retryCount += 1
@@ -1348,10 +1627,38 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
             case .success(let e):
                 exports = e
             case .failure(let error):
-                record.status = .failed
-                record.retryCount += 1
-                record.lastError = error.localizedDescription
-                await LogService.shared.log(.error, category: "photos", message: "Asset \(localIdentifier) non enqueue : \(error.localizedDescription)")
+                // B3 : sélectif sur les codes connus, plutôt que `.failed`
+                // aveugle. PHPhotos 3169 (asset supprimé) → .skipped,
+                // CloudPhotoLibrary 1005 / NSURL transient → .pending
+                // (retry softs, n'incrémente pas retryCount).
+                let disposition = Self.classifyExportError(error)
+                switch disposition {
+                case .skip(let reason):
+                    record.status = .skipped
+                    record.lastError = reason
+                    await LogService.shared.log(
+                        .info,
+                        category: "photos",
+                        message: "Asset \(localIdentifier) ignoré (skip) : \(reason)"
+                    )
+                case .retry(let reason):
+                    record.status = .pending
+                    record.lastError = "Soft retry : \(reason)"
+                    await LogService.shared.log(
+                        .info,
+                        category: "photos",
+                        message: "Asset \(localIdentifier) repassé en pending (soft retry) : \(reason)"
+                    )
+                case .fail(let reason):
+                    record.status = .failed
+                    record.retryCount += 1
+                    record.lastError = reason
+                    await LogService.shared.log(
+                        .error,
+                        category: "photos",
+                        message: "Asset \(localIdentifier) non enqueue : \(reason)"
+                    )
+                }
                 continue
             }
 
@@ -1411,10 +1718,17 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
                 batchedRecords.append((record, remotePaths, bytes))
                 enqueuedCount += 1
             } catch {
+                // Move/IO error : généralement un vrai problème système
+                // (disque plein, permission), non-recouvrable au prochain
+                // batch — .failed est la bonne disposition ici.
                 record.status = .failed
                 record.retryCount += 1
                 record.lastError = error.localizedDescription
-                await LogService.shared.log(.error, category: "photos", message: "Asset \(localIdentifier) non enqueue : \(error.localizedDescription)")
+                await LogService.shared.log(
+                    .error,
+                    category: "photos",
+                    message: "Asset \(localIdentifier) non enqueue (move/IO) : \(error.localizedDescription)"
+                )
             }
         }
 
@@ -1639,6 +1953,11 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         // Consumer : pop du buffer et upload séquentiellement (on n'a
         // qu'1 sync/copy à la fois — rclone parallélise déjà ses
         // transferts internes).
+        defer {
+            // C2 : pipeline drainé, on revient en idle. La UI peut
+            // animer le fade-out des dernières lignes.
+            liveBatchPhase = .idle
+        }
         while true {
             while pipelineBuffer.isEmpty {
                 if pipelineProducerDone {
@@ -1658,7 +1977,18 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
     /// À chaque tick, met à jour `liveBatchProgress` à partir de
     /// `core/stats` pour que la UI affiche un compteur live.
     private func waitForRcloneJob(jobID: Int) async throws {
-        defer { liveBatchProgress = nil }
+        defer {
+            // C2 : capture les 5 derniers transferringFiles avant de
+            // basculer en `.preparing`. La UI les affichera en opacity
+            // dégradée pendant les ~200ms de préparation du batch suivant,
+            // au lieu de tout faire disparaître brutalement.
+            let snapshot = liveBatchProgress?.transferringFiles ?? []
+            liveBatchProgress = nil
+            liveBatchPhase = .preparing(
+                lastTransferringFiles: Array(snapshot.prefix(5)),
+                startedAt: Date()
+            )
+        }
         while true {
             try Task.checkCancellation()
             try await Task.sleep(nanoseconds: 500_000_000)
@@ -1676,7 +2006,7 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
                         etaSeconds: $0.eta
                     )
                 }
-                liveBatchProgress = PhotoBatchLiveProgress(
+                let progress = PhotoBatchLiveProgress(
                     bytesTransferred: stats.transferredBytes,
                     bytesTotal: stats.totalBytes,
                     speedBytesPerSec: stats.globalSpeed,
@@ -1684,6 +2014,31 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
                     currentFilename: primary?.name,
                     transferringFiles: files
                 )
+                liveBatchProgress = progress
+                liveBatchPhase = .uploading(progress)
+                // E7 : push de la progression vers la Live Activity.
+                // Throttle 2s appliqué côté bridge — les ticks 500ms
+                // d'ici sont coalesced.
+                #if os(iOS)
+                if #available(iOS 16.2, *) {
+                    let counts = photoSyncCounts()
+                    let total = max(counts.completed + counts.pending + counts.active + counts.failed, counts.indexed)
+                    let safeFilename = PhotoSyncActivityAttributes.ContentState.sanitize(filename: primary?.name)
+                    let etaSec: Double? = primary?.eta.map(Double.init)
+                    let state = PhotoSyncActivityAttributes.ContentState(
+                        completed: counts.completed,
+                        total: total,
+                        currentFilename: safeFilename,
+                        speedBytesPerSec: stats.globalSpeed,
+                        etaSeconds: etaSec,
+                        bytesTransferred: stats.transferredBytes,
+                        bytesTotal: stats.totalBytes,
+                        isPaused: isPausedByUser,
+                        phase: .uploading
+                    )
+                    await PhotoSyncLiveActivity.shared.update(state)
+                }
+                #endif
             }
             let status = try await TransferService.shared.jobStatus(jobID: jobID)
             if status.finished {
@@ -1747,62 +2102,47 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
     }
 
     /// Kicks the best-effort verification of every remote path of the asset.
-    /// Runs detached so the completion callback returns immediately — the
-    /// caller (TransferQueue poll loop) doesn't wait for the verify result.
+    /// B6 : Le stat distant tourne en `Task.detached` (hors MainActor)
+    /// pour libérer le poll loop ; on revient sur MainActor uniquement
+    /// pour la mutation SwiftData. Tous les call-sites partagent désormais
+    /// le helper `compareRemote` (plus de duplication).
     private func scheduleVerification(for localIdentifier: String, paths: [String]) {
         guard let remote = configuredRemote, !paths.isEmpty else { return }
-        Task { @MainActor [weak self] in
-            await self?.verifyAsset(localIdentifier: localIdentifier, remote: remote, paths: paths)
-        }
-    }
-
-    /// Fetches the MD5 of each `paths[]` from rclone via `operations/stat` and
-    /// updates `remoteHash` + `verificationStatus` on the asset. The status is
-    /// the worst of the per-path comparisons :
-    /// - `"verified"` si tous les hashes correspondent
-    /// - `"mismatch"` si au moins un hash diffère
-    /// - `"missing"` si stat échoue / fichier introuvable
-    /// - `"unsupported"` si rclone renvoie un hash vide (backend sans MD5)
-    private func verifyAsset(localIdentifier: String, remote: String, paths: [String]) async {
-        guard let modelContext else { return }
-        let descriptor = FetchDescriptor<PhotoSyncAsset>(
-            predicate: #Predicate { $0.localIdentifier == localIdentifier }
-        )
-        guard let record = try? modelContext.fetch(descriptor).first else { return }
-
-        var aggregatedStatus = "verified"
-        var remoteHashLog: String?
-        for path in paths {
-            let remoteHash: String?
-            do {
-                let entry = try await RemoteService.shared.stat(remote: remote, path: path)
-                remoteHash = entry?.hashMD5
-            } catch {
-                aggregatedStatus = "missing"
-                continue
+        Task.detached(priority: .utility) { [weak self] in
+            // 1) Snapshot du localHash sur MainActor (lecture SwiftData)
+            let localHash: String? = await MainActor.run {
+                guard let modelContext = self?.modelContext else { return nil }
+                let descriptor = FetchDescriptor<PhotoSyncAsset>(
+                    predicate: #Predicate { $0.localIdentifier == localIdentifier }
+                )
+                return try? modelContext.fetch(descriptor).first?.localHash
             }
-            guard let remoteHash, !remoteHash.isEmpty else {
-                if aggregatedStatus == "verified" { aggregatedStatus = "unsupported" }
-                continue
-            }
-            remoteHashLog = remoteHash
-            if let local = record.localHash, !local.isEmpty {
-                if local.lowercased() != remoteHash.lowercased() {
-                    aggregatedStatus = "mismatch"
-                    break
+            // 2) Stat distant + comparaison hash (HORS MainActor)
+            let result = await Self.compareRemote(
+                paths: paths,
+                localHash: localHash ?? nil,
+                remote: remote
+            )
+            // 3) Write SwiftData (MainActor)
+            await MainActor.run {
+                guard let self, let modelContext = self.modelContext else { return }
+                let descriptor = FetchDescriptor<PhotoSyncAsset>(
+                    predicate: #Predicate { $0.localIdentifier == localIdentifier }
+                )
+                guard let record = try? modelContext.fetch(descriptor).first else { return }
+                record.verificationStatus = result.status
+                if let foundHash = result.foundHash {
+                    record.remoteHash = foundHash
                 }
-            } else {
-                // Pas de hash local (calcul échoué à l'enqueue) — on garde
-                // le hash distant comme référence mais on marque "unsupported"
-                // au lieu de "verified" puisqu'on ne peut pas affirmer l'intégrité.
-                if aggregatedStatus == "verified" { aggregatedStatus = "unsupported" }
+                try? modelContext.save()
             }
-        }
-        record.remoteHash = remoteHashLog
-        record.verificationStatus = aggregatedStatus
-        try? modelContext.save()
-        if aggregatedStatus == "mismatch" {
-            await LogService.shared.log(.error, category: "photos", message: "Hash distant ne correspond pas pour \(localIdentifier).")
+            if result.status == "mismatch" {
+                await LogService.shared.log(
+                    .error,
+                    category: "photos",
+                    message: "Hash distant ne correspond pas pour \(localIdentifier)."
+                )
+            }
         }
     }
 
@@ -1998,6 +2338,27 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         return matches.first(where: { $0.localIdentifier != localIdentifier })
     }
 
+    /// B1 : Cherche un asset déjà `.completed` qui partage le même
+    /// fingerprint pré-export (localId#modMs#bytes). Utilisé Phase 2a
+    /// pour skipper la dédup AVANT export iCloud. Aucun calcul MD5,
+    /// uniquement une requête SwiftData indexée par `contentHash`.
+    private func findCompletedDuplicate(
+        contentFingerprint: String,
+        excluding localIdentifier: String
+    ) -> PhotoSyncAsset? {
+        guard let modelContext else { return nil }
+        let descriptor = FetchDescriptor<PhotoSyncAsset>(
+            predicate: #Predicate { asset in
+                asset.contentHash == contentFingerprint
+                    && asset.statusRaw == "completed"
+            }
+        )
+        let matches = (try? modelContext.fetch(descriptor)) ?? []
+        return matches.first(where: {
+            $0.localIdentifier != localIdentifier && !$0.remotePaths.isEmpty
+        })
+    }
+
     /// Snapshot du buffer de débit pour le graphique stats. Renvoie une liste
     /// de points `(date, bytesPerSecond)` calculés par différence entre samples
     /// consécutifs. Liste vide tant que < 2 samples accumulés.
@@ -2013,6 +2374,105 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
             points.append((cur.date, bps))
         }
         return points
+    }
+
+    /// Disposition à appliquer à un export PhotoKit qui a renvoyé `.failure`.
+    /// Sépare les vraies pannes (`.fail`) des erreurs transitoires recouvrables
+    /// (`.retry`) et des assets définitivement disparus (`.skip`).
+    /// Évite de marquer `.failed` (et donc d'incrémenter retryCount qui consomme
+    /// le budget de retries) des erreurs qui sont soit normales (asset supprimé
+    /// dans Photos) soit temporaires (panne iCloud).
+    nonisolated enum ExportRetryDisposition: Sendable {
+        case skip(reason: String)
+        case retry(reason: String)
+        case fail(reason: String)
+    }
+
+    /// Classifie une erreur d'export PhotoKit en disposition (`.skip` /
+    /// `.retry` / `.fail`). Source : observations log « Asset … non
+    /// enqueue : … » sur les codes CloudPhotoLibrary 1005 et PHPhotos
+    /// 3169.
+    nonisolated static func classifyExportError(_ error: Error) -> ExportRetryDisposition {
+        let nsError = error as NSError
+        let domain = nsError.domain
+        let code = nsError.code
+        let desc = nsError.localizedDescription
+
+        // PHPhotosErrorDomain :
+        //   3164 = "The operation was cancelled" (annulation système, retry safe)
+        //   3169 = "The requested resource is unavailable" (asset supprimé/déplacé)
+        //   3303 = "Access denied" (autorisation perdue mi-cycle)
+        if domain == "PHPhotosErrorDomain" {
+            switch code {
+            case 3164:
+                return .retry(reason: "Annulation PhotoKit transitoire")
+            case 3169:
+                return .skip(reason: "Asset supprimé ou déplacé dans Photos")
+            case 3303:
+                return .skip(reason: "Accès Photos refusé")
+            default:
+                break
+            }
+        }
+
+        // CloudPhotoLibraryErrorDomain : panne iCloud transitoire.
+        // Le `code 1005` (« Connection error ») est observé en prod
+        // pendant un changement de réseau ou un timeout iCloud.
+        if domain == "CloudPhotoLibraryErrorDomain" {
+            return .retry(reason: "Erreur iCloud transitoire (\(code))")
+        }
+
+        // NSURLErrorDomain transients :
+        //   -1001 = timeout, -1005 = connection lost, -1009 = no internet.
+        if domain == NSURLErrorDomain {
+            switch code {
+            case NSURLErrorTimedOut,
+                 NSURLErrorCannotConnectToHost,
+                 NSURLErrorNetworkConnectionLost,
+                 NSURLErrorNotConnectedToInternet:
+                return .retry(reason: "Réseau indisponible (NSURLError \(code))")
+            default:
+                break
+            }
+        }
+
+        // NSCocoaErrorDomain 257 = file permission, asset gone.
+        if domain == NSCocoaErrorDomain, code == 257 {
+            return .skip(reason: "Asset PhotoKit illisible")
+        }
+
+        return .fail(reason: desc)
+    }
+
+    /// Construit un fingerprint pré-export pour un PHAsset sans télécharger
+    /// le binaire depuis iCloud. Utilise `PHAssetResource.fileSize` (KVC
+    /// hidden) + `modificationDate` du PHAsset. Format compact
+    /// `<localId>#<modMs>#<size>`. Deux assets identiques (même asset
+    /// re-importé sur deux devices, ou même fichier dupliqué dans Photos)
+    /// produisent le même fingerprint sans aucun téléchargement.
+    ///
+    /// Sécurité : en cas de collision, la Phase 3 MD5 reste un filet de
+    /// sécurité (la dedup MD5 post-export reste active comme fallback).
+    nonisolated static func resourceFingerprint(_ asset: PHAsset) -> String {
+        let modMs: Int64
+        if let mod = asset.modificationDate ?? asset.creationDate {
+            modMs = Int64((mod.timeIntervalSince1970 * 1000).rounded())
+        } else {
+            modMs = 0
+        }
+        // PHAssetResource exposes file size via KVC (`fileSize` clé privée).
+        // `assetResources(for:)` est synchrone et purement local (lecture
+        // d'une SQLite côté Photos), aucun téléchargement déclenché.
+        var totalBytes: Int64 = 0
+        for resource in PHAssetResource.assetResources(for: asset) {
+            // `fileSize` est un NSNumber (KVC private), retourne nil sur
+            // certains assets cloud-only — fallback à 0 et fingerprint
+            // dégradé (seul modMs+localId comptent dans ce cas).
+            if let n = resource.value(forKey: "fileSize") as? NSNumber {
+                totalBytes &+= n.int64Value
+            }
+        }
+        return "\(asset.localIdentifier)#\(modMs)#\(totalBytes)"
     }
 
     /// MD5 streaming via `CryptoKit`. Lit le fichier par chunks de 1 MB pour
@@ -2165,15 +2625,33 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         } else {
             sessionETA = nil
         }
-        return PhotoSyncRunSummary(
+
+        // Applique le ratchet : ni le total visible, ni le compteur
+        // de photos uploadées ne peuvent descendre pendant une session.
+        // Reset (à 0) déjà fait par resetSessionCounters au début du
+        // pipeline runPipeline.
+        let candidateTotal = max(counts.completed + counts.active + counts.pending + counts.failed, counts.indexed)
+        ratchetTotal = max(ratchetTotal, candidateTotal)
+        ratchetCompleted = max(ratchetCompleted, counts.completed)
+        // Calcul des valeurs "affichables" qui respectent le ratchet,
+        // en gardant les compteurs bruts (pending/active/failed) intacts
+        // pour les pastilles "attente/actifs/échecs".
+        let displayCompleted = ratchetCompleted
+        let displayTotal = ratchetTotal
+        // Recalcule pending pour que `effectiveTotal` du summary corresponde
+        // à `displayTotal` (sans changer les compteurs réels affichés sur
+        // les pastilles individuelles).
+        let displayPending = max(0, displayTotal - displayCompleted - counts.active - counts.failed)
+
+        let summary = PhotoSyncRunSummary(
             authorization: authorization,
             visibleAssetCount: visibleCount,
-            indexedCount: counts.indexed,
+            indexedCount: max(counts.indexed, displayTotal),
             newlyIndexedCount: newlyIndexedCount,
             enqueuedCount: enqueuedCount,
-            pendingCount: counts.pending,
+            pendingCount: displayPending,
             activeCount: counts.active,
-            completedCount: counts.completed,
+            completedCount: displayCompleted,
             failedCount: counts.failed,
             totalBytes: total,
             transferredBytes: transferred,
@@ -2184,7 +2662,46 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
             sessionInitialPending: sessionInitialPending,
             sessionEstimatedRemaining: sessionETA
         )
+        // E6 : publie un snapshot léger dans App Group UserDefaults
+        // pour le Lock Screen / Home Screen widget. Best-effort —
+        // n'échoue jamais le statusSnapshot principal.
+        #if os(iOS)
+        publishWidgetSnapshot(summary: summary)
+        #endif
+        return summary
     }
+
+    #if os(iOS)
+    /// E6 : encode `PhotoSyncWidgetSnapshot` dans le App Group sous la
+    /// clé `photosync.widgetSnapshot`. Lu par `PhotoSyncStatusWidget`
+    /// (widget extension). Throttle implicite via la cadence du
+    /// statusSnapshot caller (~4s UI, 10s heartbeat).
+    private func publishWidgetSnapshot(summary: PhotoSyncRunSummary) {
+        struct WidgetSnapshot: Codable {
+            let completed: Int
+            let pending: Int
+            let isSyncing: Bool
+            let lastSyncAt: Date?
+            let remoteLabel: String
+            let updatedAt: Date
+        }
+        guard let defaults = UserDefaults(suiteName: AppGroup.identifier) else { return }
+        let snap = WidgetSnapshot(
+            completed: summary.completedCount,
+            pending: summary.pendingCount,
+            isSyncing: isSyncing,
+            lastSyncAt: nil,  // TODO : persister `lastSuccessfulSyncAt` quand on aura un completed > 0
+            remoteLabel: configuredRemote ?? "—",
+            updatedAt: Date()
+        )
+        if let data = try? JSONEncoder().encode(snap) {
+            defaults.set(data, forKey: "photosync.widgetSnapshot")
+        }
+        // Note : `WidgetCenter.shared.reloadTimelines(ofKind: "PhotoSyncStatus")`
+        // sera appelé ici quand le widget extension sera créé. Sans
+        // l'extension, WidgetCenter ignore les kinds inconnus.
+    }
+    #endif
 
     /// Append a sample to the rolling throughput buffer and prune anything
     /// older than `throughputWindow`. Called every time `statusSnapshot` runs
@@ -2222,8 +2739,16 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
     }
 
     private func photoSyncCounts() -> PhotoSyncCounts {
+        // Cache hit court (TTL 1s) : statusSnapshot est appelé toutes les
+        // ~4 s par les Views et 10 s par le stats heartbeat ; sur les
+        // chemins chauds (live polling pendant un sync/copy actif) ça
+        // passe à 1 s. Une majorité d'appels frappe désormais le cache.
+        if let cached = countsCache,
+           Date().timeIntervalSince(cached.computedAt) < Self.countsCacheTTL {
+            return cached.counts
+        }
         let byteTotals = photoSyncByteTotals()
-        return PhotoSyncCounts(
+        let counts = PhotoSyncCounts(
             indexed: fetchPhotoSyncCount(),
             pending: fetchPhotoSyncCount(.pending),
             active: fetchPhotoSyncCount(.exporting) + fetchPhotoSyncCount(.enqueued),
@@ -2232,6 +2757,8 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
             totalBytes: byteTotals.total,
             transferredBytes: byteTotals.transferred
         )
+        countsCache = (counts, Date())
+        return counts
     }
 
     /// Aggregates byte-level progress across the photo sync pipeline.
@@ -2369,11 +2896,17 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
             guard matchesFilters(asset, filters: filters) else { return }
             let id = asset.localIdentifier
             guard seenLocalIDs.insert(id).inserted else { return }
+            // B1 : calcul du fingerprint pré-export pendant le scan.
+            // Pas de download iCloud — uniquement KVC fileSize +
+            // modificationDate. Coût ~négligeable vs un scan déjà en
+            // cours sur 18k+ photos.
+            let fingerprint = resourceFingerprint(asset)
             candidates.append(
                 PhotoSyncCandidate(
                     localIdentifier: id,
                     mediaType: mediaTypeName(asset.mediaType),
-                    creationDate: asset.creationDate
+                    creationDate: asset.creationDate,
+                    contentFingerprint: fingerprint
                 )
             )
         }
@@ -2539,7 +3072,7 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
     /// user wonder why nothing is happening after they tapped "Synchroniser".
     public var suspensionReason: String? {
         if ProcessInfo.processInfo.isLowPowerModeEnabled {
-            return "Mode économie d'énergie actif — la synchro reprendra automatiquement."
+            return String(localized: "Mode économie d'énergie actif — la synchro reprendra automatiquement.")
         }
         guard requiresExternalPower else { return nil }
         UIDevice.current.isBatteryMonitoringEnabled = true
@@ -2547,7 +3080,7 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         if state == .charging || state == .full {
             return nil
         }
-        return "En attente du branchement secteur (option « Exiger la charge » activée)."
+        return String(localized: "En attente du branchement secteur (option « Exiger la charge » activée).")
     }
 
     nonisolated private static func stagingDirectory() throws -> URL {

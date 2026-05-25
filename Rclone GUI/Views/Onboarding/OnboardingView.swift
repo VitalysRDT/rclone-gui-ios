@@ -8,6 +8,7 @@
 //  secondary "Create Crypt Passport" CTA → privacy footer.
 //
 
+import Photos
 import SwiftUI
 
 struct OnboardingView: View {
@@ -18,6 +19,7 @@ struct OnboardingView: View {
 
     enum Step: Hashable {
         case welcome
+        case photoSync  // D5
         case done
     }
 
@@ -32,7 +34,7 @@ struct OnboardingView: View {
         .sheet(isPresented: $showImportPicker) {
             ImportConfigView(onImported: {
                 showImportPicker = false
-                step = .done
+                step = .photoSync   // D5 : pivote vers le step PhotoSync au lieu de done
             })
         }
     }
@@ -40,8 +42,9 @@ struct OnboardingView: View {
     @ViewBuilder
     private var content: some View {
         switch step {
-        case .welcome: welcomeView
-        case .done:    doneView
+        case .welcome:      welcomeView
+        case .photoSync:    photoSyncView
+        case .done:         doneView
         }
     }
 
@@ -115,9 +118,9 @@ struct OnboardingView: View {
                 .buttonStyle(.plain)
 
                 Button {
-                    // Crypt passport flow lives in Phase E2; for now we just
-                    // skip onboarding and let the user reach the empty
-                    // remotes state inside the app.
+                    // Crypt passport flow lives in Phase E2 ; on enchaîne
+                    // directement sur l'écran final. L'essai gratuit 7 jours
+                    // tourne déjà en fond — aucun paywall à ce stade.
                     step = .done
                 } label: {
                     Text("Créer un Passeport Crypt")
@@ -157,6 +160,150 @@ struct OnboardingView: View {
             }
             Spacer(minLength: 0)
         }
+    }
+
+    // MARK: - PhotoSync step (D5)
+
+    /// Présenté après l'import de la config rclone (ou via "Plus tard").
+    /// Promotion de la feature PhotoSync : visible, skippable, demande
+    /// l'authorization Photos dès le tap "Activer".
+    private var photoSyncView: some View {
+        VStack(spacing: 0) {
+            Spacer(minLength: 24)
+
+            // Hero : seal PhotoSync (gradient pink → deep pink) au lieu
+            // du seal violet crypt, pour bien marquer la feature.
+            VStack(spacing: 18) {
+                photoSyncSeal
+                VStack(spacing: 6) {
+                    Text("Garde tes photos en sûreté")
+                        .font(.system(size: 28, weight: .bold))
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                    Text("PhotoSync — backup automatique")
+                        .font(.system(size: 14))
+                        .foregroundStyle(.secondary)
+                }
+                Text("Sauvegarde toute ta photothèque vers ton remote rclone, en pipeline batché, avec dédup pré-export et reprise auto.")
+                    .font(.system(size: 16))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 320)
+                    .lineSpacing(2)
+            }
+            .padding(.horizontal, 24)
+
+            Spacer(minLength: 28).frame(maxHeight: 28)
+
+            // Feature bullets PhotoSync
+            VStack(spacing: 14) {
+                featureRow(
+                    icon: "photo.on.rectangle.angled",
+                    tint: RG.photoSync.accent,
+                    title: "Backup automatique",
+                    subtitle: "Les nouvelles photos sont envoyées en arrière-plan"
+                )
+                featureRow(
+                    icon: "bolt.slash.fill",
+                    tint: .green,
+                    title: "Wi-Fi + charge par défaut",
+                    subtitle: "Pas de surprise data, batterie préservée"
+                )
+                featureRow(
+                    icon: "rectangle.stack.fill.badge.plus",
+                    tint: .orange,
+                    title: "Choisis tes albums",
+                    subtitle: "Backup ciblé ou photothèque complète"
+                )
+            }
+            .padding(.horizontal, 28)
+
+            Spacer(minLength: 0)
+
+            VStack(spacing: 10) {
+                Button {
+                    Task { await enablePhotoSync() }
+                } label: {
+                    Text("Activer PhotoSync")
+                        .font(.system(size: 17, weight: .semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 15)
+                        .background(RG.photoSync.accent, in: RoundedRectangle(cornerRadius: RG.Radius.card, style: .continuous))
+                        .foregroundStyle(.white)
+                        .shadow(color: RG.photoSync.accent.opacity(0.30), radius: 12, x: 0, y: 6)
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    step = .done
+                } label: {
+                    Text("Plus tard")
+                        .font(.system(size: 17, weight: .medium))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+
+                Text("Tu peux modifier tout ça plus tard dans Réglages → Synchro Photos")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.tertiary)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 4)
+            }
+            .padding(.horizontal, 28)
+            .padding(.bottom, 36)
+        }
+    }
+
+    /// Seal personnalisé PhotoSync : gradient pink/accent à la place du
+    /// seal violet crypt — réutilise le langage visuel de l'app.
+    private var photoSyncSeal: some View {
+        ZStack(alignment: .topTrailing) {
+            RoundedRectangle(cornerRadius: 30, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [RG.photoSync.accent, RG.photoSync.accentDeep],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: 120, height: 120)
+                .overlay {
+                    Image(systemName: "photo.stack.fill")
+                        .font(.system(size: 60, weight: .semibold))
+                        .foregroundStyle(.white)
+                }
+                .shadow(color: RG.photoSync.accent.opacity(0.35), radius: 18, x: 0, y: 14)
+
+            Circle()
+                .fill(.green)
+                .frame(width: 32, height: 32)
+                .overlay {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 16, weight: .heavy))
+                        .foregroundStyle(.white)
+                }
+                .overlay {
+                    Circle().stroke(Color.rgSystemBackground, lineWidth: 3)
+                }
+                .offset(x: 6, y: -6)
+        }
+        .frame(width: 126, height: 126, alignment: .topLeading)
+        .accessibilityHidden(true)
+    }
+
+    /// Tap "Activer PhotoSync" — demande l'authorization Photos puis
+    /// persiste `photoSync.enabled = true`. Si l'authorization est
+    /// refusée ou limitée, on bascule quand même au step done (le user
+    /// trouvera le bouton "Modifier l'accès aux Photos" dans Réglages).
+    @MainActor
+    private func enablePhotoSync() async {
+        let status = await PHPhotoLibrary.requestAuthorization(for: .readWrite)
+        if status == .authorized || status == .limited {
+            UserDefaults.standard.set(true, forKey: "photoSync.enabled")
+        }
+        step = .done
     }
 
     // MARK: - Done

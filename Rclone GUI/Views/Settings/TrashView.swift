@@ -197,24 +197,16 @@ private struct TrashHeaderCard: View {
     let totalBytes: Int64
 
     var body: some View {
-        HStack(spacing: 14) {
-            AppIconTile(systemImage: "trash", tint: .red, size: 54, iconSize: .title2)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(count == 1 ? "1 élément" : "\(count) éléments")
-                    .font(.headline)
-                Text("Total : \(formattedBytes) — Auto-purge après 30 jours.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
+        AppHeroCard(
+            title: count == 1 ? "1 élément" : "\(count) éléments",
+            subtitle: "Restaurables pendant 30 jours avant purge automatique.",
+            systemImage: "trash",
+            tint: .red
+        ) {
+            HStack(spacing: 10) {
+                AppMetricPill(value: formattedBytes, label: "total", systemImage: "externaldrive", tint: .red)
+                AppMetricPill(value: "30 j", label: "rétention", systemImage: "calendar.badge.clock", tint: .orange)
             }
-            Spacer(minLength: 8)
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.background, in: .rect(cornerRadius: 16, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(.quaternary)
         }
     }
 
@@ -259,18 +251,18 @@ private struct TrashRow: View {
 
     private var originPath: String {
         let parent = (entry.originalPath as NSString).deletingLastPathComponent
-        let scope = parent.isEmpty ? "racine" : parent
+        let scope = parent.isEmpty ? String(localized: "racine") : parent
         return "\(entry.originalRemote):\(scope)"
     }
 
     private var retentionLine: String {
         let remaining = entry.expiresAt.timeIntervalSince(.now)
-        if remaining <= 0 { return "Expire à la prochaine purge" }
+        if remaining <= 0 { return String(localized: "Expire à la prochaine purge") }
         let days = Int(remaining / 86_400)
         switch days {
-        case 0: return "Expire aujourd'hui"
-        case 1: return "Expire demain"
-        default: return "Expire dans \(days) jours"
+        case 0: return String(localized: "Expire aujourd'hui")
+        case 1: return String(localized: "Expire demain")
+        default: return String(localized: "Expire dans \(days) jours")
         }
     }
 

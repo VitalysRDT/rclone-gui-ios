@@ -15,15 +15,11 @@ struct CacheSettingsView: View {
     var body: some View {
         Form {
             Section {
-                HStack {
-                    Label("Cache média", systemImage: "tray.full")
-                    Spacer()
-                    Text(humanSize(currentBytes))
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                }
+                CacheHeaderCard(currentBytes: currentBytes, maxSizeGB: maxSizeGB)
+                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                    .listRowBackground(Color.clear)
             } footer: {
-                Text("Fichiers téléchargés temporairement pour la lecture. Effacés au démontage.")
+                Text("Fichiers téléchargés temporairement pour la lecture. Tu peux les purger à tout moment.")
             }
 
             Section {
@@ -85,6 +81,29 @@ struct CacheSettingsView: View {
             success = nil
         }
         await refreshSize()
+    }
+
+    private func humanSize(_ bytes: Int64) -> String {
+        ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
+    }
+}
+
+private struct CacheHeaderCard: View {
+    let currentBytes: Int64
+    let maxSizeGB: Double
+
+    var body: some View {
+        AppHeroCard(
+            title: "Cache média",
+            subtitle: "Lecture plus fluide, purge locale et limite LRU.",
+            systemImage: "tray.full",
+            tint: .orange
+        ) {
+            HStack(spacing: 10) {
+                AppMetricPill(value: humanSize(currentBytes), label: "utilisé", systemImage: "internaldrive", tint: .orange)
+                AppMetricPill(value: "\(Int(maxSizeGB)) Go", label: "limite", systemImage: "gauge.with.dots.needle.67percent", tint: .blue)
+            }
+        }
     }
 
     private func humanSize(_ bytes: Int64) -> String {

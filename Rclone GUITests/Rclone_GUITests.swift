@@ -10,6 +10,7 @@
 import Testing
 import Foundation
 import CryptoKit
+import SwiftData
 @testable import Rclone_GUI
 
 // MARK: - INI parser (MockRcloneEngine.parseRcloneConf)
@@ -92,6 +93,147 @@ struct INIParserTests {
         #expect(result.count == 1)
         #expect(result[0].name == "drive")
         #expect(result[0].type == "drive")
+    }
+}
+
+// MARK: - rclone.conf editor
+
+@Suite("RcloneConfigEditor")
+struct RcloneConfigEditorTests {
+
+    @Test("Appends a manual remote section")
+    func appendsManualRemote() throws {
+        let conf = """
+        [existing]
+        type = drive
+        scope = drive
+        """
+
+        let updated = try RcloneConfigEditor.updatedConfigText(
+            conf,
+            addingRemoteNamed: "s3-prod",
+            type: "s3",
+            options: [
+                "provider": "AWS",
+                "access_key_id": "AKIA",
+                "secret_access_key": "secret",
+                "empty": "",
+            ]
+        )
+
+        #expect(updated.contains("[existing]"))
+        #expect(updated.contains("[s3-prod]"))
+        #expect(updated.contains("type = s3"))
+        #expect(updated.contains("provider = AWS"))
+        #expect(updated.contains("access_key_id = AKIA"))
+        #expect(!updated.contains("empty ="))
+    }
+
+    @Test("Rejects duplicate remote names")
+    func rejectsDuplicates() throws {
+        let conf = """
+        [drive]
+        type = drive
+        """
+
+        #expect(throws: RcloneConfigEditor.ConfigError.self) {
+            _ = try RcloneConfigEditor.updatedConfigText(
+                conf,
+                addingRemoteNamed: "drive",
+                type: "s3",
+                options: [:]
+            )
+        }
+    }
+
+    @Test("Rejects remote names that cannot be addressed by rclone")
+    func rejectsInvalidRemoteName() throws {
+        #expect(throws: RcloneConfigEditor.ConfigError.self) {
+            _ = try RcloneConfigEditor.updatedConfigText(
+                "",
+                addingRemoteNamed: "bad:name",
+                type: "s3",
+                options: [:]
+            )
+        }
+    }
+}
+
+// MARK: - Saved locations
+
+@Suite("SavedLocationStore")
+struct SavedLocationStoreTests {
+
+    @Test("recordOpen upserts recent locations")
+    @MainActor
+    func recordOpenUpsertsRecent() throws {
+        let container = try makeSavedLocationContainer()
+        let context = container.mainContext
+
+        try SavedLocationStore.recordOpen(remote: "drive", path: "Docs", displayName: "Docs", in: context)
+        try SavedLocationStore.recordOpen(remote: "drive", path: "/Docs/", displayName: "Documents", in: context)
+
+        let recents = try SavedLocationStore.locations(kind: .recent, in: context)
+        #expect(recents.count == 1)
+        #expect(recents[0].displayName == "Documents")
+        #expect(recents[0].openCount == 2)
+    }
+
+    @Test("togglePinned adds and removes a favorite")
+    @MainActor
+    func togglePinnedAddsAndRemoves() throws {
+        let container = try makeSavedLocationContainer()
+        let context = container.mainContext
+
+        let didPin = try SavedLocationStore.togglePinned(remote: "s3", path: "Photos", displayName: "Photos", in: context)
+        #expect(didPin)
+        #expect(try SavedLocationStore.isPinned(remote: "s3", path: "Photos", in: context))
+
+        let didUnpin = try SavedLocationStore.togglePinned(remote: "s3", path: "Photos", displayName: "Photos", in: context)
+        #expect(!didUnpin)
+        #expect(!(try SavedLocationStore.isPinned(remote: "s3", path: "Photos", in: context)))
+    }
+
+    @Test("pruneRecents keeps the newest items")
+    @MainActor
+    func pruneRecentsKeepsNewest() throws {
+        let container = try makeSavedLocationContainer()
+        let context = container.mainContext
+
+        try SavedLocationStore.recordOpen(remote: "r", path: "one", displayName: "One", in: context)
+        try SavedLocationStore.recordOpen(remote: "r", path: "two", displayName: "Two", in: context)
+        try SavedLocationStore.recordOpen(remote: "r", path: "three", displayName: "Three", in: context)
+        try SavedLocationStore.pruneRecents(limit: 2, in: context)
+
+        let recents = try SavedLocationStore.locations(kind: .recent, in: context)
+        #expect(recents.count == 2)
+        #expect(recents.map(\.path).contains("three"))
+        #expect(recents.map(\.path).contains("two"))
+        #expect(!recents.map(\.path).contains("one"))
+    }
+
+    @Test("removeUnavailableRemotes removes stale shortcuts")
+    @MainActor
+    func removeUnavailableRemotesDropsStaleItems() throws {
+        let container = try makeSavedLocationContainer()
+        let context = container.mainContext
+
+        try SavedLocationStore.recordOpen(remote: "live", path: "", displayName: "live", in: context)
+        try SavedLocationStore.recordOpen(remote: "stale", path: "", displayName: "stale", in: context)
+        try SavedLocationStore.togglePinned(remote: "stale", path: "Archive", displayName: "Archive", in: context)
+
+        try SavedLocationStore.removeUnavailableRemotes(["live"], in: context)
+
+        let all = try context.fetch(FetchDescriptor<SavedLocation>())
+        #expect(all.count == 1)
+        #expect(all[0].remote == "live")
+    }
+
+    @MainActor
+    private func makeSavedLocationContainer() throws -> ModelContainer {
+        let schema = Schema([SavedLocation.self])
+        let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+        return try ModelContainer(for: schema, configurations: [configuration])
     }
 }
 

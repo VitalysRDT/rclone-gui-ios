@@ -25,7 +25,7 @@ enum RemoteConnectionTester {
         var errorDescription: String? {
             switch self {
             case .timeout(let seconds):
-                return "Délai dépassé (\(seconds)s)"
+                return String(localized: "Délai dépassé (\(seconds)s)")
             case .rcloneError(let message):
                 return message
             }

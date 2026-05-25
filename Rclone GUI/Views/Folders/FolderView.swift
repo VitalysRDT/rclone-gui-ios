@@ -134,9 +134,9 @@ struct FolderView: View {
 
     private var displayedSectionTitle: String {
         if query.isEmpty {
-            return "\(displayedEntries.count) élément\(displayedEntries.count > 1 ? "s" : "")"
+            return String(localized: "\(displayedEntries.count) élément\(displayedEntries.count > 1 ? "s" : "")")
         }
-        return "\(displayedEntries.count) résultat\(displayedEntries.count > 1 ? "s" : "")"
+        return String(localized: "\(displayedEntries.count) résultat\(displayedEntries.count > 1 ? "s" : "")")
     }
 
     private var selectedEntries: [RemoteEntryDTO] {
@@ -928,18 +928,18 @@ struct FolderView: View {
     private var pasteConflictTitle: String {
         guard let names = pasteConflictNames else { return "" }
         return names.count == 1
-            ? "« \(names[0]) » existe déjà"
-            : "\(names.count) éléments existent déjà"
+            ? String(localized: "« \(names[0]) » existe déjà")
+            : String(localized: "\(names.count) éléments existent déjà")
     }
 
     private var pasteConflictMessage: String {
         guard let names = pasteConflictNames else { return "" }
         if names.count == 1 {
-            return "Le fichier de destination sera écrasé sans possibilité d'annulation. La version remplacée n'est pas envoyée à la corbeille."
+            return String(localized: "Le fichier de destination sera écrasé sans possibilité d'annulation. La version remplacée n'est pas envoyée à la corbeille.")
         }
         let preview = names.prefix(3).joined(separator: ", ")
-        let suffix = names.count > 3 ? " et \(names.count - 3) autre\(names.count - 3 > 1 ? "s" : "")" : ""
-        return "Les fichiers suivants seront écrasés sans possibilité d'annulation : \(preview)\(suffix)."
+        let suffix = names.count > 3 ? String(localized: " et \(names.count - 3) autre\(names.count - 3 > 1 ? "s" : "")") : ""
+        return String(localized: "Les fichiers suivants seront écrasés sans possibilité d'annulation : \(preview)\(suffix).")
     }
 
     private var pasteMenuLabel: String {

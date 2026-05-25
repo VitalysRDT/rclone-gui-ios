@@ -58,6 +58,18 @@ enum RG {
         static let chip: CGFloat = 10
         static let pill: CGFloat = 999
     }
+
+    /// PhotoSync semantic accent. Pink is kept as the photo-content signal
+    /// (visually distinct from the crypt-purple of other backends), but
+    /// surfaced through a token so a future re-theme (e.g. all-purple) is
+    /// a one-line change. Use `RG.photoSync.accent` everywhere instead of
+    /// raw `Color.pink` in PhotoSync surfaces.
+    enum photoSync {
+        static let accent: Color = .pink
+        static let accentSoft: Color = Color.pink.opacity(0.16)
+        /// Used for progress arc & deep gradient stops on the onboarding hero.
+        static let accentDeep: Color = Color(red: 0.85, green: 0.18, blue: 0.45)
+    }
 }
 
 // MARK: - Backend palette
@@ -249,17 +261,76 @@ struct FileStateGlyph: View {
     }
 }
 
-private struct ProgressArc: View {
+/// Circular progress ring. Promoted from private to public so PhotoSync
+/// surfaces (hero card, Home mini-card, Live Activity) can reuse it.
+/// `tint` defaults to `RG.accent` for backward-compat with `FileStateGlyph`;
+/// PhotoSync hero overrides to `RG.photoSync.accent`.
+struct ProgressArc: View {
     let progress: Double
+    var lineWidth: CGFloat = 2
+    var tint: Color = RG.accent
+    var trackOpacity: Double = 0.25
 
     var body: some View {
         ZStack {
             Circle()
-                .stroke(Color.secondary.opacity(0.25), lineWidth: 2)
+                .stroke(Color.secondary.opacity(trackOpacity), lineWidth: lineWidth)
             Circle()
-                .trim(from: 0, to: progress)
-                .stroke(RG.accent, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                .trim(from: 0, to: max(0, min(1, progress)))
+                .stroke(tint, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                 .rotationEffect(.degrees(-90))
+        }
+    }
+}
+
+// MARK: - PhotoSync status glyph
+
+/// Semantic status icon for PhotoSync UI surfaces. Each case maps to a
+/// distinct SF Symbol + tint so the user can recognize the state at a
+/// glance — analog to `FileStateGlyph` for the file browser.
+enum RGPhotoSyncStatus: Equatable {
+    case idle
+    case indexing
+    case preparing
+    case uploading(progress: Double)
+    case paused
+    case failed
+    case complete
+}
+
+struct RGPhotoSyncStatusGlyph: View {
+    let state: RGPhotoSyncStatus
+    var size: CGFloat = 22
+
+    var body: some View {
+        switch state {
+        case .idle:
+            Image(systemName: "photo.stack")
+                .font(.system(size: size, weight: .regular))
+                .foregroundStyle(.secondary)
+        case .indexing:
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: size, weight: .semibold))
+                .foregroundStyle(.blue)
+        case .preparing:
+            Image(systemName: "hourglass")
+                .font(.system(size: size, weight: .semibold))
+                .foregroundStyle(.orange)
+        case .uploading(let progress):
+            ProgressArc(progress: progress, lineWidth: 2.5, tint: RG.photoSync.accent)
+                .frame(width: size, height: size)
+        case .paused:
+            Image(systemName: "pause.circle.fill")
+                .font(.system(size: size, weight: .semibold))
+                .foregroundStyle(.orange)
+        case .failed:
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: size, weight: .semibold))
+                .foregroundStyle(.red)
+        case .complete:
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: size, weight: .semibold))
+                .foregroundStyle(.green)
         }
     }
 }

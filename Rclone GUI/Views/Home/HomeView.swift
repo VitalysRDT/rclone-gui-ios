@@ -30,6 +30,12 @@ struct HomeView: View {
     @State private var showImport = false
     @State private var showAddRemote = false
 
+    // D4 : snapshot live de PhotoSync pour la mini-card. Polling 4s
+    // tant qu'on est sur Home (le hero PhotoSync de l'écran Transferts
+    // reste la source d'autorité, ici on offre juste un coup d'œil).
+    @State private var photoSyncSummary: PhotoSyncRunSummary?
+    @State private var photoSyncIsRunning = false
+
     private var pinnedLocations: [SavedLocation] {
         savedLocations
             .filter { $0.kind == .pinned }
@@ -67,23 +73,23 @@ struct HomeView: View {
     }
 
     private var heroTitle: String {
-        if !hasConfig { return "Configure Rclone GUI" }
-        if isMockEngine { return "Mode démo actif" }
-        if !activeTransfers.isEmpty { return "Transferts en cours" }
-        return "Tout est prêt"
+        if !hasConfig { return String(localized: "Configure Rclone GUI") }
+        if isMockEngine { return String(localized: "Mode démo actif") }
+        if !activeTransfers.isEmpty { return String(localized: "Transferts en cours") }
+        return String(localized: "Tout est prêt")
     }
 
     private var heroSubtitle: String {
         if !hasConfig {
-            return "Importe ton rclone.conf pour parcourir tes remotes, synchroniser tes fichiers et exposer tes dossiers dans Fichiers."
+            return String(localized: "Importe ton rclone.conf pour parcourir tes remotes, synchroniser tes fichiers et exposer tes dossiers dans Fichiers.")
         }
         if isMockEngine {
-            return "La configuration est chargée, mais le moteur RcloneKit réel n’est pas disponible dans cette session."
+            return String(localized: "La configuration est chargée, mais le moteur RcloneKit réel n’est pas disponible dans cette session.")
         }
         if !activeTransfers.isEmpty {
-            return "\(activeTransfers.count) opération\(activeTransfers.count > 1 ? "s" : "") active\(activeTransfers.count > 1 ? "s" : "") sur tes remotes."
+            return String(localized: "\(activeTransfers.count) opération\(activeTransfers.count > 1 ? "s" : "") active\(activeTransfers.count > 1 ? "s" : "") sur tes remotes.")
         }
-        return "\(remotes.count) remote\(remotes.count > 1 ? "s" : "") disponible\(remotes.count > 1 ? "s" : "")."
+        return String(localized: "\(remotes.count) remote\(remotes.count > 1 ? "s" : "") disponible\(remotes.count > 1 ? "s" : "").")
     }
 
     var body: some View {
@@ -132,6 +138,13 @@ struct HomeView: View {
         }
         .task {
             await load()
+            // D4 : Boucle de polling PhotoSync 4s tant que Home est
+            // visible. SwiftUI cancelle automatiquement à disappear.
+            await refreshPhotoSyncSnapshot()
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(4))
+                await refreshPhotoSyncSnapshot()
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .rcloneConfigurationDidChange)) { _ in
             Task { await load() }
@@ -223,15 +236,13 @@ struct HomeView: View {
                     .opacity(0.55)
                 }
 
+                // D4 : mini-card PhotoSync — affiche ProgressArc + X/Y
+                // quand un sync est actif, fallback subtitle textuel
+                // sinon. Tap → Settings PhotoSync (route inchangée).
                 NavigationLink {
                     PhotoSyncSettingsView()
                 } label: {
-                    AppActionTile(
-                        title: "Photos",
-                        subtitle: photoSyncPendingCount == 0 ? "Backup configuré" : "\(photoSyncPendingCount) en attente",
-                        systemImage: "photo.stack",
-                        tint: .pink
-                    )
+                    photoSyncTile
                 }
                 .buttonStyle(.plain)
 
@@ -248,6 +259,66 @@ struct HomeView: View {
                 .buttonStyle(.plain)
             }
         }
+    }
+
+    /// D4 : Tile PhotoSync sur Home. Affiche un ProgressArc + X/Y
+    /// quand un sync est en cours, sinon fallback au sous-titre
+    /// textuel "Backup configuré" / "N en attente".
+    @ViewBuilder
+    private var photoSyncTile: some View {
+        if let summary = photoSyncSummary,
+           photoSyncIsRunning,
+           summary.effectiveTotal > 0 {
+            HStack(spacing: 12) {
+                ProgressArc(
+                    progress: summary.displayProgress,
+                    lineWidth: 3,
+                    tint: RG.photoSync.accent
+                )
+                .frame(width: 42, height: 42)
+                .overlay {
+                    Text("\(PhotoSyncFormat.percent(summary.displayProgress))%")
+                        .font(.system(size: 11, weight: .semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(RG.photoSync.accent)
+                }
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("PhotoSync")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                    Text("\(summary.completedCount) / \(summary.effectiveTotal) photos")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .contentTransition(.numericText())
+                }
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .appGlassSurface(cornerRadius: AppSurface.compactCornerRadius, interactive: true)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("PhotoSync, \(summary.displayLabel)")
+        } else {
+            AppActionTile(
+                title: "Photos",
+                subtitle: photoSyncPendingCount == 0 ? "Backup configuré" : "\(photoSyncPendingCount) en attente",
+                systemImage: "photo.stack",
+                tint: RG.photoSync.accent
+            )
+        }
+    }
+
+    /// D4 : récupère un snapshot PhotoSync depuis le service. Polling
+    /// court (4s) tant qu'on est sur Home — on a juste besoin d'un
+    /// coup d'œil, pas d'un live à 1s.
+    private func refreshPhotoSyncSnapshot() async {
+        photoSyncIsRunning = PhotoSyncService.shared.isSyncingPublic
+        photoSyncSummary = await PhotoSyncService.shared.currentSummary()
     }
 
     private func locationsSection(
@@ -294,7 +365,7 @@ struct HomeView: View {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 145), spacing: 10)], spacing: 10) {
                 AppMetricTile(value: "\(completedTransfers.count)", label: "terminés", systemImage: "checkmark.circle", tint: .green)
                 AppMetricTile(value: "\(failedTransfers.count)", label: "échecs", systemImage: "exclamationmark.triangle", tint: .red)
-                AppMetricTile(value: "\(photoAssets.count)", label: "photos indexées", systemImage: "photo.on.rectangle", tint: .pink)
+                AppMetricTile(value: "\(photoAssets.count)", label: "photos indexées", systemImage: "photo.on.rectangle", tint: RG.photoSync.accent)
             }
 
             if activeTransfers.isEmpty {

@@ -18,6 +18,8 @@
 	<array>
 		<string>iCloud.com.rougetet.rclone-gui</string>
 	</array>
+	<key>com.apple.developer.ubiquity-kvstore-identifier</key>
+	<string>$(TeamIdentifierPrefix)com.rougetet.rclone-gui</string>
 	<key>com.apple.security.application-groups</key>
 	<array>
 		<string>group.com.rougetet.rclone-gui</string>

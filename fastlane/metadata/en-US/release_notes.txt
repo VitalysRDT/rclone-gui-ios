@@ -1,1 +1,4 @@
-First public release. Native rclone iOS client with 70+ backends, Files app integration via File Provider, end-to-end crypt encryption, photo sync, Face ID, and zero tracking.
+What's new in 1.1:
+- Full English localization: the interface now follows your device language (English and French).
+- Smoother first-launch experience.
+- Stability and polish improvements.

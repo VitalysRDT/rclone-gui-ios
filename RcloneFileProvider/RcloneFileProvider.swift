@@ -51,6 +51,7 @@ public final class RcloneFileProvider: NSObject, NSFileProviderReplicatedExtensi
 
     public func enumerator(for containerItemIdentifier: NSFileProviderItemIdentifier, request: NSFileProviderRequest) throws -> NSFileProviderEnumerator {
         FileProviderBridge.appendDiagnostic("enumerator requested id=\(containerItemIdentifier.rawValue)")
+        try FileProviderBridge.ensureSubscriptionActive()
         return RcloneEnumerator(identifier: containerItemIdentifier)
     }
 
@@ -59,6 +60,14 @@ public final class RcloneFileProvider: NSObject, NSFileProviderReplicatedExtensi
     public func item(for identifier: NSFileProviderItemIdentifier, request: NSFileProviderRequest, completionHandler: @escaping (NSFileProviderItem?, Error?) -> Void) -> Progress {
         FileProviderBridge.appendDiagnostic("item requested id=\(identifier.rawValue)")
         let progress = Progress(totalUnitCount: 1)
+
+        do {
+            try FileProviderBridge.ensureSubscriptionActive()
+        } catch {
+            completionHandler(nil, error)
+            progress.completedUnitCount = 1
+            return progress
+        }
 
         if identifier == NSFileProviderItemIdentifier.rootContainer {
             let item = RcloneItem(
@@ -148,6 +157,13 @@ public final class RcloneFileProvider: NSObject, NSFileProviderReplicatedExtensi
         FileProviderBridge.appendDiagnostic("fetchContents requested id=\(itemIdentifier.rawValue)")
         let progress = Progress(totalUnitCount: 100)
 
+        do {
+            try FileProviderBridge.ensureSubscriptionActive()
+        } catch {
+            completionHandler(nil, nil, error)
+            return progress
+        }
+
         guard let decoded = RcloneItem.decode(itemIdentifier) else {
             completionHandler(nil, nil, NSError(
                 domain: NSFileProviderErrorDomain,
@@ -183,7 +199,7 @@ public final class RcloneFileProvider: NSObject, NSFileProviderReplicatedExtensi
                     remote: decoded.remote,
                     path: decoded.path,
                     destination: sharedDestination,
-                    timeout: 120
+                    progress: progress
                 )
 
                 // App principale a ecrit dans sharedDestination. On bouge le fichier
@@ -212,7 +228,7 @@ public final class RcloneFileProvider: NSObject, NSFileProviderReplicatedExtensi
                     modTime: .now
                 )
                 FileProviderBridge.appendDiagnostic("fetchContents done id=\(itemIdentifier.rawValue) size=\(downloadedSize) at=\(appleDestination.path)")
-                progress.completedUnitCount = 100
+                progress.completedUnitCount = progress.totalUnitCount
                 completionHandler(appleDestination, item, nil)
             } catch {
                 try? FileManager.default.removeItem(at: sharedDestination)
@@ -353,6 +369,12 @@ public final class RcloneFileProvider: NSObject, NSFileProviderReplicatedExtensi
 
     public func createItem(basedOn itemTemplate: NSFileProviderItem, fields: NSFileProviderItemFields, contents url: URL?, options: NSFileProviderCreateItemOptions, request: NSFileProviderRequest, completionHandler: @escaping (NSFileProviderItem?, NSFileProviderItemFields, Bool, Error?) -> Void) -> Progress {
         let progress = Progress(totalUnitCount: 1)
+        do {
+            try FileProviderBridge.ensureSubscriptionActive()
+        } catch {
+            completionHandler(nil, [], false, error)
+            return progress
+        }
         guard let parent = RcloneItem.decode(itemTemplate.parentItemIdentifier) else {
             completionHandler(nil, [], false, NSError(domain: NSFileProviderErrorDomain, code: NSFileProviderError.noSuchItem.rawValue))
             return progress
@@ -387,6 +409,12 @@ public final class RcloneFileProvider: NSObject, NSFileProviderReplicatedExtensi
 
     public func modifyItem(_ item: NSFileProviderItem, baseVersion version: NSFileProviderItemVersion, changedFields: NSFileProviderItemFields, contents newContents: URL?, options: NSFileProviderModifyItemOptions, request: NSFileProviderRequest, completionHandler: @escaping (NSFileProviderItem?, NSFileProviderItemFields, Bool, Error?) -> Void) -> Progress {
         let progress = Progress(totalUnitCount: 1)
+        do {
+            try FileProviderBridge.ensureSubscriptionActive()
+        } catch {
+            completionHandler(nil, [], false, error)
+            return progress
+        }
         guard let decoded = RcloneItem.decode(item.itemIdentifier) else {
             completionHandler(nil, [], false, NSError(domain: NSFileProviderErrorDomain, code: NSFileProviderError.noSuchItem.rawValue))
             return progress
@@ -417,6 +445,12 @@ public final class RcloneFileProvider: NSObject, NSFileProviderReplicatedExtensi
 
     public func deleteItem(identifier: NSFileProviderItemIdentifier, baseVersion version: NSFileProviderItemVersion, options: NSFileProviderDeleteItemOptions, request: NSFileProviderRequest, completionHandler: @escaping (Error?) -> Void) -> Progress {
         let progress = Progress(totalUnitCount: 1)
+        do {
+            try FileProviderBridge.ensureSubscriptionActive()
+        } catch {
+            completionHandler(error)
+            return progress
+        }
         guard let decoded = RcloneItem.decode(identifier), !decoded.path.isEmpty else {
             completionHandler(NSError(domain: NSFileProviderErrorDomain, code: NSFileProviderError.noSuchItem.rawValue))
             return progress

@@ -56,7 +56,7 @@ public actor BiometricGate {
         var nsError: NSError?
 
         guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &nsError) else {
-            let msg = nsError?.localizedDescription ?? "Biométrie non disponible"
+            let msg = nsError?.localizedDescription ?? String(localized: "Biométrie non disponible")
             return .unavailable(msg)
         }
 
@@ -68,7 +68,7 @@ public actor BiometricGate {
                     return
                 }
                 guard let laError = error as? LAError else {
-                    continuation.resume(returning: .unavailable(error?.localizedDescription ?? "Erreur biométrie inconnue"))
+                    continuation.resume(returning: .unavailable(error?.localizedDescription ?? String(localized: "Erreur biométrie inconnue")))
                     return
                 }
                 switch laError.code {

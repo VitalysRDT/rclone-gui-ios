@@ -11,10 +11,13 @@
 //   1. Extension écrit pending-fetches/<UUID>.json avec {requestID, remote,
 //      path, destPath} et poste Darwin notification fp.fetch-request.
 //   2. Ce service observe la notif, scanne pending-fetches/, télécharge
-//      via TransferService.copyFileAsync (qui hit operations/copyfile),
-//      puis supprime le pending.
+//      via TransferService.copyFileAsync (qui hit operations/copyfile)
+//      vers un fichier temporaire `.partial-*`, écrit un heartbeat
+//      `<UUID>.json.status`, puis déplace atomiquement ce fichier vers
+//      destPath seulement après succès.
 //   3. L'extension polle destPath toutes les 250ms ; quand le fichier
-//      apparaît elle le retourne à iOS via fetchContents completion.
+//      apparaît il est complet et elle le retourne à iOS via fetchContents
+//      completion.
 //   4. En cas d'échec, ce service écrit pending-fetches/<UUID>.json.error
 //      avec le message ; l'extension le détecte et propage l'erreur.
 //
@@ -166,20 +169,59 @@ public final class FileProviderFetchService {
         )
 
         let destination = URL(fileURLWithPath: pending.destPath)
+        let parentDirectory = destination.deletingLastPathComponent()
+        let partialDestination = parentDirectory.appending(
+            path: "\(destination.lastPathComponent).partial-\(pending.requestID)"
+        )
+        let statusURL = pendingURL.appendingPathExtension("status")
+        let errorURL = pendingURL.appendingPathExtension("error")
+        var activeJobID: Int?
         do {
             try FileManager.default.createDirectory(
-                at: destination.deletingLastPathComponent(),
+                at: parentDirectory,
                 withIntermediateDirectories: true
             )
             try? FileManager.default.removeItem(at: destination)
+            try? FileManager.default.removeItem(at: partialDestination)
+            try? FileManager.default.removeItem(at: statusURL)
+            try? FileManager.default.removeItem(at: errorURL)
+
+            writeFetchStatus(
+                stage: "running",
+                jobID: nil,
+                bytesTransferred: 0,
+                bytesTotal: 0,
+                message: nil,
+                to: statusURL
+            )
 
             let jobID = try await TransferService.shared.copyFileAsync(
                 srcFs: "\(pending.remote):",
                 srcPath: pending.path,
-                dstFs: destination.deletingLastPathComponent().path,
-                dstPath: destination.lastPathComponent
+                dstFs: parentDirectory.path,
+                dstPath: partialDestination.lastPathComponent
             )
-            try await waitForJob(jobID: jobID, method: "operations/copyfile")
+            activeJobID = jobID
+            try await waitForJob(
+                jobID: jobID,
+                method: "operations/copyfile",
+                remotePath: pending.path,
+                partialURL: partialDestination,
+                statusURL: statusURL,
+                pendingURL: pendingURL
+            )
+
+            try? FileManager.default.removeItem(at: destination)
+            try FileManager.default.moveItem(at: partialDestination, to: destination)
+            let finalSize = fileSize(at: destination)
+            writeFetchStatus(
+                stage: "completed",
+                jobID: jobID,
+                bytesTransferred: finalSize,
+                bytesTotal: finalSize,
+                message: nil,
+                to: statusURL
+            )
 
             await LogService.shared.log(
                 .info,
@@ -187,14 +229,39 @@ public final class FileProviderFetchService {
                 message: "FetchService done \(pending.remote):\(pending.path) → \(destination.lastPathComponent)"
             )
             try? FileManager.default.removeItem(at: pendingURL)
+            try? FileManager.default.removeItem(at: statusURL)
+            try? FileManager.default.removeItem(at: errorURL)
         } catch {
+            if let activeJobID {
+                try? await TransferService.shared.stopJob(jobID: activeJobID)
+            }
+            try? FileManager.default.removeItem(at: partialDestination)
+
+            if !FileManager.default.fileExists(atPath: pendingURL.path) || error is CancellationError {
+                try? FileManager.default.removeItem(at: statusURL)
+                try? FileManager.default.removeItem(at: errorURL)
+                await LogService.shared.log(
+                    .debug,
+                    category: "fileprovider",
+                    message: "FetchService canceled \(pending.remote):\(pending.path)"
+                )
+                return
+            }
+
             let message = error.localizedDescription
+            writeFetchStatus(
+                stage: "failed",
+                jobID: activeJobID,
+                bytesTransferred: fileSize(at: partialDestination),
+                bytesTotal: 0,
+                message: message,
+                to: statusURL
+            )
             await LogService.shared.log(
                 .error,
                 category: "fileprovider",
                 message: "FetchService failed \(pending.remote):\(pending.path) : \(message)"
             )
-            let errorURL = pendingURL.appendingPathExtension("error")
             try? Data(message.utf8).write(to: errorURL, options: [.atomic])
         }
     }
@@ -255,9 +322,30 @@ public final class FileProviderFetchService {
         #endif
     }
 
-    private func waitForJob(jobID: Int, method: String) async throws {
+    private func waitForJob(
+        jobID: Int,
+        method: String,
+        remotePath: String,
+        partialURL: URL,
+        statusURL: URL,
+        pendingURL: URL
+    ) async throws {
         while !Task.isCancelled {
             try await Task.sleep(for: .milliseconds(500))
+            guard FileManager.default.fileExists(atPath: pendingURL.path) else {
+                throw CancellationError()
+            }
+
+            let progress = await fetchProgressSnapshot(partialURL: partialURL, remotePath: remotePath)
+            writeFetchStatus(
+                stage: "running",
+                jobID: jobID,
+                bytesTransferred: progress.bytesTransferred,
+                bytesTotal: progress.bytesTotal,
+                message: nil,
+                to: statusURL
+            )
+
             let info = try await TransferService.shared.jobStatus(jobID: jobID)
             if info.finished {
                 if info.success { return }
@@ -269,5 +357,54 @@ public final class FileProviderFetchService {
             }
         }
         throw CancellationError()
+    }
+
+    private func writeFetchStatus(
+        stage: String,
+        jobID: Int?,
+        bytesTransferred: Int64,
+        bytesTotal: Int64,
+        message: String?,
+        to url: URL
+    ) {
+        let status = AppGroupFetchStatus(
+            stage: stage,
+            jobID: jobID,
+            bytesTransferred: bytesTransferred,
+            bytesTotal: bytesTotal,
+            updatedAt: .now,
+            message: message
+        )
+        guard let data = try? JSONEncoder().encode(status) else { return }
+        try? data.write(to: url, options: [.atomic])
+    }
+
+    private func fetchProgressSnapshot(
+        partialURL: URL,
+        remotePath: String
+    ) async -> (bytesTransferred: Int64, bytesTotal: Int64) {
+        let localBytes = fileSize(at: partialURL)
+        let partialName = partialURL.lastPathComponent
+        let sourceName = (remotePath as NSString).lastPathComponent
+
+        guard let stats = try? await TransferService.shared.coreStats(),
+              let match = stats.transferring.first(where: { transfer in
+                  transfer.name == partialName
+                      || transfer.name.hasSuffix("/\(partialName)")
+                      || transfer.name == sourceName
+                      || transfer.name.hasSuffix("/\(sourceName)")
+              }) else {
+            return (localBytes, 0)
+        }
+
+        return (
+            max(localBytes, match.bytesTransferred),
+            max(match.bytesTotal, 0)
+        )
+    }
+
+    private func fileSize(at url: URL) -> Int64 {
+        (try? FileManager.default
+            .attributesOfItem(atPath: url.path)[.size] as? Int64) ?? 0
     }
 }

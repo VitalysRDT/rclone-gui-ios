@@ -78,7 +78,7 @@ struct PerformanceSettingsView: View {
                         Text(isPaused ? "Tous les transferts en pause" : "Transferts actifs")
                             .font(.body.weight(.medium))
                         Text(isPaused
-                             ? "Les jobs en cours conservent leurs slots et reprendront au resume."
+                             ? "Les jobs en cours conservent leurs slots et reprendront à la reprise."
                              : "Mettre en pause stoppe immédiatement le débit sans annuler les jobs.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -140,7 +140,7 @@ struct PerformanceSettingsView: View {
     // MARK: - Derived
 
     private var rateLabel: String {
-        if bandwidthLimitMBps <= 0 { return "Illimité" }
+        if bandwidthLimitMBps <= 0 { return String(localized: "Illimité") }
         if bandwidthLimitMBps < 1 {
             return "\(Int(bandwidthLimitMBps * 1024)) KB/s"
         }

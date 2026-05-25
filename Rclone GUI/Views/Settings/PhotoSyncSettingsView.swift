@@ -17,7 +17,7 @@ struct PhotoSyncSettingsView: View {
     @State private var remotes: [String] = []
     @State private var enabled = false
     @State private var selectedRemote = ""
-    @State private var folder = "Phototheque"
+    @State private var folder = "Photothèque"
     @State private var requiresPower = true
     @State private var allowsCellular = false
     @State private var isSyncing = false
@@ -39,7 +39,7 @@ struct PhotoSyncSettingsView: View {
                     title: "Synchro Photos",
                     subtitle: "Backup opportuniste de ta photothèque vers un remote rclone.",
                     systemImage: "photo.stack",
-                    tint: .pink
+                    tint: RG.photoSync.accent
                 ) {
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: 10)], spacing: 10) {
                         AppMetricPill(value: "\(stats.pending)", label: "attente", systemImage: "clock", tint: .orange)
@@ -214,6 +214,7 @@ struct PhotoSyncSettingsView: View {
                         if vp.totalToCheck > 0 {
                             ProgressView(value: vp.percentage)
                                 .tint(.blue)
+                                .animation(.spring(duration: 0.35, bounce: 0.15), value: vp.percentage)
                         }
                         HStack(spacing: 12) {
                             Label("\(vp.verified)", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
@@ -228,6 +229,11 @@ struct PhotoSyncSettingsView: View {
                         .font(.caption.monospacedDigit())
                     }
                     .padding(.vertical, 4)
+                    // D7 : a11y unifiée sur le bloc verify
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel(
+                        "Vérification d'intégrité, \(vp.verified) vérifiés, \(vp.missing) manquants, \(vp.mismatch) hash différents, \(vp.unsupported) non vérifiables sur \(vp.totalToCheck) au total"
+                    )
                 }
             } header: {
                 Text("Contrôles")
@@ -244,7 +250,7 @@ struct PhotoSyncSettingsView: View {
                     Label(authorizationTitle, systemImage: authorizationIcon)
                         .foregroundStyle(authorizationTint)
                     #if os(iOS)
-                    Button("Modifier l'acces Photos") {
+                    Button("Modifier l'accès aux Photos") {
                         openPhotoSettings()
                     }
                     #endif
@@ -383,6 +389,10 @@ struct PhotoSyncSettingsView: View {
     }
 
     private func applySummary(_ summary: PhotoSyncRunSummary) {
+        // Note : on copie les compteurs ratchet-adjusted depuis le summary
+        // (countsPending/countsCompleted/indexedCount sont déjà passés à
+        // travers le ratchet côté `statusSnapshot`), donc l'affichage
+        // X/Y reste monotone.
         stats = PhotoSyncStats(
             authorization: summary.authorization,
             visible: summary.visibleAssetCount,
@@ -443,30 +453,16 @@ struct PhotoSyncSettingsView: View {
         }
     }
 
-    private func formatBytes(_ bytes: Int64) -> String {
-        ByteCountFormatter.string(fromByteCount: max(0, bytes), countStyle: .file)
-    }
+    private func formatBytes(_ bytes: Int64) -> String { PhotoSyncFormat.bytes(bytes) }
+    private func formatThroughput(_ bps: Double) -> String { PhotoSyncFormat.throughput(bps) }
+    private func formatETA(_ seconds: TimeInterval) -> String { PhotoSyncFormat.eta(seconds) }
 
-    private func formatThroughput(_ bps: Double) -> String {
-        guard bps > 1 else { return "—" }
-        return "\(ByteCountFormatter.string(fromByteCount: Int64(bps), countStyle: .file))/s"
-    }
-
-    private func formatETA(_ seconds: TimeInterval) -> String {
-        let s = Int(seconds.rounded())
-        if s < 60 { return "\(s) s" }
-        if s < 3600 { return "\(s / 60) min \(s % 60) s" }
-        let h = s / 3600
-        let m = (s % 3600) / 60
-        return "\(h) h \(m) min"
-    }
-
-    /// Total des éléments concernés par la sync en cours : ce qui est déjà
-    /// transféré + ce qui reste à faire (en cours ou en attente). On exclut
-    /// les `failed` pour ne pas gonfler artificiellement le dénominateur ;
-    /// les échecs sont visibles séparément sur la pastille rouge.
+    /// Total unifié X/Y : `effectiveTotal` du summary, qui inclut les
+    /// failed pour rester aligné avec la bannière Transferts (les
+    /// échecs comptent dans le dénominateur — sinon la barre saute
+    /// quand on bascule entre les deux écrans).
     private var totalItemCount: Int {
-        stats.completed + stats.active + stats.pending
+        stats.effectiveTotal
     }
 
     private var shouldShowProgressBar: Bool {
@@ -474,8 +470,7 @@ struct PhotoSyncSettingsView: View {
     }
 
     private var itemProgressRatio: Double {
-        guard totalItemCount > 0 else { return 0 }
-        return min(1.0, Double(stats.completed) / Double(totalItemCount))
+        stats.displayProgress
     }
 
     @ViewBuilder
@@ -486,7 +481,8 @@ struct PhotoSyncSettingsView: View {
         VStack(alignment: .leading, spacing: 6) {
             ProgressView(value: ratio)
                 .progressViewStyle(.linear)
-                .tint(stats.pausedByUser ? .gray : .pink)
+                .tint(stats.pausedByUser ? .gray : RG.photoSync.accent)
+                .animation(.spring(duration: 0.4, bounce: 0.15), value: ratio)
             HStack {
                 Text("\(stats.completed) / \(total) photos et vidéos")
                     .font(.caption)
@@ -534,20 +530,20 @@ private func reloadRecentAssets() {
     private var authorizationTitle: String {
         switch stats.authorization {
         case .limited:
-            return "Accès Photos limité"
+            return String(localized: "Accès Photos limité")
         case .denied, .restricted:
-            return "Accès Photos indisponible"
+            return String(localized: "Accès Photos indisponible")
         case .authorized, .notDetermined, .unknown:
-            return "Accès Photos"
+            return String(localized: "Accès Photos")
         }
     }
 
     private var authorizationFooter: String {
         switch stats.authorization {
         case .limited:
-            return "iOS ne donne accès qu’à la sélection actuelle. Les autres photos ne peuvent pas être indexées ni synchronisées."
+            return String(localized: "iOS ne donne accès qu’à la sélection actuelle. Les autres photos ne peuvent pas être indexées ni synchronisées.")
         case .denied, .restricted:
-            return "Autorise l’accès Photos dans Réglages pour synchroniser la photothèque."
+            return String(localized: "Autorise l’accès Photos dans Réglages pour synchroniser la photothèque.")
         case .authorized, .notDetermined, .unknown:
             return ""
         }
@@ -570,12 +566,12 @@ private func reloadRecentAssets() {
 
     private func statusLabel(_ status: PhotoSyncStatus) -> String {
         switch status {
-        case .pending: return "Attente"
-        case .exporting: return "Export"
-        case .enqueued: return "En file"
-        case .completed: return "Terminé"
-        case .failed: return "Échec"
-        case .skipped: return "Ignoré"
+        case .pending: return String(localized: "Attente")
+        case .exporting: return String(localized: "Export")
+        case .enqueued: return String(localized: "En file")
+        case .completed: return String(localized: "Terminé")
+        case .failed: return String(localized: "Échec")
+        case .skipped: return String(localized: "Ignoré")
         }
     }
 
@@ -604,4 +600,17 @@ private struct PhotoSyncStats {
     var averageBytesPerSecond: Double = 0
     var estimatedTimeRemaining: TimeInterval?
     var pausedByUser = false
+
+    /// Effective total used for the X/Y display. Mirrors
+    /// `PhotoSyncRunSummary.effectiveTotal` so both screens agree on
+    /// the denominator (includes failed, ratchet-aware).
+    var effectiveTotal: Int {
+        max(completed + active + pending + failed, indexed)
+    }
+
+    /// Monotonic 0..1 ratio sourced from the service-side ratchet.
+    var displayProgress: Double {
+        guard effectiveTotal > 0 else { return 0 }
+        return min(1.0, Double(completed) / Double(effectiveTotal))
+    }
 }

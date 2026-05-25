@@ -20,6 +20,22 @@ struct SecuritySettingsView: View {
     var body: some View {
         Form {
             Section {
+                AppHeroCard(
+                    title: "Sécurité locale",
+                    subtitle: "Protège la configuration rclone, le cache et l’accès à l’app.",
+                    systemImage: "lock.shield",
+                    tint: .green
+                ) {
+                    HStack(spacing: 10) {
+                        AppMetricPill(value: requireBiometrics ? "Actif" : "Off", label: "biométrie", systemImage: "faceid", tint: .green)
+                        AppMetricPill(value: inactivityLabel, label: "verrouillage", systemImage: "timer", tint: .blue)
+                    }
+                }
+                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                .listRowBackground(Color.clear)
+            }
+
+            Section {
                 Toggle("Face ID / Touch ID au lancement", isOn: $requireBiometrics)
                     .disabled(!biometricsAvailable)
             } footer: {
@@ -91,11 +107,26 @@ struct SecuritySettingsView: View {
     private func wipeConfig() async {
         do {
             try await ConfigStore.shared.wipe()
+            await RcloneCore.shared.invalidateConfigCache()
+            await FileProviderManager.shared.writeRemotesManifest([])
+            await MainActor.run {
+                NotificationCenter.default.post(name: .rcloneConfigurationDidChange, object: nil)
+            }
             wipeSuccess = "Configuration effacée."
             wipeError = nil
         } catch {
             wipeError = error.localizedDescription
             wipeSuccess = nil
+        }
+    }
+
+    private var inactivityLabel: String {
+        switch inactivityWipeMinutes {
+        case 0: return "Jamais"
+        case 60: return "1 h"
+        case 240: return "4 h"
+        case 1440: return "24 h"
+        default: return "\(inactivityWipeMinutes) min"
         }
     }
 }

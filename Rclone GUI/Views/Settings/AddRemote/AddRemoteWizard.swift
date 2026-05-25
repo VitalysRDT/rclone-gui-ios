@@ -63,11 +63,11 @@ struct AddRemoteWizard: View {
 
     private var navigationTitle: String {
         switch state.step {
-        case .nameAndBackend: return "Nouveau remote"
-        case .formFields:     return state.selectedBackend?.displayName ?? "Configuration"
-        case .oauth:          return "Authentification"
-        case .recapAndTest:   return "Récapitulatif"
-        case .interactiveCLI: return "Mode interactif (CLI)"
+        case .nameAndBackend: return String(localized: "Nouveau remote")
+        case .formFields:     return state.selectedBackend?.displayName ?? String(localized: "Configuration")
+        case .oauth:          return String(localized: "Authentification")
+        case .recapAndTest:   return String(localized: "Récapitulatif")
+        case .interactiveCLI: return String(localized: "Mode interactif (CLI)")
         }
     }
 

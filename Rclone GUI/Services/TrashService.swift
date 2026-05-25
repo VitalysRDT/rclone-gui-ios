@@ -291,9 +291,9 @@ public enum TrashError: LocalizedError, Equatable {
     public var errorDescription: String? {
         switch self {
         case .notAttached:
-            return "Le service de corbeille n'est pas initialisé."
+            return String(localized: "Le service de corbeille n'est pas initialisé.")
         case .destinationOccupied(let path):
-            return "Un élément existe déjà à \(path). Renommez-le ou déplacez-le avant de restaurer."
+            return String(localized: "Un élément existe déjà à \(path). Renommez-le ou déplacez-le avant de restaurer.")
         }
     }
 }

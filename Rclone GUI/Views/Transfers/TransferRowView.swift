@@ -26,17 +26,13 @@ struct TransferRowView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
-                        // Class badge — Class 1 = URLSession transport
-                        // (survives a kill); Class 2 = in-process librclone
-                        // job (resumed on cold start via the manifest).
-                        // Mirrors the design's "CLS 1" / "CLS 2" pill.
-                        Text("CLS \(transportClass)")
+                        Text(transportBadgeTitle)
                             .font(.system(size: 9, weight: .bold))
                             .tracking(0.4)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(transportBadgeTint)
                             .padding(.horizontal, 4)
                             .padding(.vertical, 1)
-                            .background(Color.secondary.opacity(0.15),
+                            .background(transportBadgeTint.opacity(0.14),
                                         in: RoundedRectangle(cornerRadius: 3, style: .continuous))
                     }
                 }
@@ -81,9 +77,9 @@ struct TransferRowView: View {
     private var statusBadge: some View {
         switch transfer.status {
         case .running:
-            AppStatusBadge(title: "En cours", systemImage: "bolt.fill", tint: .blue)
+            AppStatusBadge(title: "En cours", systemImage: "bolt.fill", tint: kindColor)
         case .enqueued:
-            AppStatusBadge(title: "En file", systemImage: "tray.and.arrow.up.fill", tint: .indigo)
+            AppStatusBadge(title: "En file", systemImage: "tray.and.arrow.up.fill", tint: transfer.sourceKind == .photoLibrary ? .pink : .indigo)
         case .pending:
             AppStatusBadge(title: "Attente", systemImage: "hourglass", tint: .gray)
         case .paused:
@@ -95,17 +91,41 @@ struct TransferRowView: View {
         }
     }
 
-    /// Surfaces the transport "class" used by the design's
-    /// `CLS 1` / `CLS 2` pill — a small visual cue about
-    /// what survives an app kill.
-    private var transportClass: Int {
-        switch transfer.kind {
-        case .download, .upload: return 1
-        case .copy, .move, .sync, .delete: return 2
+    private var transportBadgeTitle: String {
+        switch transfer.sourceKind {
+        case .photoLibrary:
+            return "PHOTOSYNC"
+        case .fileProvider:
+            return "FILES"
+        case .localFile, .localFolder:
+            return "LOCAL"
+        case .remote:
+            switch transfer.kind {
+            case .download, .upload:
+                return "URLSESSION"
+            case .copy, .move, .sync, .delete:
+                return "RCLONE"
+            }
+        }
+    }
+
+    private var transportBadgeTint: Color {
+        switch transfer.sourceKind {
+        case .photoLibrary:
+            return RG.photoSync.accent
+        case .fileProvider:
+            return .blue
+        case .localFile, .localFolder:
+            return .indigo
+        case .remote:
+            return .secondary
         }
     }
 
     private var kindIcon: String {
+        if transfer.sourceKind == .photoLibrary {
+            return "photo.on.rectangle.angled"
+        }
         switch transfer.kind {
         case .download: return "arrow.down.circle.fill"
         case .upload:   return "arrow.up.circle.fill"
@@ -117,6 +137,9 @@ struct TransferRowView: View {
     }
 
     private var kindColor: Color {
+        if transfer.sourceKind == .photoLibrary {
+            return RG.photoSync.accent
+        }
         switch transfer.kind {
         case .download: return .blue
         case .upload:   return .indigo
@@ -138,17 +161,21 @@ struct TransferRowView: View {
 
     private var displaySubtitle: String {
         let route: String
-        switch transfer.kind {
-        case .download:
-            route = "\(transfer.sourceRemote ?? "?") → local"
-        case .upload:
-            route = "\(sourceLabel) → \(transfer.destinationRemote ?? "?")"
-        case .move, .copy, .sync:
-            let src = transfer.sourceRemote ?? "?"
-            let dst = transfer.destinationRemote ?? "?"
-            route = "\(src) → \(dst)"
-        case .delete:
-            route = "Supprimer dans \(transfer.sourceRemote ?? "?")"
+        if transfer.sourceKind == .photoLibrary {
+            route = "photothèque → \(photoDestinationLabel)"
+        } else {
+            switch transfer.kind {
+            case .download:
+                route = "\(transfer.sourceRemote ?? "?") → local"
+            case .upload:
+                route = "\(sourceLabel) → \(transfer.destinationRemote ?? "?")"
+            case .move, .copy, .sync:
+                let src = transfer.sourceRemote ?? "?"
+                let dst = transfer.destinationRemote ?? "?"
+                route = "\(src) → \(dst)"
+            case .delete:
+                route = "Supprimer dans \(transfer.sourceRemote ?? "?")"
+            }
         }
         return "\(route) · \(relativeDate(transfer.startedAt))"
     }
@@ -177,27 +204,46 @@ struct TransferRowView: View {
 
     private var accessibilityText: String {
         let action: String
-        switch transfer.kind {
-        case .download: action = "Téléchargement"
-        case .upload: action = "Upload"
-        case .move: action = "Déplacement"
-        case .copy: action = "Copie"
-        case .sync: action = "Synchronisation"
-        case .delete: action = "Suppression"
+        if transfer.sourceKind == .photoLibrary {
+            action = "Synchronisation PhotoSync"
+        } else {
+            switch transfer.kind {
+            case .download: action = "Téléchargement"
+            case .upload: action = "Upload"
+            case .move: action = "Déplacement"
+            case .copy: action = "Copie"
+            case .sync: action = "Synchronisation"
+            case .delete: action = "Suppression"
+            }
         }
         return "\(action) de \(displayTitle), \(transfer.status.rawValue)"
+    }
+
+    private var photoDestinationLabel: String {
+        let remote = transfer.destinationRemote ?? transfer.sourceRemote ?? "cloud"
+        let directory = destinationDirectory
+        return directory.isEmpty ? remote : "\(remote):\(directory)"
+    }
+
+    private var destinationDirectory: String {
+        let path = transfer.destinationPath as NSString
+        let directory = path.deletingLastPathComponent
+        if directory == "." || directory == "/" {
+            return ""
+        }
+        return directory
     }
 
     private var sourceLabel: String {
         switch transfer.sourceKind {
         case .remote:
-            return "remote"
+            return String(localized: "remote")
         case .localFile:
-            return "fichier local"
+            return String(localized: "fichier local")
         case .localFolder:
-            return "dossier local"
+            return String(localized: "dossier local")
         case .photoLibrary:
-            return "photothèque"
+            return String(localized: "photothèque")
         case .fileProvider:
             return "Files"
         }

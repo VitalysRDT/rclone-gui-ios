@@ -44,17 +44,17 @@ public final class OAuthBrokerService: NSObject {
         var errorDescription: String? {
             switch self {
             case .canceled:
-                return "Authentification annulée."
+                return String(localized: "Authentification annulée.")
             case .strategyNotConfigured(let detail):
-                return "Stratégie OAuth non configurée : \(detail)"
+                return String(localized: "Stratégie OAuth non configurée : \(detail)")
             case .missingCallbackParam(let key):
-                return "Paramètre OAuth manquant : \(key)"
+                return String(localized: "Paramètre OAuth manquant : \(key)")
             case .stateMismatch:
-                return "Le code OAuth reçu ne correspond pas à la requête."
+                return String(localized: "Le code OAuth reçu ne correspond pas à la requête.")
             case .tokenExchangeFailed(let status, let body):
-                return "Échange de token échoué (HTTP \(status)) : \(body)"
+                return String(localized: "Échange de token échoué (HTTP \(status)) : \(body)")
             case .decodingFailed(let detail):
-                return "Réponse OAuth invalide : \(detail)"
+                return String(localized: "Réponse OAuth invalide : \(detail)")
             }
         }
     }

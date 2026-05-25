@@ -24,7 +24,7 @@ struct LogsView: View {
             if entries.isEmpty {
                 ContentUnavailableView("Aucun log",
                                        systemImage: "doc.text",
-                                       description: Text("Les évènements apparaitront ici dès la première action."))
+                                       description: Text("Les événements apparaîtront ici dès la première action."))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 let visibleEntries = Array(entries.prefix(displayLimit))

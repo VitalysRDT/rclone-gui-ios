@@ -101,7 +101,7 @@ struct OAuthView: View {
                             .font(.subheadline.weight(.bold))
                             .foregroundStyle(.tint)
                             .frame(width: 22, alignment: .leading)
-                        Text(step)
+                        Text(NSLocalizedString(step, comment: "OAuth setup step"))
                             .font(.callout)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -143,7 +143,7 @@ struct OAuthView: View {
                 }
 
             if let hint = config.tokenHint {
-                Text(hint)
+                Text(NSLocalizedString(hint, comment: "OAuth token hint"))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
@@ -163,7 +163,7 @@ struct OAuthView: View {
             .buttonStyle(.borderedProminent)
             .disabled(pastedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         } header: {
-            Text(config.tokenLabel)
+            Text(NSLocalizedString(config.tokenLabel, comment: "OAuth token field label"))
         }
     }
 

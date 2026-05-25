@@ -43,7 +43,8 @@ struct PhotoSyncStatsView: View {
                             y: .value("Débit", point.bytesPerSecond / 1024)
                         )
                         .interpolationMethod(.catmullRom)
-                        .foregroundStyle(.pink)
+                        .foregroundStyle(RG.photoSync.accent)
+                        // Aire = accent doux pour cohérence avec le reste de l'app
                         AreaMark(
                             x: .value("Temps", point.date),
                             y: .value("Débit", point.bytesPerSecond / 1024)
@@ -124,21 +125,9 @@ struct PhotoSyncStatsView: View {
         hashCounts = HashCounts(modelContext: modelContext)
     }
 
-    private func formatBytes(_ bytes: Int64) -> String {
-        ByteCountFormatter.string(fromByteCount: max(0, bytes), countStyle: .file)
-    }
-
-    private func formatThroughput(_ bps: Double) -> String {
-        guard bps > 1 else { return "—" }
-        return "\(ByteCountFormatter.string(fromByteCount: Int64(bps), countStyle: .file))/s"
-    }
-
-    private func formatETA(_ seconds: TimeInterval) -> String {
-        let s = Int(seconds.rounded())
-        if s < 60 { return "\(s) s" }
-        if s < 3600 { return "\(s / 60) min \(s % 60) s" }
-        return "\(s / 3600) h \((s % 3600) / 60) min"
-    }
+    private func formatBytes(_ bytes: Int64) -> String { PhotoSyncFormat.bytes(bytes) }
+    private func formatThroughput(_ bps: Double) -> String { PhotoSyncFormat.throughput(bps) }
+    private func formatETA(_ seconds: TimeInterval) -> String { PhotoSyncFormat.eta(seconds) }
 }
 
 private struct ThroughputPoint: Identifiable {

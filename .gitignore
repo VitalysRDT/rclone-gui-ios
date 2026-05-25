@@ -47,3 +47,6 @@ logs/*.log
 .build/
 Frameworks/RcloneKit.xcframework/
 
+.smoke-test-cache
+
+RcloneFileProviderUI/RcloneKit.xcframework/

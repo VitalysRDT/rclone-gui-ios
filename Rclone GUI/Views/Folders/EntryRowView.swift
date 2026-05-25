@@ -246,8 +246,8 @@ struct EntryRowView: View {
 
     private var accessibilityText: String {
         if entry.isDirectory {
-            return "Dossier \(entry.name), modifié \(formatDate(entry.modTime))"
+            return String(localized: "Dossier \(entry.name), modifié \(formatDate(entry.modTime))")
         }
-        return "Fichier \(entry.name), \(formatBytes(entry.size)), modifié \(formatDate(entry.modTime))"
+        return String(localized: "Fichier \(entry.name), \(formatBytes(entry.size)), modifié \(formatDate(entry.modTime))")
     }
 }

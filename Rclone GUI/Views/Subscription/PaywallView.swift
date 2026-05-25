@@ -231,16 +231,16 @@ struct PaywallView: View {
 
     private func defaultName(for product: Product) -> String {
         switch product.id {
-        case SubscriptionProductID.monthly: return "Mensuel"
-        case SubscriptionProductID.yearly:  return "Annuel"
+        case SubscriptionProductID.monthly: return String(localized: "Mensuel")
+        case SubscriptionProductID.yearly:  return String(localized: "Annuel")
         default: return product.id
         }
     }
 
     private func periodSubtitle(for product: Product) -> String {
         switch product.id {
-        case SubscriptionProductID.monthly: return "Renouvellement chaque mois"
-        case SubscriptionProductID.yearly:  return "Renouvellement chaque année"
+        case SubscriptionProductID.monthly: return String(localized: "Renouvellement chaque mois")
+        case SubscriptionProductID.yearly:  return String(localized: "Renouvellement chaque année")
         default: return ""
         }
     }

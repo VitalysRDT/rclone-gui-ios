@@ -22,6 +22,10 @@ struct SettingsView: View {
                     .listRowBackground(Color.clear)
             }
 
+            Section("Abonnement") {
+                SubscriptionStatusRow()
+            }
+
             Section("Configuration") {
                 Button {
                     showAddRemote = true
@@ -229,16 +233,122 @@ private struct SettingsHeaderCard: View {
 
     private var subtitle: String {
         if !hasConfig {
-            return "Aucun rclone.conf — importer pour démarrer"
+            return String(localized: "Aucun rclone.conf — importer pour démarrer")
         }
         let suffix = remoteCount == 1 ? "remote" : "remotes"
-        return "rclone.conf · \(remoteCount) \(suffix) · iCloud sync"
+        return String(localized: "rclone.conf · \(remoteCount) \(suffix) · iCloud sync")
     }
 
     private func refresh() async {
         hasConfig = await ConfigStore.shared.hasStoredConf()
         if hasConfig, let summaries = try? await RemoteService.shared.listRemoteSummaries() {
             remoteCount = summaries.count
+        }
+    }
+}
+
+private struct SubscriptionStatusRow: View {
+    @ObservedObject private var subs = SubscriptionService.shared
+    @Environment(\.openURL) private var openURL
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 12) {
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(RG.accent)
+                    .frame(width: 30, height: 30)
+                    .overlay {
+                        Image(systemName: "crown.fill")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(.white)
+                    }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(statusTitle)
+                        .font(.body.weight(.medium))
+                    Text(statusSubtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+                Spacer(minLength: 8)
+            }
+            .padding(.vertical, 4)
+
+            HStack(spacing: 8) {
+                Button {
+                    if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
+                        openURL(url)
+                    }
+                } label: {
+                    Text("Gérer mon abonnement")
+                        .font(.system(size: 14, weight: .semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 9)
+                        .background(RG.accentSoft, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                        .foregroundStyle(RG.accent)
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    Task { await subs.restorePurchases() }
+                } label: {
+                    HStack(spacing: 5) {
+                        if subs.isRestoring {
+                            ProgressView()
+                                .progressViewStyle(.circular)
+                        }
+                        Text("Restaurer")
+                            .font(.system(size: 14, weight: .semibold))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 9)
+                    .background(RG.accentSoft, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                    .foregroundStyle(RG.accent)
+                }
+                .buttonStyle(.plain)
+                .disabled(subs.isRestoring)
+            }
+        }
+    }
+
+    private var statusTitle: String {
+        switch subs.snapshot.entitlement {
+        case .trial:   return String(localized: "Essai gratuit en cours")
+        case .active:  return String(localized: "Abonnement actif")
+        case .expired: return String(localized: "Abonnement expiré")
+        case .none:    return String(localized: "Aucun abonnement")
+        }
+    }
+
+    private var statusSubtitle: String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+
+        switch subs.snapshot.entitlement {
+        case .trial:
+            if let expiration = subs.snapshot.expirationDate {
+                return String(localized: "Fin de l'essai : \(formatter.string(from: expiration))")
+            }
+            return String(localized: "7 jours offerts")
+        case .active:
+            let plan = planLabel(for: subs.snapshot.productID)
+            if let expiration = subs.snapshot.expirationDate {
+                return String(localized: "\(plan) · renouvellement : \(formatter.string(from: expiration))")
+            }
+            return plan
+        case .expired:
+            return String(localized: "Souscris à nouveau pour réutiliser l'app")
+        case .none:
+            return String(localized: "Souscris pour débloquer l'app")
+        }
+    }
+
+    private func planLabel(for productID: String?) -> String {
+        switch productID {
+        case SubscriptionProductID.monthly: return String(localized: "Mensuel — 1,99 €")
+        case SubscriptionProductID.yearly:  return String(localized: "Annuel — 19,99 €")
+        default: return String(localized: "Premium")
         }
     }
 }

@@ -50,13 +50,13 @@ public enum OAuthError: LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .notImplementedYet(let backend):
-            return "Le flow OAuth pour \(backend.displayName) sera disponible en Phase E2."
+            return String(localized: "Le flow OAuth pour \(backend.displayName) sera disponible en Phase E2.")
         case .userCancelled:
-            return "Authentification annulée."
+            return String(localized: "Authentification annulée.")
         case .missingClientID:
-            return "Client ID manquant pour ce backend (à configurer dans Settings → OAuth)."
+            return String(localized: "Client ID manquant pour ce backend (à configurer dans Settings → OAuth).")
         case .rcloneCallFailed(let msg):
-            return "Échec côté rclone : \(msg)"
+            return String(localized: "Échec côté rclone : \(msg)")
         }
     }
 }

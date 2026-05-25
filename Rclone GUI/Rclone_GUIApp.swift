@@ -74,6 +74,10 @@ struct Rclone_GUIApp: App {
                         TransferQueue.shared.attach(modelContext: sharedModelContainer.mainContext)
                         PhotoSyncService.shared.attach(modelContext: sharedModelContainer.mainContext)
                         TrashService.shared.attach(modelContext: sharedModelContainer.mainContext)
+                        // Bootstrap StoreKit : résout les entitlements actuels et
+                        // démarre l'écoute de Transaction.updates. Persiste le
+                        // snapshot dans l'App Group pour gater l'extension FileProvider.
+                        SubscriptionService.shared.bootstrap()
                     }
                     try? await ConfigStore.shared.migrateMasterKeyToSharedAccessGroupIfNeeded()
                     await LogService.emitBoot()
@@ -108,6 +112,15 @@ struct Rclone_GUIApp: App {
                     // start — exactly the symptom of "il faut tout le temps
                     // appuyer sur synchronisation".
                     Task.detached(priority: .background) { @MainActor in
+                        // E7 : nettoie d'éventuelles Live Activities
+                        // orphelines (app killée mid-sync au lancement
+                        // précédent). À faire AVANT resumeIfNeeded qui
+                        // pourrait en redémarrer une.
+                        #if os(iOS)
+                        if #available(iOS 16.2, *) {
+                            await PhotoSyncLiveActivity.endOrphanActivities()
+                        }
+                        #endif
                         await PhotoSyncService.shared.resumeIfNeeded()
                     }
                     // Hygiène cache média : supprime les .partial-* > 24h

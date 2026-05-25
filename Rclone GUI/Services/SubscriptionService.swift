@@ -49,7 +49,16 @@ public final class SubscriptionService: ObservableObject {
     /// (b) l'éligibilité de l'utilisateur (pas déjà consommé l'offre).
     @Published public private(set) var introOfferEligibility: [String: Bool] = [:]
 
+    /// Date de fin de l'essai gratuit app-managé (7 jours sans paywall) si
+    /// celui-ci est la raison du déverrouillage courant. nil si l'utilisateur
+    /// a un vrai abonnement Apple ou si l'essai est expiré.
+    @Published public private(set) var localTrialEndDate: Date?
+
     private var transactionListenerTask: Task<Void, Never>?
+
+    /// Tâche planifiée qui ré-évalue les entitlements à l'instant exact où
+    /// l'essai local expire, pour faire apparaître le paywall sans relancer l'app.
+    private var trialExpiryTask: Task<Void, Never>?
 
     private init() {
         // On part du dernier snapshot persisté (si présent) pour éviter
@@ -63,8 +72,19 @@ public final class SubscriptionService: ObservableObject {
     /// À appeler une fois au démarrage de l'app (.task racine). Lance la
     /// résolution initiale et l'écoute des updates StoreKit en arrière-plan.
     public func bootstrap() {
+        // Ancre l'essai gratuit au tout premier lancement (idempotent et
+        // robuste à la réinstallation via Keychain + iCloud KVS). Doit se faire
+        // AVANT refreshEntitlements() pour que le premier snapshot reflète
+        // déjà l'essai en cours et évite tout flash de paywall.
+        TrialStore.startTrialIfNeeded()
         Task { await refreshEntitlements() }
         startObservingTransactionUpdates()
+    }
+
+    /// Ré-évalue les entitlements (essai local inclus). À appeler quand l'app
+    /// repasse au premier plan : l'essai a pu expirer pendant qu'elle dormait.
+    public func refreshOnForeground() {
+        Task { await refreshEntitlements() }
     }
 
     private func startObservingTransactionUpdates() {
@@ -273,6 +293,26 @@ public final class SubscriptionService: ObservableObject {
             }
         }
 
+        // Essai gratuit app-managé : si StoreKit ne déverrouille pas (aucun
+        // abonnement Apple actif ou intro en cours) mais que l'essai local est
+        // encore valide, on force l'entitlement effectif à .trial. Un vrai
+        // abonnement Apple (.active) ou une intro Apple (.trial) garde toujours
+        // la priorité — on ne downgrade jamais un abonné. L'expiration portée
+        // est alors la fin de l'essai local (affichée dans Réglages).
+        let storeKitUnlocks = (bestEntitlement == .active || bestEntitlement == .trial)
+        if !storeKitUnlocks, TrialStore.isTrialActive {
+            bestEntitlement = .trial
+            bestProductID = nil
+            bestExpiration = TrialStore.trialEndDate
+            localTrialEndDate = TrialStore.trialEndDate
+        } else {
+            localTrialEndDate = nil
+        }
+
+        // Planifie le réveil à l'instant exact de l'expiration de l'essai pour
+        // faire apparaître le paywall sans attendre un relaunch ou un foreground.
+        scheduleTrialExpiryCheck(at: localTrialEndDate)
+
         let newSnapshot = SubscriptionSnapshot(
             entitlement: bestEntitlement,
             productID: bestProductID,
@@ -294,6 +334,23 @@ public final class SubscriptionService: ObservableObject {
             #if DEBUG
             print("[SubscriptionService] writeSubscription failed: \(error)")
             #endif
+        }
+    }
+
+    /// (Re)planifie une tâche qui dort jusqu'à `date` puis relance
+    /// refreshEntitlements(), afin que le paywall apparaisse pile à la fin de
+    /// l'essai gratuit même si l'app reste ouverte. Annule toute tâche
+    /// précédente. No-op si `date` est nil ou déjà passée.
+    private func scheduleTrialExpiryCheck(at date: Date?) {
+        trialExpiryTask?.cancel()
+        trialExpiryTask = nil
+        guard let date else { return }
+        let interval = date.timeIntervalSinceNow
+        guard interval > 0 else { return }
+        trialExpiryTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
+            guard !Task.isCancelled, let self else { return }
+            await self.refreshEntitlements()
         }
     }
 

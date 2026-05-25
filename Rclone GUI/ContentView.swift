@@ -18,7 +18,9 @@ struct ContentView: View {
     @State private var reviewPromptCheckTask: Task<Void, Never>?
 
     var body: some View {
-        MainTabView()
+        SubscriptionGate {
+            MainTabView()
+        }
             .alert("Un avis sur l'App Store ?", isPresented: $showReviewPrompt) {
                 Button("Mettre des étoiles") {
                     ReviewPromptService.shared.requestReview()
@@ -57,6 +59,9 @@ struct ContentView: View {
                 case .active:
                     ReviewPromptService.shared.appDidBecomeActive()
                     scheduleReviewPromptCheck()
+                    // L'essai gratuit a pu expirer pendant que l'app dormait :
+                    // on ré-évalue pour faire apparaître le paywall si besoin.
+                    SubscriptionService.shared.refreshOnForeground()
                 case .inactive, .background:
                     ReviewPromptService.shared.appDidMoveToBackground()
                 @unknown default:
@@ -82,9 +87,9 @@ struct ContentView: View {
 }
 
 #Preview {
-    ContentView()
+        ContentView()
         .modelContainer(
-            for: [Remote.self, RemoteEntry.self, Transfer.self, TransferBatch.self, PhotoSyncAsset.self],
+            for: [Remote.self, RemoteEntry.self, Transfer.self, TransferBatch.self, PhotoSyncAsset.self, TrashEntry.self, SavedLocation.self],
             inMemory: true
         )
 }

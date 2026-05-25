@@ -217,9 +217,9 @@ public enum FilesClipboardError: LocalizedError, Equatable {
         switch self {
         case .destinationConflict(let names):
             if names.count == 1 {
-                return "« \(names[0]) » existe déjà à cet emplacement."
+                return String(localized: "« \(names[0]) » existe déjà à cet emplacement.")
             }
-            return "\(names.count) éléments existent déjà à cet emplacement."
+            return String(localized: "\(names.count) éléments existent déjà à cet emplacement.")
         }
     }
 }

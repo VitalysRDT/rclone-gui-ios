@@ -74,7 +74,12 @@ actor RemoteCatalogService {
                         ?? .specialized
                     let icon = BackendOverrides.iconByBackend[rclone.name]
                         ?? "externaldrive"
+                    // Les descriptions FR vivent dans BackendOverrides comme
+                    // valeurs de dictionnaire (pas des littéraux Text), donc on
+                    // les résout via le String Catalog au runtime avec la chaîne
+                    // FR comme clé — l'utilisateur anglais voit la traduction EN.
                     let frDesc = BackendOverrides.frDescriptionByBackend[rclone.name]
+                        .map { NSLocalizedString($0, comment: "Backend description") }
                         ?? rclone.description
                     let oauth = BackendOverrides.oauthConfigs[rclone.name]
                     let fields = rclone.options.map { FieldSpec(from: $0) }

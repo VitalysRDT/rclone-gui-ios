@@ -16,7 +16,9 @@ struct TransfersView: View {
 
     @AppStorage("transfer.bandwidthLimitMBps") private var bandwidthLimitMBps: Double = 0
     @State private var isPausedGlobally = false
-    @State private var transientMessage: String?
+    /// C3 : remplace l'ancien `transientMessage` + `.alert` bloquant
+    /// par un toast non-bloquant qui se dismiss tout seul.
+    @State private var toast: AppToast?
     @State private var hapticTrigger = 0
 
     // Pagination des sections Terminés/Échoués : un historique de plusieurs
@@ -32,7 +34,7 @@ struct TransfersView: View {
     @State private var photoSyncSummary: PhotoSyncRunSummary?
     @State private var photoSyncIsEnabled = false
     @State private var photoSyncRemote: String?
-    @State private var photoSyncFolder = "Phototheque"
+    @State private var photoSyncFolder = "Photothèque"
     @State private var photoSyncActionInProgress = false
     /// Progression live du batch rclone copy en cours, uniquement utilisée
     /// pour le fichier courant et l'état inter-batch.
@@ -84,14 +86,7 @@ struct TransfersView: View {
                 .accessibilityLabel("Plus d'actions de transferts")
             }
         }
-        .alert("Info", isPresented: Binding(
-            get: { transientMessage != nil },
-            set: { if !$0 { transientMessage = nil } }
-        )) {
-            Button("OK", role: .cancel) { transientMessage = nil }
-        } message: {
-            Text(transientMessage ?? "")
-        }
+        .appToast($toast)
         .sensoryFeedback(.selection, trigger: hapticTrigger)
         .task {
             isPausedGlobally = TransferQueue.shared.isPausedGlobally
@@ -121,25 +116,25 @@ struct TransfersView: View {
                 let bytesPerSecond = Int64(bandwidthLimitMBps * 1024 * 1024)
                 try await TransferQueue.shared.resumeAllTransfers(bytesPerSecond: bytesPerSecond)
                 isPausedGlobally = false
-                transientMessage = "Transferts repris."
+                toast = AppToast(title: "Transferts repris", severity: .success)
             } else {
                 try await TransferQueue.shared.pauseAllTransfers()
                 isPausedGlobally = true
-                transientMessage = "Tous les transferts sont en pause."
+                toast = AppToast(title: "Tous les transferts sont en pause", severity: .info)
             }
             hapticTrigger &+= 1
         } catch {
-            transientMessage = "Échec : \(error.localizedDescription)"
+            toast = AppToast(title: "Échec", message: error.localizedDescription, severity: .error)
         }
     }
 
     private func retry(_ transfer: Transfer) async {
         do {
             try await TransferQueue.shared.retry(transfer)
-            transientMessage = "Retry lancé."
+            toast = AppToast(title: "Retry lancé", severity: .success)
             hapticTrigger &+= 1
         } catch {
-            transientMessage = error.localizedDescription
+            toast = AppToast(title: "Échec retry", message: error.localizedDescription, severity: .error)
         }
     }
 
@@ -150,10 +145,10 @@ struct TransfersView: View {
 
         if summary.pausedByUser {
             await PhotoSyncService.shared.resumePhotoSync()
-            transientMessage = "Synchro Photos reprise."
+            toast = AppToast(title: "Synchro Photos reprise", severity: .success)
         } else {
             await PhotoSyncService.shared.pausePhotoSync()
-            transientMessage = "Synchro Photos en pause."
+            toast = AppToast(title: "Synchro Photos en pause", severity: .info)
         }
         hapticTrigger &+= 1
         await refreshPhotoSyncState()
@@ -164,9 +159,17 @@ struct TransfersView: View {
         defer { photoSyncActionInProgress = false }
 
         let recycled = await PhotoSyncService.shared.retryFailedAssets()
-        transientMessage = recycled > 0
-            ? "\(recycled) photo(s) remise(s) en file."
-            : "Aucun échec PhotoSync à réessayer."
+        if recycled > 0 {
+            toast = AppToast(
+                title: "\(recycled) photo(s) remise(s) en file",
+                severity: .success
+            )
+        } else {
+            toast = AppToast(
+                title: "Aucun échec PhotoSync à réessayer",
+                severity: .info
+            )
+        }
         hapticTrigger &+= 1
         await refreshPhotoSyncState()
     }
@@ -342,18 +345,10 @@ struct TransfersView: View {
     // MARK: - PhotoSync helpers
 }
 
-private extension PhotoSyncRunSummary {
-    var hasTrackedPhotoSyncWork: Bool {
-        indexedCount > 0
-            || pendingCount > 0
-            || activeCount > 0
-            || completedCount > 0
-            || failedCount > 0
-            || totalBytes > 0
-            || transferredBytes > 0
-            || pausedByUser
-    }
-}
+// `hasTrackedPhotoSyncWork` is now a computed property on
+// `PhotoSyncRunSummary` itself (see PhotoSyncService.swift), so every
+// PhotoSync surface (Transfers, Settings, Home mini-card) sees the
+// same definition.
 
 private struct PhotoSyncActivityCard: View {
     let summary: PhotoSyncRunSummary?
@@ -371,7 +366,7 @@ private struct PhotoSyncActivityCard: View {
             title: "PhotoSync rclone",
             subtitle: subtitle,
             systemImage: "photo.stack",
-            tint: .pink
+            tint: RG.photoSync.accent
         ) {
             VStack(alignment: .leading, spacing: 14) {
                 statusLine
@@ -390,15 +385,15 @@ private struct PhotoSyncActivityCard: View {
 
     private var subtitle: String {
         if let remote, isEnabled {
-            return "Pipeline batché vers \(remote):\(folder)"
+            return String(localized: "Pipeline batché vers \(remote):\(folder)")
         }
         if isEnabled {
-            return "Destination rclone à finaliser avant le prochain batch."
+            return String(localized: "Destination rclone à finaliser avant le prochain batch.")
         }
         if summary?.hasTrackedPhotoSyncWork == true {
-            return "Historique PhotoSync conservé, synchro actuellement inactive."
+            return String(localized: "Historique PhotoSync conservé, synchro actuellement inactive.")
         }
-        return "Sauvegarde agrégée de la photothèque via rclone copy."
+        return String(localized: "Sauvegarde agrégée de la photothèque via rclone copy.")
     }
 
     private var statusLine: some View {
@@ -424,20 +419,24 @@ private struct PhotoSyncActivityCard: View {
             VStack(alignment: .leading, spacing: 7) {
                 ProgressView(value: progressRatio)
                     .progressViewStyle(.linear)
-                    .tint(summary.pausedByUser ? .gray : .pink)
+                    .tint(summary.pausedByUser ? .gray : RG.photoSync.accent)
+                    .animation(.spring(duration: 0.4, bounce: 0.15), value: progressRatio)
                 HStack {
                     Text(progressLabel)
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .contentTransition(.numericText())
                     Spacer()
-                    Text("\(Int((progressRatio * 100).rounded()))%")
+                    Text("\(PhotoSyncFormat.percent(progressRatio))%")
                         .font(.caption.monospacedDigit().weight(.semibold))
-                        .foregroundStyle(summary.pausedByUser ? AnyShapeStyle(.secondary) : AnyShapeStyle(Color.pink))
+                        .foregroundStyle(summary.pausedByUser ? AnyShapeStyle(.secondary) : AnyShapeStyle(RG.photoSync.accent))
+                        .contentTransition(.numericText(value: progressRatio))
                 }
                 if summary.totalBytes > 0 {
                     Text("\(formatBytes(summary.transferredBytes)) / \(formatBytes(summary.totalBytes))")
                         .font(.caption2.monospacedDigit())
                         .foregroundStyle(.tertiary)
+                        .contentTransition(.numericText())
                 }
                 if let sessionETA = summary.sessionEstimatedRemaining,
                    sessionETA > 0,
@@ -460,12 +459,17 @@ private struct PhotoSyncActivityCard: View {
     }
 
     private var metricsGrid: some View {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 84), spacing: 10)], spacing: 10) {
-            PhotoSyncMetric(value: "\(summary?.pendingCount ?? 0)", label: "attente", systemImage: "clock", tint: .orange)
-            PhotoSyncMetric(value: "\(summary?.activeCount ?? 0)", label: "actifs", systemImage: "bolt.fill", tint: .blue)
-            PhotoSyncMetric(value: "\(summary?.completedCount ?? 0)", label: "terminés", systemImage: "checkmark.circle", tint: .green)
-            PhotoSyncMetric(value: "\(summary?.failedCount ?? 0)", label: "échecs", systemImage: "exclamationmark.triangle", tint: .red)
+        // D3 : `AppMetricPill` partagé (au lieu du `PhotoSyncMetric`
+        // local dupliqué). Aligne le rendu Transferts avec PhotoSyncSettings
+        // qui utilise déjà `AppMetricPill`.
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 88), spacing: 10)], spacing: 10) {
+            AppMetricPill(value: "\(summary?.pendingCount ?? 0)", label: "attente", systemImage: "clock", tint: .orange)
+            AppMetricPill(value: "\(summary?.activeCount ?? 0)", label: "actifs", systemImage: "bolt.fill", tint: .blue)
+            AppMetricPill(value: "\(summary?.completedCount ?? 0)", label: "terminés", systemImage: "checkmark.circle", tint: .green)
+            AppMetricPill(value: "\(summary?.failedCount ?? 0)", label: "échecs", systemImage: "exclamationmark.triangle", tint: .red)
         }
+        .animation(.spring(duration: 0.35, bounce: 0.18), value: summary?.completedCount)
+        .animation(.spring(duration: 0.35, bounce: 0.18), value: summary?.failedCount)
     }
 
     /// Affichage des fichiers actuellement en cours de transfert (rclone
@@ -504,7 +508,7 @@ private struct PhotoSyncActivityCard: View {
             Button(action: onTogglePause) {
                 actionIcon(
                     summary?.pausedByUser == true ? "play.fill" : "pause.fill",
-                    tint: summary?.pausedByUser == true ? .green : .pink,
+                    tint: summary?.pausedByUser == true ? .green : RG.photoSync.accent,
                     filled: true
                 )
             }
@@ -560,16 +564,16 @@ private struct PhotoSyncActivityCard: View {
     }
 
     private var statusTitle: String {
-        guard let summary else { return "Chargement" }
-        if !isEnabled { return "Inactif" }
-        if summary.pausedByUser { return "Pause" }
+        guard let summary else { return String(localized: "Chargement") }
+        if !isEnabled { return String(localized: "Inactif") }
+        if summary.pausedByUser { return String(localized: "Pause") }
         if isRunning, liveProgress != nil { return "rclone copy" }
-        if isRunning { return "Préparation" }
-        if summary.activeCount > 0 { return "En cours" }
-        if summary.pendingCount > 0 { return "En attente" }
-        if summary.failedCount > 0 { return "À vérifier" }
-        if summary.completedCount > 0 { return "À jour" }
-        return "Prêt"
+        if isRunning { return String(localized: "Préparation") }
+        if summary.activeCount > 0 { return String(localized: "En cours") }
+        if summary.pendingCount > 0 { return String(localized: "En attente") }
+        if summary.failedCount > 0 { return String(localized: "À vérifier") }
+        if summary.completedCount > 0 { return String(localized: "À jour") }
+        return String(localized: "Prêt")
     }
 
     private var statusIcon: String {
@@ -588,49 +592,28 @@ private struct PhotoSyncActivityCard: View {
         if !isEnabled { return .secondary }
         if summary.pausedByUser { return .orange }
         if summary.failedCount > 0, summary.pendingCount == 0, summary.activeCount == 0, !isRunning { return .red }
-        if isRunning || summary.activeCount > 0 || summary.pendingCount > 0 { return .pink }
+        if isRunning || summary.activeCount > 0 || summary.pendingCount > 0 { return RG.photoSync.accent }
         return .green
     }
 
     private var progressRatio: Double {
-        guard let summary else { return 0 }
-        // Compteur cumulatif persistent (style `rclone copy -P`) :
-        // completed / (completed + active + pending + failed). Ne
-        // dépend ni de la session courante ni du byte progress du
-        // batch — la barre ne reset jamais entre 2 sessions.
-        let total = summary.completedCount
-            + summary.activeCount
-            + summary.pendingCount
-            + summary.failedCount
-        guard total > 0 else { return 0 }
-        return min(1.0, Double(summary.completedCount) / Double(total))
+        // Source unique : `displayProgress` (ratchet monotone côté
+        // service). Ne descend jamais, même si l'indexer découvre
+        // soudainement de nouvelles photos en cours de session.
+        summary?.displayProgress ?? 0
     }
 
     private var progressLabel: String {
-        guard let summary else { return "Chargement" }
-        // Compteur cumulatif global X/Y, comme `rclone copy -P`.
-        // Inclut les failed dans le dénominateur pour ne pas perdre
-        // les échecs (qui restent à retraiter).
-        let total = summary.completedCount
-            + summary.activeCount
-            + summary.pendingCount
-            + summary.failedCount
-        if total > 0 {
-            let remaining = max(0, total - summary.completedCount)
-            return "\(summary.completedCount) / \(total) photos uploadées · \(remaining) restantes"
+        guard let summary else { return String(localized: "Chargement") }
+        if summary.effectiveTotal == 0 {
+            if isRunning { return String(localized: "Préparation du prochain batch rclone") }
+            return isEnabled ? String(localized: "Aucun élément en attente") : String(localized: "PhotoSync désactivé")
         }
-        if summary.indexedCount > 0 {
-            return "\(summary.indexedCount) élément(s) indexé(s)"
-        }
-        if isRunning {
-            return "Préparation du prochain batch rclone"
-        }
-        return isEnabled ? "Aucun élément en attente" : "PhotoSync désactivé"
+        return summary.displayLabel
     }
 
     private var itemTotal: Int {
-        guard let summary else { return 0 }
-        return summary.completedCount + summary.activeCount + summary.pendingCount
+        summary?.effectiveTotal ?? 0
     }
 
     private var currentFilename: String? {
@@ -642,49 +625,14 @@ private struct PhotoSyncActivityCard: View {
         isEnabled && remote != nil
     }
 
-    private func formatBytes(_ bytes: Int64) -> String {
-        ByteCountFormatter.string(fromByteCount: max(0, bytes), countStyle: .file)
-    }
-
-    private func formatThroughput(_ bps: Double) -> String {
-        "\(ByteCountFormatter.string(fromByteCount: Int64(bps), countStyle: .file))/s"
-    }
-
-    private func formatETA(_ seconds: TimeInterval) -> String {
-        let s = Int(seconds.rounded())
-        if s < 60 { return "\(s) s" }
-        if s < 3600 { return "\(s / 60) min \(s % 60) s" }
-        return "\(s / 3600) h \((s % 3600) / 60) min"
-    }
+    private func formatBytes(_ bytes: Int64) -> String { PhotoSyncFormat.bytes(bytes) }
+    private func formatThroughput(_ bps: Double) -> String { PhotoSyncFormat.throughput(bps) }
+    private func formatETA(_ seconds: TimeInterval) -> String { PhotoSyncFormat.eta(seconds) }
 }
 
-private struct PhotoSyncMetric: View {
-    let value: String
-    let label: String
-    let systemImage: String
-    let tint: Color
-
-    var body: some View {
-        HStack(spacing: 7) {
-            Image(systemName: systemImage)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(tint)
-                .frame(width: 16)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(value)
-                    .font(.subheadline.weight(.semibold))
-                    .monospacedDigit()
-                Text(label)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-            Spacer(minLength: 0)
-        }
-        .frame(minHeight: 34, alignment: .leading)
-        .accessibilityElement(children: .combine)
-    }
-}
+// D3 : `PhotoSyncMetric` supprimé au profit d'`AppMetricPill` (partagé,
+// voir AppUIComponents.swift). Le design en pill avec glass surface
+// s'aligne sur le reste de l'app.
 
 private enum TransferFilter: String, CaseIterable, Identifiable {
     case all
@@ -696,10 +644,10 @@ private enum TransferFilter: String, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .all: return "Tous"
-        case .active: return "Actifs"
-        case .completed: return "Terminés"
-        case .failed: return "Échecs"
+        case .all: return String(localized: "Tous")
+        case .active: return String(localized: "Actifs")
+        case .completed: return String(localized: "Terminés")
+        case .failed: return String(localized: "Échecs")
         }
     }
 }
@@ -827,7 +775,7 @@ private struct TransferOverviewCard: View {
 
     private var summary: String {
         let total = transfers.count
-        return "\(total) opération\(total > 1 ? "s" : "") individuelle\(total > 1 ? "s" : "") dans l'historique"
+        return String(localized: "\(total) opération\(total > 1 ? "s" : "") individuelle\(total > 1 ? "s" : "") dans l'historique")
     }
 }
 
@@ -850,13 +798,13 @@ private struct FilterEmptyRow: View {
     private var emptyMessage: String {
         switch filter {
         case .all:
-            return "Aucun transfert"
+            return String(localized: "Aucun transfert")
         case .active:
-            return "Aucun transfert actif"
+            return String(localized: "Aucun transfert actif")
         case .completed:
-            return "Aucun transfert terminé"
+            return String(localized: "Aucun transfert terminé")
         case .failed:
-            return "Aucun transfert échoué"
+            return String(localized: "Aucun transfert échoué")
         }
     }
 }
@@ -867,6 +815,36 @@ private struct TransferringFileRow: View {
     let file: PhotoBatchLiveProgress.TransferringFile
 
     var body: some View {
+        accessibilityWrapped
+    }
+
+    @ViewBuilder
+    private var accessibilityWrapped: some View {
+        coreBody
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(a11yLabel)
+    }
+
+    /// D7 : compose une description complète pour VoiceOver — nom de
+    /// fichier + pourcentage + débit + ETA si dispo. Évite que les
+    /// éléments enfants soient lus individuellement.
+    private var a11yLabel: String {
+        var parts: [String] = [displayName]
+        if file.bytesTotal > 0 {
+            let pct = Int((Double(file.bytesTransferred) / Double(file.bytesTotal) * 100).rounded())
+            parts.append("\(pct) pour cent")
+        }
+        if file.speedBytesPerSec > 1 {
+            parts.append("débit \(PhotoSyncFormat.throughput(file.speedBytesPerSec))")
+        }
+        if let eta = file.etaSeconds, eta > 0 {
+            parts.append("ETA \(eta) secondes")
+        }
+        return parts.joined(separator: ", ")
+    }
+
+    @ViewBuilder
+    private var coreBody: some View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 6) {
                 Image(systemName: "doc")
@@ -887,7 +865,7 @@ private struct TransferringFileRow: View {
                 let clamped = min(Double(file.bytesTransferred), Double(file.bytesTotal))
                 ProgressView(value: clamped, total: Double(file.bytesTotal))
                     .progressViewStyle(.linear)
-                    .tint(.pink.opacity(0.7))
+                    .tint(RG.photoSync.accent.opacity(0.7))
                     .frame(height: 3)
                 HStack {
                     Text("\(ByteCountFormatter.string(fromByteCount: file.bytesTransferred, countStyle: .file)) / \(ByteCountFormatter.string(fromByteCount: file.bytesTotal, countStyle: .file))")
