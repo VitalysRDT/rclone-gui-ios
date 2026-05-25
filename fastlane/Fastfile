@@ -79,6 +79,32 @@ platform :ios do
     )
   end
 
+  desc "Create version 1.1, attach already-uploaded build, push metadata, submit for review"
+  lane :ship do
+    deliver(
+      api_key: asc_key,
+      app_version: "1.1",
+      build_number: "6",
+      skip_binary_upload: true,
+      skip_screenshots: true,
+      skip_metadata: false,
+      submit_for_review: true,
+      automatic_release: false,
+      force: true,
+      precheck_include_in_app_purchases: false,
+      run_precheck_before_submit: false,
+      submission_information: {
+        add_id_info_uses_idfa: false,
+        export_compliance_uses_encryption: true,
+        export_compliance_is_exempt: true,
+        export_compliance_contains_third_party_cryptography: true,
+        export_compliance_contains_proprietary_cryptography: false,
+        export_compliance_available_on_french_store: true,
+        content_rights_contains_third_party_content: false
+      }
+    )
+  end
+
   desc "Full submission: archive + upload + send for review"
   lane :submit do
     build_app(
