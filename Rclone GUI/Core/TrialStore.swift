@@ -206,4 +206,33 @@ public nonisolated enum TrialStore {
         guard ti > 0, ti.isFinite else { return nil }
         return Date(timeIntervalSince1970: ti)
     }
+
+    #if DEBUG
+    // MARK: - Reset de test (DEBUG uniquement)
+
+    /// Efface entièrement l'ancre d'essai des DEUX stores persistants, sur les
+    /// deux access groups Keychain possibles. Au prochain `startTrialIfNeeded()`
+    /// l'essai 7 jours repart de zéro — indispensable pour tester sur device
+    /// physique, où le Keychain `ThisDeviceOnly` et l'iCloud KVS survivent à une
+    /// désinstallation et ne sont pas effaçables à la main.
+    ///
+    /// Compilé uniquement en DEBUG : absent du build App Store.
+    public static func resetForTesting() {
+        // Keychain : les 2 services × (groupe partagé + groupe app-only).
+        for service in [startService, lastSeenService] {
+            deleteKeychain(service: service, accessGroup: AppGroup.keychainAccessGroup)
+            deleteKeychain(service: service, accessGroup: nil)
+        }
+        // iCloud Key-Value Store.
+        let store = NSUbiquitousKeyValueStore.default
+        store.removeObject(forKey: startKVSKey)
+        store.removeObject(forKey: lastSeenKVSKey)
+        store.synchronize()
+    }
+
+    private static func deleteKeychain(service: String, accessGroup: String?) {
+        let query = baseQuery(service: service, accessGroup: accessGroup)
+        SecItemDelete(query as CFDictionary)
+    }
+    #endif
 }

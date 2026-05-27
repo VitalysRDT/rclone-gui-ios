@@ -146,6 +146,16 @@ struct SettingsView: View {
                     )
                 }
             }
+
+            #if DEBUG
+            Section {
+                DebugTrialResetRow()
+            } header: {
+                Text("Développeur (DEBUG)")
+            } footer: {
+                Text("Efface l'ancre d'essai (Keychain + iCloud) pour rejouer les 7 jours. Absent du build App Store.")
+            }
+            #endif
         }
         .navigationTitle("Réglages")
         .sheet(isPresented: $showAddRemote) {
@@ -352,6 +362,51 @@ private struct SubscriptionStatusRow: View {
         }
     }
 }
+
+#if DEBUG
+/// Bouton de test (DEBUG only) : réinitialise l'essai gratuit puis force un
+/// rafraîchissement des droits, pour vérifier la réapparition de l'essai
+/// 7 jours sur device sans devoir reset le téléphone.
+private struct DebugTrialResetRow: View {
+    @ObservedObject private var subs = SubscriptionService.shared
+    @State private var didReset = false
+
+    var body: some View {
+        Button(role: .destructive) {
+            TrialStore.resetForTesting()
+            Task {
+                await subs.refreshEntitlements()
+                didReset = true
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                didReset = false
+            }
+        } label: {
+            HStack(spacing: 12) {
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(Color.red)
+                    .frame(width: 30, height: 30)
+                    .overlay {
+                        Image(systemName: "arrow.counterclockwise")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(.white)
+                    }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Réinitialiser l'essai")
+                        .font(.body.weight(.medium))
+                        .foregroundStyle(.primary)
+                    Text(didReset ? "Essai réinitialisé ✓" : "Repart à 7 jours au prochain ancrage")
+                        .font(.caption)
+                        .foregroundStyle(didReset ? Color.green : Color.secondary)
+                        .lineLimit(2)
+                }
+                Spacer(minLength: 8)
+            }
+            .padding(.vertical, 4)
+        }
+        .buttonStyle(.plain)
+    }
+}
+#endif
 
 private struct SettingsNavigationRow: View {
     let icon: String
