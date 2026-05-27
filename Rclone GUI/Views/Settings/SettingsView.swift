@@ -364,21 +364,29 @@ private struct SubscriptionStatusRow: View {
 }
 
 #if DEBUG
-/// Bouton de test (DEBUG only) : réinitialise l'essai gratuit puis force un
-/// rafraîchissement des droits, pour vérifier la réapparition de l'essai
-/// 7 jours sur device sans devoir reset le téléphone.
+/// Bouton de test (DEBUG only) : réinitialise l'essai gratuit en ré-ancrant
+/// une date fraîche (essai 7 jours immédiatement actif, donc PAS de paywall),
+/// puis ferme l'app pour forcer un cold start propre. À la réouverture, l'essai
+/// est tout neuf — comme un utilisateur installant l'app pour la première fois.
 private struct DebugTrialResetRow: View {
     @ObservedObject private var subs = SubscriptionService.shared
     @State private var didReset = false
 
     var body: some View {
         Button(role: .destructive) {
+            // Efface les deux stores PUIS ré-ancre Date() fraîche : l'essai 7j
+            // redevient actif tout de suite, sinon refreshEntitlements verrait
+            // « aucun essai » et afficherait le paywall.
             TrialStore.resetForTesting()
+            TrialStore.startTrialIfNeeded()
+            didReset = true
             Task {
                 await subs.refreshEntitlements()
-                didReset = true
-                try? await Task.sleep(nanoseconds: 2_000_000_000)
-                didReset = false
+                // Laisse l'iCloud KVS pousser la nouvelle date, puis ferme
+                // l'app : iOS ne sait pas se relancer seul, donc rouvre-la à la
+                // main pour un démarrage propre avec l'essai tout neuf.
+                try? await Task.sleep(nanoseconds: 1_200_000_000)
+                exit(0)
             }
         } label: {
             HStack(spacing: 12) {
@@ -394,7 +402,7 @@ private struct DebugTrialResetRow: View {
                     Text("Réinitialiser l'essai")
                         .font(.body.weight(.medium))
                         .foregroundStyle(.primary)
-                    Text(didReset ? "Essai réinitialisé ✓" : "Repart à 7 jours au prochain ancrage")
+                    Text(didReset ? "Essai à 7 jours · fermeture…" : "Repart à 7 jours puis ferme l'app")
                         .font(.caption)
                         .foregroundStyle(didReset ? Color.green : Color.secondary)
                         .lineLimit(2)
