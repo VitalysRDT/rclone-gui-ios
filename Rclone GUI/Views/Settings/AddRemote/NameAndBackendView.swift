@@ -127,7 +127,9 @@ struct NameAndBackendView: View {
             HStack {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(.secondary)
-                TextField("Rechercher (drive, S3, sftp…)", text: $state.searchQuery)
+                TextField("Recherche backend", text: $state.searchQuery, prompt: Text("Rechercher (drive, S3, sftp…)"))
+                    .labelsHidden()
+                    .textFieldStyle(.plain)
                     .rgNoAutocap()
                     .autocorrectionDisabled()
                 if !state.searchQuery.isEmpty {

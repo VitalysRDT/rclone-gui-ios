@@ -60,10 +60,12 @@ struct MoveSheetView: View {
                         }
                     }
                     let pathField = TextField(
-                        "chemin/dans/le/remote/fichier.ext",
+                        "Chemin de destination",
                         text: $dstPath,
+                        prompt: Text("chemin/dans/le/remote/fichier.ext"),
                         axis: .vertical
                     )
+                    .labelsHidden()
                     .autocorrectionDisabled(true)
                     .lineLimit(1...3)
 
@@ -204,7 +206,8 @@ struct RemoteBatchTransferSheet: View {
                         }
                     }
 
-                    let field = TextField("dossier/cible", text: $dstFolder, axis: .vertical)
+                    let field = TextField("Dossier cible", text: $dstFolder, prompt: Text("dossier/cible"), axis: .vertical)
+                        .labelsHidden()
                         .autocorrectionDisabled(true)
                         .lineLimit(1...3)
 

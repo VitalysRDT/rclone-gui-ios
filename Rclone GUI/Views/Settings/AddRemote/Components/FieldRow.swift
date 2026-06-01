@@ -59,7 +59,8 @@ struct FieldRow: View {
     private var control: some View {
         switch spec.uiKind {
         case .textInput:
-            TextField(spec.placeholder, text: $value, axis: .vertical)
+            TextField(spec.label, text: $value, prompt: Text(spec.placeholder), axis: .vertical)
+                .labelsHidden()
                 .rgNoAutocap()
                 .autocorrectionDisabled()
                 .lineLimit(1...3)
@@ -68,9 +69,9 @@ struct FieldRow: View {
             HStack {
                 Group {
                     if revealSecret {
-                        TextField(spec.placeholder, text: $value)
+                        TextField(spec.label, text: $value, prompt: Text(spec.placeholder)).labelsHidden()
                     } else {
-                        SecureField(spec.placeholder, text: $value)
+                        SecureField(spec.label, text: $value, prompt: Text(spec.placeholder)).labelsHidden()
                     }
                 }
                 .rgNoAutocap()
@@ -96,12 +97,12 @@ struct FieldRow: View {
 
         case .numberInput:
             #if os(iOS)
-            TextField(spec.placeholder, text: $value)
+            TextField(spec.label, text: $value, prompt: Text(spec.placeholder)).labelsHidden()
                 .keyboardType(.numberPad)
                 .rgNoAutocap()
                 .autocorrectionDisabled()
             #else
-            TextField(spec.placeholder, text: $value)
+            TextField(spec.label, text: $value, prompt: Text(spec.placeholder)).labelsHidden()
                 .autocorrectionDisabled()
             #endif
 
@@ -128,7 +129,7 @@ struct FieldRow: View {
                     .labelsHidden()
                     .pickerStyle(.menu)
                 }
-                TextField(spec.placeholder, text: $value)
+                TextField(spec.label, text: $value, prompt: Text(spec.placeholder)).labelsHidden()
                     .rgNoAutocap()
                     .autocorrectionDisabled()
             }
@@ -146,7 +147,7 @@ struct FieldRow: View {
             // Time fields are extremely rare (2 occurrences across all
             // 950 options). For now we just show a TextField; a real
             // DatePicker can come later when a use-case appears.
-            TextField(spec.placeholder, text: $value)
+            TextField(spec.label, text: $value, prompt: Text(spec.placeholder)).labelsHidden()
                 .rgNoAutocap()
                 .autocorrectionDisabled()
 
