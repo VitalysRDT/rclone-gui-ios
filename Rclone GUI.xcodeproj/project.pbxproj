@@ -8,7 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		278FAAC62FAF741D0019F255 /* RcloneFileProviderUI.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 278FAABC2FAF741D0019F255 /* RcloneFileProviderUI.appex */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		278FAAC92FAF741D0019F255 /* RcloneFileProvider.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 278FAAAC2FAF741D0019F255 /* RcloneFileProvider.appex */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		278FAAC92FAF741D0019F255 /* RcloneFileProvider.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 278FAAAC2FAF741D0019F255 /* RcloneFileProvider.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		27C31F6D2FBDA916005F4083 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 27C31F6C2FBDA916005F4083 /* WidgetKit.framework */; };
 		27C31F6F2FBDA916005F4083 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 27C31F6E2FBDA916005F4083 /* SwiftUI.framework */; };
 		27C31F802FBDA917005F4083 /* RclonePhotoSyncActivityExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 27C31F6A2FBDA916005F4083 /* RclonePhotoSyncActivityExtension.appex */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -555,7 +555,6 @@
 		};
 		278FAAC82FAF741D0019F255 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			platformFilter = ios;
 			target = 278FAAAB2FAF741D0019F255 /* RcloneFileProvider */;
 			targetProxy = 278FAAC72FAF741D0019F255 /* PBXContainerItemProxy */;
 		};
@@ -582,6 +581,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = RcloneFileProvider/RcloneFileProvider.entitlements;
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "RcloneFileProvider/RcloneFileProvider-macOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = B897YNXQ77;
@@ -594,10 +594,15 @@
 				INFOPLIST_KEY_CFBundleDisplayName = RcloneFileProvider;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				MACOSX_DEPLOYMENT_TARGET = 26.4;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
+				);
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = (
+					"$(inherited)",
+					"@executable_path/../../../../Frameworks",
 				);
 				MARKETING_VERSION = 1.1;
 				OTHER_LDFLAGS = (
@@ -606,7 +611,8 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "com.rougetet.rclone-gui.fileprovider";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -621,6 +627,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = RcloneFileProvider/RcloneFileProvider.entitlements;
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "RcloneFileProvider/RcloneFileProvider-macOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = B897YNXQ77;
@@ -633,10 +640,15 @@
 				INFOPLIST_KEY_CFBundleDisplayName = RcloneFileProvider;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				MACOSX_DEPLOYMENT_TARGET = 26.4;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
+				);
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = (
+					"$(inherited)",
+					"@executable_path/../../../../Frameworks",
 				);
 				MARKETING_VERSION = 1.1;
 				OTHER_LDFLAGS = (
@@ -645,7 +657,8 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "com.rougetet.rclone-gui.fileprovider";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
