@@ -10,12 +10,6 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-#if canImport(UIKit)
-import UIKit
-#elseif canImport(AppKit)
-import AppKit
-#endif
-
 struct ImportConfigView: View {
     let onImported: () -> Void
 
@@ -43,6 +37,7 @@ struct ImportConfigView: View {
                                     title: "Depuis Fichiers",
                                     subtitle: "rclone.conf"
                                 )
+                                .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
 
@@ -108,48 +103,27 @@ struct ImportConfigView: View {
                     Button("Annuler") { dismiss() }
                 }
             }
-            #if os(iOS)
-            .sheet(isPresented: $importing) {
-                DocumentPicker(
-                    contentTypes: Self.allowedContentTypes,
-                    allowsMultipleSelection: false,
-                    onPicked: { urls in
-                        importing = false
-                        guard let url = urls.first else { return }
-                        Task { await load(url) }
-                    },
-                    onCancelled: { importing = false }
-                )
+            // .fileImporter est cross-platform (iOS + macOS) et présente le
+            // sélecteur natif correctement même depuis une sheet — contrairement
+            // à NSOpenPanel.runModal() qui peut ne pas s'afficher dans ce contexte.
+            .fileImporter(
+                isPresented: $importing,
+                allowedContentTypes: Self.allowedContentTypes,
+                allowsMultipleSelection: false
+            ) { result in
+                switch result {
+                case .success(let urls):
+                    guard let url = urls.first else { return }
+                    Task { await load(url) }
+                case .failure(let err):
+                    error = "Échec de l'import : \(err.localizedDescription)"
+                }
             }
-            #elseif os(macOS)
-            .onChange(of: importing) { _, newValue in
-                guard newValue else { return }
-                importing = false
-                presentOpenPanel()
-            }
-            #endif
         }
         #if os(macOS)
         .frame(minWidth: 540, minHeight: 560)
         #endif
     }
-
-    #if os(macOS)
-    /// macOS : NSOpenPanel restreint au rclone.conf (et variantes). L'URL
-    /// retournée est security-scoped (fichier sélectionné par l'utilisateur),
-    /// donc load(_:) peut la lire comme sur iOS.
-    private func presentOpenPanel() {
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = true
-        panel.canChooseDirectories = false
-        panel.allowsMultipleSelection = false
-        panel.allowedContentTypes = Self.allowedContentTypes
-        panel.prompt = String(localized: "Importer")
-        if panel.runModal() == .OK, let url = panel.url {
-            Task { await load(url) }
-        }
-    }
-    #endif
 
     private var importHeader: some View {
         HStack(spacing: 14) {
@@ -248,43 +222,3 @@ struct ImportConfigView: View {
         }
     }
 }
-
-#if canImport(UIKit)
-private struct DocumentPicker: UIViewControllerRepresentable {
-    let contentTypes: [UTType]
-    let allowsMultipleSelection: Bool
-    let onPicked: ([URL]) -> Void
-    let onCancelled: () -> Void
-
-    func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
-        let picker = UIDocumentPickerViewController(forOpeningContentTypes: contentTypes, asCopy: true)
-        picker.allowsMultipleSelection = allowsMultipleSelection
-        picker.delegate = context.coordinator
-        return picker
-    }
-
-    func updateUIViewController(_ uiViewController: UIDocumentPickerViewController, context: Context) {}
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(onPicked: onPicked, onCancelled: onCancelled)
-    }
-
-    final class Coordinator: NSObject, UIDocumentPickerDelegate {
-        let onPicked: ([URL]) -> Void
-        let onCancelled: () -> Void
-
-        init(onPicked: @escaping ([URL]) -> Void, onCancelled: @escaping () -> Void) {
-            self.onPicked = onPicked
-            self.onCancelled = onCancelled
-        }
-
-        func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
-            onPicked(urls)
-        }
-
-        func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
-            onCancelled()
-        }
-    }
-}
-#endif
