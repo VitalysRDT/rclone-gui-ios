@@ -12,6 +12,9 @@ import UniformTypeIdentifiers
 
 #if canImport(UIKit)
 import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
 
 struct ImportConfigView: View {
     let onImported: () -> Void
@@ -101,6 +104,7 @@ struct ImportConfigView: View {
                     Button("Annuler") { dismiss() }
                 }
             }
+            #if os(iOS)
             .sheet(isPresented: $importing) {
                 DocumentPicker(
                     contentTypes: Self.allowedContentTypes,
@@ -113,8 +117,32 @@ struct ImportConfigView: View {
                     onCancelled: { importing = false }
                 )
             }
+            #elseif os(macOS)
+            .onChange(of: importing) { _, newValue in
+                guard newValue else { return }
+                importing = false
+                presentOpenPanel()
+            }
+            #endif
         }
     }
+
+    #if os(macOS)
+    /// macOS : NSOpenPanel restreint au rclone.conf (et variantes). L'URL
+    /// retournée est security-scoped (fichier sélectionné par l'utilisateur),
+    /// donc load(_:) peut la lire comme sur iOS.
+    private func presentOpenPanel() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.allowedContentTypes = Self.allowedContentTypes
+        panel.prompt = String(localized: "Importer")
+        if panel.runModal() == .OK, let url = panel.url {
+            Task { await load(url) }
+        }
+    }
+    #endif
 
     private var importHeader: some View {
         HStack(spacing: 14) {
@@ -203,6 +231,7 @@ struct ImportConfigView: View {
     }
 }
 
+#if canImport(UIKit)
 private struct DocumentPicker: UIViewControllerRepresentable {
     let contentTypes: [UTType]
     let allowsMultipleSelection: Bool
@@ -238,13 +267,6 @@ private struct DocumentPicker: UIViewControllerRepresentable {
         func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
             onCancelled()
         }
-    }
-}
-#else
-struct ImportConfigView: View {
-    let onImported: () -> Void
-    var body: some View {
-        Text("Import indisponible sur cette plateforme")
     }
 }
 #endif
