@@ -106,7 +106,7 @@ struct PhotoSyncStatsView: View {
         }
         .navigationTitle("Statistiques")
         #if os(iOS)
-        .navigationBarTitleDisplayMode(.inline)
+        .rgInlineNavTitle()
         #endif
         .task {
             await reload()

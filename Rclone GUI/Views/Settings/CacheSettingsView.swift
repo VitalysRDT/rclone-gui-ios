@@ -60,7 +60,7 @@ struct CacheSettingsView: View {
         }
         .navigationTitle("Cache")
         #if os(iOS)
-        .navigationBarTitleDisplayMode(.inline)
+        .rgInlineNavTitle()
         #endif
         .task { await refreshSize() }
     }

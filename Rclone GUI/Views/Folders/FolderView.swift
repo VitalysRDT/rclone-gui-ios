@@ -182,7 +182,7 @@ struct FolderView: View {
             .navigationTitle(displayTitle)
             .searchable(text: $query)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .navigation) {
                     if !displayedEntries.isEmpty {
                         Button(selectionMode ? "OK" : "Sélectionner") {
                             selectionMode.toggle()
@@ -233,7 +233,7 @@ struct FolderView: View {
                 )
                 .onDisappear { Task { await load() } }
             }
-            .fullScreenCover(item: $playTarget, onDismiss: {
+            .rgFullScreenCover(item: $playTarget, onDismiss: {
                 openingEntryID = nil
             }) { entry in
                 MediaPlayerHost(remote: remote, entry: entry)
@@ -362,7 +362,7 @@ struct FolderView: View {
             .sensoryFeedback(.selection, trigger: hapticImpactTrigger)
 
         #if os(iOS)
-        main.navigationBarTitleDisplayMode(.inline)
+        main.rgInlineNavTitle()
         #else
         main
         #endif
@@ -466,7 +466,7 @@ struct FolderView: View {
                 }
             }
             #if os(iOS)
-            list.listStyle(.insetGrouped)
+            list.rgInsetGroupedList()
             #else
             list
             #endif

@@ -121,7 +121,7 @@ struct HomeView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
         }
-        .background(Color(uiColor: .systemGroupedBackground))
+        .background(Color.rgGroupedBackground)
         .navigationTitle("Accueil")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {

@@ -68,7 +68,7 @@ struct MoveSheetView: View {
                     .lineLimit(1...3)
 
                     #if os(iOS)
-                    pathField.textInputAutocapitalization(.never)
+                    pathField.rgNoAutocap()
                     #else
                     pathField
                     #endif
@@ -91,7 +91,7 @@ struct MoveSheetView: View {
             }
             .navigationTitle("Déplacer")
             #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
+            .rgInlineNavTitle()
             #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -209,7 +209,7 @@ struct RemoteBatchTransferSheet: View {
                         .lineLimit(1...3)
 
                     #if os(iOS)
-                    field.textInputAutocapitalization(.never)
+                    field.rgNoAutocap()
                     #else
                     field
                     #endif
@@ -249,7 +249,7 @@ struct RemoteBatchTransferSheet: View {
             }
             .navigationTitle(operationTitle)
             #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
+            .rgInlineNavTitle()
             #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

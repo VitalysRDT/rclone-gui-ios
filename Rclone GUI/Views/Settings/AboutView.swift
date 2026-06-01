@@ -41,7 +41,7 @@ struct AboutView: View {
         }
         .navigationTitle("À propos")
         #if os(iOS)
-        .navigationBarTitleDisplayMode(.inline)
+        .rgInlineNavTitle()
         #endif
         .task {
             do {

@@ -14,6 +14,9 @@
 
 import SwiftUI
 import UniformTypeIdentifiers
+#if canImport(AppKit)
+import AppKit
+#endif
 
 struct EntryActionsMenu: View {
     let entry: RemoteEntryDTO
@@ -104,6 +107,9 @@ struct EntryActionsMenu: View {
             Button {
                 #if canImport(UIKit)
                 UIPasteboard.general.string = entry.pathInRemote
+                #elseif canImport(AppKit)
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(entry.pathInRemote, forType: .string)
                 #endif
             } label: {
                 Label("Copier le chemin (texte)", systemImage: "text.quote")
@@ -256,6 +262,8 @@ struct EntryActionsMenu: View {
             }
             #if canImport(UIKit)
             await UIApplication.shared.open(callbackURL)
+            #elseif canImport(AppKit)
+            NSWorkspace.shared.open(callbackURL)
             #endif
             await LogService.shared.log(
                 .info,
@@ -290,7 +298,7 @@ struct RenameSheetView: View {
                     let field = TextField("Nom de fichier", text: $newName)
                         .autocorrectionDisabled(true)
                     #if os(iOS)
-                    field.textInputAutocapitalization(.never)
+                    field.rgNoAutocap()
                     #else
                     field
                     #endif
@@ -304,7 +312,7 @@ struct RenameSheetView: View {
             }
             .navigationTitle("Renommer")
             #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
+            .rgInlineNavTitle()
             #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

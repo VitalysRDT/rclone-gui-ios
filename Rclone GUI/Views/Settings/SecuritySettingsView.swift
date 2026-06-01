@@ -85,7 +85,7 @@ struct SecuritySettingsView: View {
         }
         .navigationTitle("Sécurité")
         #if os(iOS)
-        .navigationBarTitleDisplayMode(.inline)
+        .rgInlineNavTitle()
         #endif
         .task {
             biometricsAvailable = await BiometricGate.shared.isAvailable()

@@ -71,7 +71,7 @@ struct LogsView: View {
         }
         .navigationTitle("Logs")
         #if os(iOS)
-        .navigationBarTitleDisplayMode(.inline)
+        .rgInlineNavTitle()
         #endif
         .toolbar {
             ToolbarItem(placement: .primaryAction) {

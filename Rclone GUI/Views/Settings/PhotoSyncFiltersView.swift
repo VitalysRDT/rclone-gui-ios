@@ -89,7 +89,7 @@ struct PhotoSyncFiltersView: View {
         }
         .navigationTitle("Filtres")
         #if os(iOS)
-        .navigationBarTitleDisplayMode(.inline)
+        .rgInlineNavTitle()
         #endif
         .task {
             load()

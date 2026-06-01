@@ -94,7 +94,7 @@ struct ImportConfigView: View {
             }
             .navigationTitle("Importer")
             #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
+            .rgInlineNavTitle()
             #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

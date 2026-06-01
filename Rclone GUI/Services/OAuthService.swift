@@ -100,6 +100,11 @@ extension OAuthService: ASWebAuthenticationPresentationContextProviding {
         // ASWebAuthenticationSession cannot present without a scene anyway,
         // so crash explicitly rather than returning a dangling anchor.
         preconditionFailure("OAuthService.presentationAnchor called without an active UIWindowScene")
+        #elseif canImport(AppKit)
+        return NSApplication.shared.keyWindow
+            ?? NSApplication.shared.mainWindow
+            ?? NSApplication.shared.windows.first
+            ?? ASPresentationAnchor()
         #else
         return ASPresentationAnchor()
         #endif

@@ -18,11 +18,11 @@
 //
 
 import Foundation
-#if canImport(ActivityKit)
+#if os(iOS)
 import ActivityKit
 #endif
 
-#if canImport(ActivityKit)
+#if os(iOS)
 @available(iOS 16.2, *)
 struct PhotoSyncActivityAttributes: ActivityAttributes {
     /// Display label of the remote being synced ("iCloud Crypt", "pCloud").

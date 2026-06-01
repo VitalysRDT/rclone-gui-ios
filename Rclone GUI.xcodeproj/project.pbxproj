@@ -7,11 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		278FAAC62FAF741D0019F255 /* RcloneFileProviderUI.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 278FAABC2FAF741D0019F255 /* RcloneFileProviderUI.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		278FAAC92FAF741D0019F255 /* RcloneFileProvider.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 278FAAAC2FAF741D0019F255 /* RcloneFileProvider.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		278FAAC62FAF741D0019F255 /* RcloneFileProviderUI.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 278FAABC2FAF741D0019F255 /* RcloneFileProviderUI.appex */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		278FAAC92FAF741D0019F255 /* RcloneFileProvider.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 278FAAAC2FAF741D0019F255 /* RcloneFileProvider.appex */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		27C31F6D2FBDA916005F4083 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 27C31F6C2FBDA916005F4083 /* WidgetKit.framework */; };
 		27C31F6F2FBDA916005F4083 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 27C31F6E2FBDA916005F4083 /* SwiftUI.framework */; };
-		27C31F802FBDA917005F4083 /* RclonePhotoSyncActivityExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 27C31F6A2FBDA916005F4083 /* RclonePhotoSyncActivityExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		27C31F802FBDA917005F4083 /* RclonePhotoSyncActivityExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 27C31F6A2FBDA916005F4083 /* RclonePhotoSyncActivityExtension.appex */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		27DAEDA1000000000000A001 /* RcloneKit.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 27DAEDA0000000000000A001 /* RcloneKit.xcframework */; };
 		27DAEDA2000000000000A001 /* RcloneKit.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 27DAEDA0000000000000A001 /* RcloneKit.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
@@ -549,11 +549,13 @@
 /* Begin PBXTargetDependency section */
 		278FAAC52FAF741D0019F255 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
+			platformFilter = ios;
 			target = 278FAABB2FAF741D0019F255 /* RcloneFileProviderUI */;
 			targetProxy = 278FAAC42FAF741D0019F255 /* PBXContainerItemProxy */;
 		};
 		278FAAC82FAF741D0019F255 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
+			platformFilter = ios;
 			target = 278FAAAB2FAF741D0019F255 /* RcloneFileProvider */;
 			targetProxy = 278FAAC72FAF741D0019F255 /* PBXContainerItemProxy */;
 		};
@@ -569,6 +571,7 @@
 		};
 		27C31F7F2FBDA917005F4083 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
+			platformFilter = ios;
 			target = 27C31F692FBDA916005F4083 /* RclonePhotoSyncActivityExtension */;
 			targetProxy = 27C31F7E2FBDA917005F4083 /* PBXContainerItemProxy */;
 		};
@@ -727,10 +730,21 @@
 				DEVELOPMENT_TEAM = B897YNXQ77;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
+				"ENABLE_INCOMING_NETWORK_CONNECTIONS[sdk=macosx*]" = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
+				ENABLE_RESOURCE_ACCESS_BLUETOOTH = NO;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = NO;
+				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
 				ENABLE_RESOURCE_ACCESS_PHOTO_LIBRARY = YES;
+				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
+				ENABLE_RESOURCE_ACCESS_USB = NO;
 				ENABLE_USER_SELECTED_FILES = readonly;
+				"ENABLE_USER_SELECTED_FILES[sdk=macosx*]" = readwrite;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(SRCROOT)/Frameworks",
@@ -789,10 +803,21 @@
 				DEVELOPMENT_TEAM = B897YNXQ77;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
+				"ENABLE_INCOMING_NETWORK_CONNECTIONS[sdk=macosx*]" = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
+				ENABLE_RESOURCE_ACCESS_BLUETOOTH = NO;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = NO;
+				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
 				ENABLE_RESOURCE_ACCESS_PHOTO_LIBRARY = YES;
+				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
+				ENABLE_RESOURCE_ACCESS_USB = NO;
 				ENABLE_USER_SELECTED_FILES = readonly;
+				"ENABLE_USER_SELECTED_FILES[sdk=macosx*]" = readwrite;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(SRCROOT)/Frameworks",

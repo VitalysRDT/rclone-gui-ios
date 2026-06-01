@@ -7,12 +7,18 @@
 //  resumable enqueueing rather than a permanent daemon.
 //
 
+#if os(iOS)
 import BackgroundTasks
+#endif
 import CryptoKit
 import Foundation
 import Photos
 import SwiftData
+#if canImport(UIKit)
 import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
 
 public enum PhotoSyncAuthorizationState: String, Sendable, Equatable {
     case authorized
@@ -329,6 +335,13 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
     public static let shared = PhotoSyncService()
 
     public nonisolated static let processingIdentifier = "com.rougetet.rclone-gui.photo-sync"
+
+    #if os(macOS)
+    /// Planificateur d'activité d'arrière-plan macOS (équivalent BGProcessingTask).
+    private lazy var backgroundActivityScheduler = NSBackgroundActivityScheduler(
+        identifier: PhotoSyncService.processingIdentifier
+    )
+    #endif
 
     private let limits = PhotoSyncLimits.standard
     private var modelContext: ModelContext?
@@ -706,6 +719,22 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         return resetCount
     }
 
+    /// Corps de travail d'une passe de synchro en arrière-plan. Partagé entre le
+    /// handler BGProcessingTask (iOS) et NSBackgroundActivityScheduler (macOS),
+    /// pour qu'iOS et macOS exécutent strictement la même logique de drain.
+    private func runBackgroundPass() async {
+        if shouldContinueUntilEmpty {
+            _ = await runSync(
+                requestedLimit: limits.enqueueBatchSize,
+                continueUntilEmpty: true,
+                includeFailedRetries: false
+            )
+        } else {
+            await syncNow(limit: limits.enqueueBatchSize)
+        }
+    }
+
+    #if os(iOS)
     public nonisolated func registerBackgroundTasks() {
         BGTaskScheduler.shared.register(
             forTaskWithIdentifier: Self.processingIdentifier,
@@ -729,6 +758,30 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         request.earliestBeginDate = Date(timeIntervalSinceNow: 20 * 60)
         try? BGTaskScheduler.shared.submit(request)
     }
+    #elseif os(macOS)
+    // macOS n'a pas BGTaskScheduler : on utilise NSBackgroundActivityScheduler,
+    // qui respecte automatiquement les conditions d'énergie/thermiques (analogue
+    // à requiresExternalPower). Pas d'enregistrement préalable requis.
+    public nonisolated func registerBackgroundTasks() {}
+
+    public func scheduleBackgroundProcessing() {
+        guard isEnabled, configuredRemote != nil else { return }
+        let scheduler = backgroundActivityScheduler
+        scheduler.repeats = true
+        scheduler.interval = 20 * 60
+        scheduler.tolerance = 5 * 60
+        scheduler.qualityOfService = .background
+        scheduler.schedule { completion in
+            Task { @MainActor in
+                await PhotoSyncService.shared.runBackgroundPass()
+                completion(.finished)
+            }
+        }
+    }
+    #else
+    public nonisolated func registerBackgroundTasks() {}
+    public func scheduleBackgroundProcessing() {}
+    #endif
 
     // MARK: - Settings
 
@@ -1164,22 +1217,16 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         }
     }
 
+    #if os(iOS)
     private func handleProcessingTask(_ task: BGProcessingTask) async {
         var expired = false
         task.expirationHandler = {
             expired = true
         }
-        if shouldContinueUntilEmpty {
-            _ = await runSync(
-                requestedLimit: limits.enqueueBatchSize,
-                continueUntilEmpty: true,
-                includeFailedRetries: false
-            )
-        } else {
-            await syncNow(limit: limits.enqueueBatchSize)
-        }
+        await runBackgroundPass()
         task.setTaskCompleted(success: !expired)
     }
+    #endif
 
     private func ensurePhotoAuthorization() async throws -> PHAuthorizationStatus {
         let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
@@ -3075,12 +3122,18 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
             return String(localized: "Mode économie d'énergie actif — la synchro reprendra automatiquement.")
         }
         guard requiresExternalPower else { return nil }
+        #if os(iOS)
         UIDevice.current.isBatteryMonitoringEnabled = true
         let state = UIDevice.current.batteryState
         if state == .charging || state == .full {
             return nil
         }
         return String(localized: "En attente du branchement secteur (option « Exiger la charge » activée).")
+        #else
+        // macOS : pas d'API UIDevice. NSBackgroundActivityScheduler respecte déjà
+        // les conditions d'énergie au niveau système ; on ne bloque pas ici.
+        return nil
+        #endif
     }
 
     nonisolated private static func stagingDirectory() throws -> URL {

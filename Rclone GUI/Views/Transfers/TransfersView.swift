@@ -61,7 +61,7 @@ struct TransfersView: View {
         }
         .navigationTitle("Transferts")
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
+            ToolbarItem(placement: .navigation) {
                 Button {
                     Task { await toggleGlobalPause() }
                 } label: {
@@ -289,7 +289,7 @@ struct TransfersView: View {
             }
         }
         #if os(iOS)
-        list.listStyle(.insetGrouped)
+        list.rgInsetGroupedList()
         #else
         list
         #endif

@@ -135,7 +135,7 @@ struct OAuthView: View {
             TextEditor(text: $pastedValue)
                 .font(.system(.callout, design: .monospaced))
                 .frame(minHeight: 100)
-                .textInputAutocapitalization(.never)
+                .rgNoAutocap()
                 .autocorrectionDisabled()
                 .onChange(of: pastedValue) { _, _ in
                     state.oauthCompleted = false

@@ -326,6 +326,12 @@ extension OAuthBrokerService: ASWebAuthenticationPresentationContextProviding {
             return ASPresentationAnchor(windowScene: scene)
         }
         preconditionFailure("OAuthBrokerService.presentationAnchor: no active UIWindowScene")
+        #elseif canImport(AppKit)
+        // macOS : ancrer la fenêtre web auth à la fenêtre active de l'app.
+        return NSApplication.shared.keyWindow
+            ?? NSApplication.shared.mainWindow
+            ?? NSApplication.shared.windows.first
+            ?? ASPresentationAnchor()
         #else
         return ASPresentationAnchor()
         #endif

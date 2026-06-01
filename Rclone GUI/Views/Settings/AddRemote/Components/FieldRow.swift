@@ -60,7 +60,7 @@ struct FieldRow: View {
         switch spec.uiKind {
         case .textInput:
             TextField(spec.placeholder, text: $value, axis: .vertical)
-                .textInputAutocapitalization(.never)
+                .rgNoAutocap()
                 .autocorrectionDisabled()
                 .lineLimit(1...3)
 
@@ -73,7 +73,7 @@ struct FieldRow: View {
                         SecureField(spec.placeholder, text: $value)
                     }
                 }
-                .textInputAutocapitalization(.never)
+                .rgNoAutocap()
                 .autocorrectionDisabled()
 
                 Button {
@@ -98,7 +98,7 @@ struct FieldRow: View {
             #if os(iOS)
             TextField(spec.placeholder, text: $value)
                 .keyboardType(.numberPad)
-                .textInputAutocapitalization(.never)
+                .rgNoAutocap()
                 .autocorrectionDisabled()
             #else
             TextField(spec.placeholder, text: $value)
@@ -129,7 +129,7 @@ struct FieldRow: View {
                     .pickerStyle(.menu)
                 }
                 TextField(spec.placeholder, text: $value)
-                    .textInputAutocapitalization(.never)
+                    .rgNoAutocap()
                     .autocorrectionDisabled()
             }
 
@@ -147,7 +147,7 @@ struct FieldRow: View {
             // 950 options). For now we just show a TextField; a real
             // DatePicker can come later when a use-case appears.
             TextField(spec.placeholder, text: $value)
-                .textInputAutocapitalization(.never)
+                .rgNoAutocap()
                 .autocorrectionDisabled()
 
         case .oauth:

@@ -35,7 +35,7 @@ struct RemotePreviewHost: View {
                 onPin: nil
             )
             .navigationTitle(entry.name)
-            .navigationBarTitleDisplayMode(.inline)
+            .rgInlineNavTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Fermer") { dismiss() }
@@ -76,7 +76,7 @@ struct RemotePreviewHost: View {
                     QuickLookPreview(url: localURL)
                         .ignoresSafeArea()
                         .navigationTitle(entry.name)
-                        .navigationBarTitleDisplayMode(.inline)
+                        .rgInlineNavTitle()
                         .toolbar {
                             ToolbarItem(placement: .cancellationAction) {
                                 Button("OK") { showingQuickLook = false }
@@ -170,7 +170,7 @@ struct RemoteExternalOpenHost: View {
                 }
             }
             .navigationTitle(entry.name)
-            .navigationBarTitleDisplayMode(.inline)
+            .rgInlineNavTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Fermer") { dismiss() }
@@ -249,6 +249,101 @@ private struct ActivityView: UIViewControllerRepresentable {
     }
 
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+}
+#elseif canImport(AppKit)
+import AppKit
+
+// macOS : on prépare le fichier localement (même pipeline MediaCacheService que
+// sur iOS) puis on délègue à Finder / l'app par défaut via NSWorkspace.
+// QuickLook in-window (QLPreviewView) est une amélioration prévue en P4.
+private struct MacFilePreparationHost: View {
+    let remote: String
+    let entry: RemoteEntryDTO
+    let title: String
+
+    @State private var localURL: URL?
+    @State private var isLoading = true
+    @State private var error: String?
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if isLoading {
+                    VStack(spacing: 12) {
+                        ProgressView().controlSize(.large)
+                        Text("Préparation du fichier…")
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if let localURL {
+                    ContentUnavailableView {
+                        Label("Fichier prêt", systemImage: "doc.badge.arrow.up")
+                    } description: {
+                        Text(localURL.lastPathComponent)
+                            .lineLimit(2)
+                            .truncationMode(.middle)
+                    } actions: {
+                        Button {
+                            NSWorkspace.shared.open(localURL)
+                        } label: {
+                            Label("Ouvrir", systemImage: "arrow.up.forward.app")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        Button {
+                            NSWorkspace.shared.activateFileViewerSelecting([localURL])
+                        } label: {
+                            Label("Afficher dans le Finder", systemImage: "folder")
+                        }
+                    }
+                } else {
+                    ContentUnavailableView {
+                        Label("Aperçu impossible", systemImage: "exclamationmark.triangle")
+                    } description: {
+                        Text(error ?? "Le fichier n'a pas pu être préparé.")
+                    }
+                }
+            }
+            .navigationTitle(entry.name)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Fermer") { dismiss() }
+                }
+            }
+        }
+        .task { await prepare() }
+    }
+
+    private func prepare() async {
+        isLoading = true
+        defer { isLoading = false }
+        do {
+            localURL = try await MediaCacheService.shared.localPlayableURL(
+                remote: remote,
+                path: entry.pathInRemote,
+                sizeHint: entry.size,
+                policy: .reuseIfCached
+            )
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+}
+
+struct RemotePreviewHost: View {
+    let remote: String
+    let entry: RemoteEntryDTO
+    var body: some View {
+        MacFilePreparationHost(remote: remote, entry: entry, title: entry.name)
+    }
+}
+
+struct RemoteExternalOpenHost: View {
+    let remote: String
+    let entry: RemoteEntryDTO
+    var body: some View {
+        MacFilePreparationHost(remote: remote, entry: entry, title: entry.name)
+    }
 }
 #else
 struct RemotePreviewHost: View {

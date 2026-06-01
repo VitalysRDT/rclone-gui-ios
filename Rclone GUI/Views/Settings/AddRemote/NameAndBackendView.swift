@@ -92,7 +92,7 @@ struct NameAndBackendView: View {
     private var nameSection: some View {
         Section {
             TextField("ex : mondrive", text: $state.name)
-                .textInputAutocapitalization(.never)
+                .rgNoAutocap()
                 .autocorrectionDisabled()
                 .focused($nameFocused)
                 .submitLabel(.next)
@@ -124,7 +124,7 @@ struct NameAndBackendView: View {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(.secondary)
                 TextField("Rechercher (drive, S3, sftp…)", text: $state.searchQuery)
-                    .textInputAutocapitalization(.never)
+                    .rgNoAutocap()
                     .autocorrectionDisabled()
                 if !state.searchQuery.isEmpty {
                     Button {

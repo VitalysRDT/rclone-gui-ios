@@ -32,7 +32,7 @@ struct AddRemoteWizard: View {
             currentStepView
                 .navigationTitle(navigationTitle)
                 #if os(iOS)
-                .navigationBarTitleDisplayMode(.inline)
+                .rgInlineNavTitle()
                 #endif
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {

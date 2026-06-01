@@ -172,7 +172,7 @@ struct InteractiveCLIView: View {
     private var inputField: some View {
         if session.current?.isPassword == true {
             SecureField("mot de passe", text: $input)
-                .textInputAutocapitalization(.never)
+                .rgNoAutocap()
                 .autocorrectionDisabled()
                 .foregroundStyle(palette.answerText)
                 .font(.system(.body, design: .monospaced))
@@ -180,9 +180,11 @@ struct InteractiveCLIView: View {
                 .onSubmit(send)
         } else {
             TextField("réponse", text: $input)
-                .textInputAutocapitalization(.never)
+                .rgNoAutocap()
                 .autocorrectionDisabled()
+                #if os(iOS)
                 .keyboardType(keyboard(for: session.current))
+                #endif
                 .foregroundStyle(palette.answerText)
                 .font(.system(.body, design: .monospaced))
                 .submitLabel(.send)
@@ -261,6 +263,7 @@ struct InteractiveCLIView: View {
         Task { await session.submit(payload) }
     }
 
+    #if os(iOS)
     private func keyboard(for option: RcloneOptionSchema?) -> UIKeyboardType {
         guard let option else { return .default }
         switch option.type.lowercased() {
@@ -277,6 +280,7 @@ struct InteractiveCLIView: View {
             return .default
         }
     }
+    #endif
 
     private func finalize() async {
         guard session.isDone else { return }

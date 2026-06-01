@@ -9,6 +9,8 @@ import SwiftData
 import SwiftUI
 #if os(iOS)
 import UIKit
+#elseif canImport(AppKit)
+import AppKit
 #endif
 
 struct PhotoSyncSettingsView: View {
@@ -70,7 +72,7 @@ struct PhotoSyncSettingsView: View {
                 TextField("Dossier distant", text: $folder)
                     .autocorrectionDisabled(true)
                     #if os(iOS)
-                    .textInputAutocapitalization(.never)
+                    .rgNoAutocap()
                     #endif
             } footer: {
                 Text("Backup iPhone vers rclone uniquement. Les originaux HEIC/MOV sont conservés, aucune suppression locale automatique.")
@@ -249,11 +251,9 @@ struct PhotoSyncSettingsView: View {
                 Section {
                     Label(authorizationTitle, systemImage: authorizationIcon)
                         .foregroundStyle(authorizationTint)
-                    #if os(iOS)
                     Button("Modifier l'accès aux Photos") {
                         openPhotoSettings()
                     }
-                    #endif
                 } footer: {
                     Text(authorizationFooter)
                 }
@@ -301,7 +301,7 @@ struct PhotoSyncSettingsView: View {
         }
         .navigationTitle("Synchro Photos")
         #if os(iOS)
-        .navigationBarTitleDisplayMode(.inline)
+        .rgInlineNavTitle()
         #endif
         .task {
             await load()
@@ -557,12 +557,16 @@ private func reloadRecentAssets() {
         stats.authorization == .limited ? .orange : .red
     }
 
-    #if os(iOS)
     private func openPhotoSettings() {
+        #if os(iOS)
         guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
         UIApplication.shared.open(url)
+        #elseif os(macOS)
+        // Ouvre directement le volet Confidentialité → Photos des Réglages Système.
+        guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Photos") else { return }
+        NSWorkspace.shared.open(url)
+        #endif
     }
-    #endif
 
     private func statusLabel(_ status: PhotoSyncStatus) -> String {
         switch status {

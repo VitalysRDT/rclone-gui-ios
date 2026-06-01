@@ -68,13 +68,32 @@ struct MediaPlayerView: UIViewControllerRepresentable {
     }
 }
 #else
-// macOS placeholder — AVPlayerView is in AVKit on macOS but needs a different bridge.
+// macOS : lecteur natif via le VideoPlayer SwiftUI (AVKit), avec contrôles de
+// transport macOS. Même signature que la version iOS pour ne pas toucher
+// MediaPlayerHost.
 struct MediaPlayerView: View {
     let url: URL
     let title: String?
+    var sizeHint: Int64 = 0
+
+    @State private var player: AVPlayer?
+
     var body: some View {
-        Text("Lecteur vidéo non disponible sur cette plateforme")
-            .padding()
+        VideoPlayer(player: player)
+            .onAppear {
+                // Note : AVPlayerItem.externalMetadata (titre Now Playing) est
+                // indisponible sur macOS — on s'en passe ici.
+                let p = AVPlayer(url: url)
+                p.automaticallyWaitsToMinimizeStalling = true
+                p.currentItem?.preferredForwardBufferDuration = 2.0
+                player = p
+                p.play()
+            }
+            .onDisappear {
+                player?.pause()
+                player?.replaceCurrentItem(with: nil)
+                player = nil
+            }
     }
 }
 #endif

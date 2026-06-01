@@ -155,6 +155,10 @@ struct Rclone_GUIApp: App {
                 }
         }
         .modelContainer(sharedModelContainer)
+        #if os(macOS)
+        .defaultSize(width: 1100, height: 720)
+        .windowResizability(.contentMinSize)
+        #endif
     }
 }
 

@@ -161,7 +161,7 @@ struct FilesRootView: View {
                         .listRowInsets(EdgeInsets())
                 }
             }
-            .listStyle(.insetGrouped)
+            .rgInsetGroupedList()
     }
 
     private var filesList: some View {
@@ -250,7 +250,7 @@ struct FilesRootView: View {
                 Text("Touche un remote pour ouvrir sa racine. Les favoris et récents restent locaux à cet appareil.")
             }
         }
-        .listStyle(.insetGrouped)
+        .rgInsetGroupedList()
     }
 
     private func refreshIfNeeded() async {

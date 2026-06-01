@@ -35,6 +35,16 @@ extension Color {
         return Color(nsColor: .controlBackgroundColor)
         #endif
     }
+
+    /// Cross-platform replacement for `Color(.systemGroupedBackground)`,
+    /// the page background behind grouped lists.
+    static var rgGroupedBackground: Color {
+        #if canImport(UIKit)
+        return Color(uiColor: .systemGroupedBackground)
+        #else
+        return Color(nsColor: .windowBackgroundColor)
+        #endif
+    }
 }
 
 // MARK: - Tokens
