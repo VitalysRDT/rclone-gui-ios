@@ -171,4 +171,20 @@ platform :mac do
       run_precheck_before_submit: false
     )
   end
+
+  desc "Push macOS screenshots only (en-US + fr-FR)"
+  lane :upload_mac_screenshots do
+    deliver(
+      api_key: asc_key,
+      platform: "osx",
+      screenshots_path: "./fastlane/screenshots-mac",
+      app_version: "1.2",
+      skip_binary_upload: true,
+      skip_metadata: true,
+      skip_screenshots: false,
+      overwrite_screenshots: true,
+      force: true,
+      run_precheck_before_submit: false
+    )
+  end
 end
