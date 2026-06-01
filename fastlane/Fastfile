@@ -139,3 +139,36 @@ platform :ios do
     )
   end
 end
+
+platform :mac do
+  desc "Archive the macOS Release build (App Store) and upload to App Store Connect"
+  lane :upload_mac do
+    # Charge la clé API DANS le lane context AVANT build_app pour que gym passe
+    # -authenticationKey* à xcodebuild archive ET export → -allowProvisioningUpdates
+    # peut créer les profils Mac App Store (app + extension) au premier build Mac.
+    key = asc_key
+    build_app(
+      scheme: "Rclone GUI",
+      destination: "generic/platform=macOS",
+      export_method: "app-store",
+      configuration: "Release",
+      clean: false,
+      output_directory: "build/mac",
+      # RcloneKit n'a qu'une tranche macos/arm64 (cible Apple Silicon) ;
+      # l'archive Release par défaut tente arm64+x86_64 → échec de link de
+      # l'extension. On force arm64 uniquement.
+      xcargs: "-allowProvisioningUpdates ARCHS=arm64"
+    )
+    deliver(
+      api_key: key,
+      platform: "osx",
+      pkg: lane_context[SharedValues::PKG_OUTPUT_PATH],
+      skip_screenshots: true,
+      skip_metadata: true,
+      skip_binary_upload: false,
+      submit_for_review: false,
+      force: true,
+      run_precheck_before_submit: false
+    )
+  end
+end

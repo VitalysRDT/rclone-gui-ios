@@ -604,6 +604,7 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.4;
+				"EXCLUDED_ARCHS[sdk=macosx*]" = x86_64;
 				MARKETING_VERSION = 1.2;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
@@ -650,6 +651,7 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.4;
+				"EXCLUDED_ARCHS[sdk=macosx*]" = x86_64;
 				MARKETING_VERSION = 1.2;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
@@ -781,6 +783,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 26.4;
+				"EXCLUDED_ARCHS[sdk=macosx*]" = x86_64;
 				MARKETING_VERSION = 1.2;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
@@ -854,6 +857,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 26.4;
+				"EXCLUDED_ARCHS[sdk=macosx*]" = x86_64;
 				MARKETING_VERSION = 1.2;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
@@ -1008,6 +1012,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
 				MACOSX_DEPLOYMENT_TARGET = 26.4;
+				"EXCLUDED_ARCHS[sdk=macosx*]" = x86_64;
 				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.rougetet.rclone-gui.tests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1035,6 +1040,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
 				MACOSX_DEPLOYMENT_TARGET = 26.4;
+				"EXCLUDED_ARCHS[sdk=macosx*]" = x86_64;
 				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.rougetet.rclone-gui.tests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1061,6 +1067,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
 				MACOSX_DEPLOYMENT_TARGET = 26.4;
+				"EXCLUDED_ARCHS[sdk=macosx*]" = x86_64;
 				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.rougetet.rclone-gui.uitests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1087,6 +1094,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
 				MACOSX_DEPLOYMENT_TARGET = 26.4;
+				"EXCLUDED_ARCHS[sdk=macosx*]" = x86_64;
 				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.rougetet.rclone-gui.uitests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
