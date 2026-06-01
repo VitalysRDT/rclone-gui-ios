@@ -64,7 +64,7 @@ struct ImportConfigView: View {
                 } header: {
                     Text("Source")
                 } footer: {
-                    Text("Le fichier sera chiffré et stocké localement. Tes clés ne quittent jamais l’iPhone.")
+                    Text("Le fichier sera chiffré et stocké localement. Tes clés ne quittent jamais ton appareil.")
                 }
 
                 Section {
@@ -125,6 +125,9 @@ struct ImportConfigView: View {
             }
             #endif
         }
+        #if os(macOS)
+        .frame(minWidth: 540, minHeight: 560)
+        #endif
     }
 
     #if os(macOS)

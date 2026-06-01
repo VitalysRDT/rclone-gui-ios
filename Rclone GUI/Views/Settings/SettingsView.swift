@@ -238,7 +238,11 @@ private struct SettingsHeaderCard: View {
         // Best-effort from Apple ID iCloud account; falls back to a
         // generic label when iCloud isn't reachable. We don't ship a
         // user store, so this stays a UI-only signal.
-        "Mon iPhone"
+        #if os(macOS)
+        return String(localized: "Mon Mac")
+        #else
+        return String(localized: "Mon iPhone")
+        #endif
     }
 
     private var subtitle: String {

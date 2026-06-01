@@ -75,7 +75,7 @@ struct PhotoSyncSettingsView: View {
                     .rgNoAutocap()
                     #endif
             } footer: {
-                Text("Backup iPhone vers rclone uniquement. Les originaux HEIC/MOV sont conservés, aucune suppression locale automatique.")
+                Text("Backup de ta photothèque vers rclone uniquement. Les originaux HEIC/MOV sont conservés, aucune suppression locale automatique.")
             }
 
             Section {

@@ -131,7 +131,7 @@ struct OnboardingView: View {
                 }
                 .buttonStyle(.plain)
 
-                Text("Tes clés ne quittent jamais l’iPhone")
+                Text("Tes clés ne quittent jamais ton appareil")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
                     .padding(.top, 4)

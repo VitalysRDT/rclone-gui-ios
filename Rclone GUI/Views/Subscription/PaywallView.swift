@@ -109,7 +109,7 @@ struct PaywallView: View {
                 icon: "lock.fill",
                 tint: RG.accent,
                 title: "Crypt rclone illimité",
-                subtitle: "AES-256, déchiffrement à la volée, clés sur ton iPhone"
+                subtitle: "AES-256, déchiffrement à la volée, clés sur ton appareil"
             )
             featureRow(
                 icon: "photo.on.rectangle.angled",
