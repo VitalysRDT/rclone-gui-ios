@@ -50,7 +50,9 @@ platform :ios do
       skip_screenshots: false,
       skip_metadata: true,
       overwrite_screenshots: true,
-      force: true
+      force: true,
+      precheck_include_in_app_purchases: false,
+      run_precheck_before_submit: false
     )
   end
 
