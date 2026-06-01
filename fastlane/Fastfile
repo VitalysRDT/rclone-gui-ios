@@ -111,6 +111,9 @@ platform :ios do
   lane :submit do
     build_app(
       scheme: "Rclone GUI",
+      # Le projet liste désormais iphoneos/macosx/xros : sans destination
+      # explicite, gym auto-détecte visionOS. On force iOS.
+      destination: "generic/platform=iOS",
       export_method: "app-store",
       configuration: "Release",
       clean: true,
@@ -200,6 +203,31 @@ platform :mac do
       overwrite_screenshots: true,
       force: true,
       run_precheck_before_submit: false
+    )
+  end
+
+  desc "Submit the macOS 1.2 version for review (build already uploaded)"
+  lane :submit_mac do
+    deliver(
+      api_key: asc_key,
+      platform: "osx",
+      app_version: "1.2",
+      submit_for_review: true,
+      automatic_release: false,
+      skip_binary_upload: true,
+      skip_screenshots: true,
+      skip_metadata: true,
+      force: true,
+      run_precheck_before_submit: false,
+      submission_information: {
+        add_id_info_uses_idfa: false,
+        export_compliance_uses_encryption: true,
+        export_compliance_is_exempt: true,
+        export_compliance_contains_third_party_cryptography: true,
+        export_compliance_contains_proprietary_cryptography: false,
+        export_compliance_available_on_french_store: true,
+        content_rights_contains_third_party_content: false
+      }
     )
   end
 end
