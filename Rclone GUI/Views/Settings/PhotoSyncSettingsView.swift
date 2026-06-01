@@ -87,7 +87,7 @@ struct PhotoSyncSettingsView: View {
                 Text("Par défaut, les gros uploads attendent Wi-Fi + charge. iOS décide quand les tâches arrière-plan peuvent reprendre.")
             }
 
-            #if os(iOS)
+            #if os(iOS) || os(macOS)
             Section {
                 NavigationLink {
                     PhotoSyncAlbumPicker()
@@ -129,7 +129,7 @@ struct PhotoSyncSettingsView: View {
             }
             #endif
 
-            #if os(iOS)
+            #if os(iOS) || os(macOS)
             if let suspensionReason {
                 Section {
                     Label {
@@ -306,7 +306,7 @@ struct PhotoSyncSettingsView: View {
         .task {
             await load()
             await reloadStats()
-            #if os(iOS)
+            #if os(iOS) || os(macOS)
             selectedAlbumCount = PhotoSyncAlbumStore.load().count
             activeFilterCount = PhotoSyncService.shared.filters.activeCount
             suspensionReason = PhotoSyncService.shared.suspensionReason
@@ -327,7 +327,7 @@ struct PhotoSyncSettingsView: View {
                 try? await Task.sleep(for: interval)
                 await reloadStats()
                 verifyProgress = PhotoSyncService.shared.verifyProgress
-                #if os(iOS)
+                #if os(iOS) || os(macOS)
                 suspensionReason = PhotoSyncService.shared.suspensionReason
                 #endif
             }
@@ -336,7 +336,7 @@ struct PhotoSyncSettingsView: View {
             // Refresh count when returning from the album picker.
             // Reste séparé du .task pour capter le retour depuis NavigationLink
             // (l'album picker pop ne re-déclenche pas le .task).
-            #if os(iOS)
+            #if os(iOS) || os(macOS)
             selectedAlbumCount = PhotoSyncAlbumStore.load().count
             activeFilterCount = PhotoSyncService.shared.filters.activeCount
             #endif

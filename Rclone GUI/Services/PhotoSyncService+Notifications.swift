@@ -12,9 +12,11 @@
 //     permission, the call is a no-op (UNNotificationCenter ignores the request).
 //
 
-#if os(iOS)
+#if os(iOS) || os(macOS)
 import Foundation
+#if canImport(UIKit)
 import UIKit
+#endif
 import UserNotifications
 
 extension PhotoSyncService {

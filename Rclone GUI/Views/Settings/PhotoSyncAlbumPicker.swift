@@ -10,7 +10,7 @@
 //  An empty selection means "every visible photo" (current default behavior).
 //
 
-#if os(iOS)
+#if os(iOS) || os(macOS)
 import Photos
 import SwiftUI
 

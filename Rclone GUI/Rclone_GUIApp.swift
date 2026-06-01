@@ -13,7 +13,7 @@ struct Rclone_GUIApp: App {
     init() {
         prepareRuntime()
         PhotoSyncService.shared.registerBackgroundTasks()
-        #if os(iOS)
+        #if os(iOS) || os(macOS)
         PhotoSyncService.registerNotificationCategories()
         #endif
     }

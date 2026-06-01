@@ -1064,7 +1064,7 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
     @discardableResult
     public func syncNow(limit: Int = 10) async -> PhotoSyncRunSummary {
         let summary = await runSync(requestedLimit: limit, continueUntilEmpty: false, includeFailedRetries: true)
-        #if os(iOS)
+        #if os(iOS) || os(macOS)
         await postSyncCompleteNotification(uploaded: summary.completedCount, failed: summary.failedCount)
         #endif
         return summary
@@ -1078,7 +1078,7 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
             continueUntilEmpty: true,
             includeFailedRetries: true
         )
-        #if os(iOS)
+        #if os(iOS) || os(macOS)
         await postSyncCompleteNotification(uploaded: summary.completedCount, failed: summary.failedCount)
         #endif
         return summary
