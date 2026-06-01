@@ -165,8 +165,10 @@ struct HomeView: View {
 
     private var statusHero: some View {
         AppHeroCard(
-            title: heroTitle,
-            subtitle: heroSubtitle,
+            // heroTitle/heroSubtitle sont déjà localisés (String(localized:)) ;
+            // on les affiche verbatim via LocalizedStringKey(_:).
+            title: LocalizedStringKey(heroTitle),
+            subtitle: LocalizedStringKey(heroSubtitle),
             systemImage: hasConfig ? "externaldrive.connected.to.line.below" : "doc.badge.gearshape",
             tint: hasConfig ? .blue : .orange
         ) {
@@ -180,7 +182,7 @@ struct HomeView: View {
             if let loadError {
                 AppInlineMessage(
                     title: "Lecture partielle",
-                    message: loadError,
+                    message: LocalizedStringKey(loadError),
                     systemImage: "exclamationmark.triangle.fill",
                     tint: .orange
                 )
@@ -220,7 +222,7 @@ struct HomeView: View {
                     NavigationLink(value: firstRemoteDestination) {
                         AppActionTile(
                             title: "Parcourir",
-                            subtitle: firstRemoteSubtitle,
+                            subtitle: LocalizedStringKey(firstRemoteSubtitle),
                             systemImage: "folder",
                             tint: .green
                         )
@@ -328,7 +330,7 @@ struct HomeView: View {
         empty: AppEmptyStateView?
     ) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            AppSectionHeader(title: title, subtitle: subtitle, systemImage: title == "Favoris" ? "pin.fill" : "clock")
+            AppSectionHeader(title: LocalizedStringKey(title), subtitle: LocalizedStringKey(subtitle), systemImage: title == "Favoris" ? "pin.fill" : "clock")
             if locations.isEmpty {
                 if let empty {
                     empty

@@ -84,9 +84,9 @@ struct ImportConfigView: View {
                     }
 
                     if let success {
-                        AppInlineMessage(title: "Configuration importée", message: success, systemImage: "checkmark.circle.fill", tint: .green)
+                        AppInlineMessage(title: "Configuration importée", message: LocalizedStringKey(success), systemImage: "checkmark.circle.fill", tint: .green)
                     } else if let error {
-                        AppInlineMessage(title: "Import impossible", message: error, systemImage: "exclamationmark.triangle.fill", tint: .red)
+                        AppInlineMessage(title: "Import impossible", message: LocalizedStringKey(error), systemImage: "exclamationmark.triangle.fill", tint: .red)
                     }
                 }
                 .padding(20)

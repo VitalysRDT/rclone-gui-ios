@@ -194,6 +194,16 @@
         }
       }
     },
+    "« Standard » chiffre noms de fichiers et dossiers. « En clair » garde les noms lisibles (utile pour retrouver des fichiers côté fournisseur).": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“Standard” encrypts file and folder names. “Plain” keeps names readable (handy to find files on the provider side)."
+          }
+        }
+      }
+    },
     "[%@]": {
       "localizations": {
         "en": {
@@ -222,6 +232,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "%1$@ · renouvellement : %2$@"
+          }
+        }
+      }
+    },
+    "%@ (%@)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@ (%2$@)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ (%@)"
           }
         }
       }
@@ -286,6 +312,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@ utilisés"
+          }
+        }
+      }
+    },
+    "%@:": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@:"
           }
         }
       }
@@ -1523,6 +1559,16 @@
         }
       }
     },
+    "Afficher dans le Finder": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show in Finder"
+          }
+        }
+      }
+    },
     "Afficher les identifiants de ce remote": {
       "comment": "FaceID prompt before showing credentials",
       "localizations": {
@@ -1712,6 +1758,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Annuler"
+          }
+        }
+      }
+    },
+    "Aperçu impossible": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preview unavailable"
           }
         }
       }
@@ -2084,6 +2140,26 @@
         }
       }
     },
+    "Aucun sous-dossier ici.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No subfolders here."
+          }
+        }
+      }
+    },
+    "Aucun stockage disponible. Ajoute d'abord un remote (Drive, S3, SFTP…) puis reviens créer le coffre.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No storage available. Add a remote first (Drive, S3, SFTP…), then come back to create the vault."
+          }
+        }
+      }
+    },
     "Aucun transfert": {
       "localizations": {
         "en": {
@@ -2150,32 +2226,32 @@
     },
     "Aucune configuration rclone à exporter": {
       "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Aucune configuration rclone à exporter"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "No rclone configuration to export"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucune configuration rclone à exporter"
           }
         }
       }
     },
     "Aucune configuration rclone importée": {
       "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Aucune configuration rclone importée"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "No rclone configuration imported"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucune configuration rclone importée"
           }
         }
       }
@@ -2356,7 +2432,18 @@
         }
       }
     },
+    "Backup de ta photothèque vers rclone uniquement. Les originaux HEIC/MOV sont conservés, aucune suppression locale automatique.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backs up your photo library to rclone only. HEIC/MOV originals are kept; nothing is deleted locally."
+          }
+        }
+      }
+    },
     "Backup iPhone vers rclone uniquement. Les originaux HEIC/MOV sont conservés, aucune suppression locale automatique.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2390,16 +2477,16 @@
     },
     "Biométrie non disponible": {
       "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Biométrie non disponible"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Biometrics unavailable"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Biométrie non disponible"
           }
         }
       }
@@ -2644,6 +2731,16 @@
         }
       }
     },
+    "Chargement des remotes…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading remotes…"
+          }
+        }
+      }
+    },
     "Chargement en cours": {
       "localizations": {
         "en": {
@@ -2660,6 +2757,16 @@
         }
       }
     },
+    "Chargement…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading…"
+          }
+        }
+      }
+    },
     "Chemin": {
       "localizations": {
         "en": {
@@ -2672,6 +2779,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Chemin"
+          }
+        }
+      }
+    },
+    "Chemin de destination": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Destination path"
           }
         }
       }
@@ -2708,7 +2825,18 @@
         }
       }
     },
+    "Chiffré localement (Secure Enclave + biométrie)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Encrypted locally (Secure Enclave + biometrics)"
+          }
+        }
+      }
+    },
     "Chiffré localement par Face ID + Secure Enclave": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2740,6 +2868,16 @@
         }
       }
     },
+    "Chiffrement des noms": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Name encryption"
+          }
+        }
+      }
+    },
     "Chiffrement transparent au-dessus d'un autre remote": {
       "localizations": {
         "en": {
@@ -2752,6 +2890,56 @@
           "stringUnit": {
             "state": "translated",
             "value": "Chiffrement transparent au-dessus d'un autre remote"
+          }
+        }
+      }
+    },
+    "Chiffrer les noms de dossiers": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Encrypt folder names"
+          }
+        }
+      }
+    },
+    "Chiffrés (standard)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Encrypted (standard)"
+          }
+        }
+      }
+    },
+    "Choisir": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose"
+          }
+        }
+      }
+    },
+    "Choisir « %@ »": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose “%@”"
+          }
+        }
+      }
+    },
+    "Choisir la racine": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose the root"
           }
         }
       }
@@ -2896,6 +3084,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Code source rclone"
+          }
+        }
+      }
+    },
+    "Coffre chiffré": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Encrypted vault"
           }
         }
       }
@@ -3168,6 +3366,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Configure Rclone GUI"
+          }
+        }
+      }
+    },
+    "Confirmer le mot de passe": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confirm password"
           }
         }
       }
@@ -4309,6 +4517,26 @@
         }
       }
     },
+    "Dossier cible": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Target folder"
+          }
+        }
+      }
+    },
+    "Dossier de destination": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Destination folder"
+          }
+        }
+      }
+    },
     "Dossier distant": {
       "localizations": {
         "en": {
@@ -4597,6 +4825,16 @@
         }
       }
     },
+    "Emplacement du coffre dans le remote. Laisse à la racine pour chiffrer tout le remote.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Where the vault lives in the remote. Leave at the root to encrypt the whole remote."
+          }
+        }
+      }
+    },
     "En attente": {
       "localizations": {
         "en": {
@@ -4625,6 +4863,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "En attente du branchement secteur (option « Exiger la charge » activée)."
+          }
+        }
+      }
+    },
+    "En clair (off)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plain (off)"
           }
         }
       }
@@ -4775,16 +5023,16 @@
     },
     "Erreur biométrie inconnue": {
       "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Erreur biométrie inconnue"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Unknown biometric error"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erreur biométrie inconnue"
           }
         }
       }
@@ -6165,6 +6413,16 @@
         }
       }
     },
+    "Le coffre chiffre les fichiers au-dessus de ce remote. Les données restent stockées chez le fournisseur, mais chiffrées de bout en bout.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The vault encrypts files on top of this remote. Data stays with the provider, but end-to-end encrypted."
+          }
+        }
+      }
+    },
     "Le contenu complet du fichier JSON téléchargé depuis GCP.": {
       "localizations": {
         "en": {
@@ -6230,6 +6488,7 @@
       }
     },
     "Le fichier sera chiffré et stocké localement. Tes clés ne quittent jamais l’iPhone.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6241,6 +6500,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Le fichier sera chiffré et stocké localement. Tes clés ne quittent jamais l’iPhone."
+          }
+        }
+      }
+    },
+    "Le fichier sera chiffré et stocké localement. Tes clés ne quittent jamais ton appareil.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The file is encrypted and stored locally. Your keys never leave your device."
           }
         }
       }
@@ -6581,6 +6850,16 @@
         }
       }
     },
+    "Les mots de passe ne correspondent pas.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Passwords do not match."
+          }
+        }
+      }
+    },
     "Les vidéos plus longues que ce seuil sont sautées. Les photos ne sont pas affectées (elles sont toujours petites).": {
       "localizations": {
         "en": {
@@ -6833,6 +7112,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Masquer"
+          }
+        }
+      }
+    },
+    "Masqués (obfuscate)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Obfuscated"
           }
         }
       }
@@ -7125,6 +7414,16 @@
         }
       }
     },
+    "Mon Mac": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "My Mac"
+          }
+        }
+      }
+    },
     "mot de passe": {
       "localizations": {
         "en": {
@@ -7265,6 +7564,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Nom du remote"
+          }
+        }
+      }
+    },
+    "Noms de fichiers": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "File names"
           }
         }
       }
@@ -7781,6 +8090,16 @@
         }
       }
     },
+    "Ouvrir": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open"
+          }
+        }
+      }
+    },
     "Ouvrir dans l'app": {
       "localizations": {
         "en": {
@@ -7953,6 +8272,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Paramètres"
+          }
+        }
+      }
+    },
+    "Parcourir": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Browse"
           }
         }
       }
@@ -8693,6 +9022,16 @@
         }
       }
     },
+    "Recherche backend": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search backends"
+          }
+        }
+      }
+    },
     "Rechercher (drive, S3, sftp…)": {
       "localizations": {
         "en": {
@@ -9173,6 +9512,16 @@
         }
       }
     },
+    "Retour": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back"
+          }
+        }
+      }
+    },
     "S3 compatible": {
       "localizations": {
         "en": {
@@ -9201,6 +9550,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sans album sélectionné, toutes les photos visibles sont sauvegardées. Une notification locale signalera la fin de chaque cycle de sync si vous l'autorisez."
+          }
+        }
+      }
+    },
+    "Sans ce mot de passe, les fichiers sont irrécupérables — il n'est stocké que sur ton appareil. Le sel (password2) renforce le chiffrement ; conserve-le aussi.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Without this password the files are unrecoverable — it is stored only on your device. The salt (password2) strengthens encryption; keep it too."
           }
         }
       }
@@ -9286,6 +9645,16 @@
         }
       }
     },
+    "Sel / password2 (optionnel)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Salt / password2 (optional)"
+          }
+        }
+      }
+    },
     "Sélection": {
       "localizations": {
         "en": {
@@ -9298,6 +9667,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sélection"
+          }
+        }
+      }
+    },
+    "Sélectionne d'abord un stockage": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select a storage first"
           }
         }
       }
@@ -9415,6 +9794,7 @@
       }
     },
     "Si ton rclone.conf est protégé par un mot de passe rclone, il sera demandé à la lecture. Stocké en Keychain et protégé par Face ID.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -9426,6 +9806,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Si ton rclone.conf est protégé par un mot de passe rclone, il sera demandé à la lecture. Stocké en Keychain et protégé par Face ID."
+          }
+        }
+      }
+    },
+    "Si ton rclone.conf est protégé par un mot de passe rclone, il sera demandé à la lecture. Stocké en Keychain et protégé par la biométrie.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If your rclone.conf is protected by an rclone password, it will be asked when reading. Stored in Keychain and protected by biometrics."
           }
         }
       }
@@ -9490,6 +9880,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Source"
+          }
+        }
+      }
+    },
+    "Sous-dossiers": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subfolders"
           }
         }
       }
@@ -9602,6 +10002,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Stockage"
+          }
+        }
+      }
+    },
+    "Stockage sous-jacent": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Underlying storage"
           }
         }
       }
@@ -10295,6 +10705,7 @@
       }
     },
     "Tes clés ne quittent jamais l’iPhone": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -10306,6 +10717,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tes clés ne quittent jamais l’iPhone"
+          }
+        }
+      }
+    },
+    "Tes clés ne quittent jamais ton appareil": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your keys never leave your device"
           }
         }
       }
@@ -11170,6 +11591,1040 @@
           "stringUnit": {
             "state": "translated",
             "value": "Wrappers / Composites"
+          }
+        }
+      }
+    },
+    "Actions rapides": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quick actions"
+          }
+        }
+      }
+    },
+    "Activité": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activity"
+          }
+        }
+      }
+    },
+    "Aperçu": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preview"
+          }
+        }
+      }
+    },
+    "Aucun dossier récent": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No recent folders"
+          }
+        }
+      }
+    },
+    "Aucun remote": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No remotes"
+          }
+        }
+      }
+    },
+    "Aucun échec PhotoSync à réessayer": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No PhotoSync failures to retry"
+          }
+        }
+      }
+    },
+    "Aucune configuration": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No configuration"
+          }
+        }
+      }
+    },
+    "Backup automatique": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatic backup"
+          }
+        }
+      }
+    },
+    "Backup automatique de toute ta photothèque": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatic backup of your whole photo library"
+          }
+        }
+      }
+    },
+    "Backup ciblé ou photothèque complète": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Targeted backup or full library"
+          }
+        }
+      }
+    },
+    "Backup opportuniste de la photothèque vers un remote": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opportunistic backup of the photo library to a remote"
+          }
+        }
+      }
+    },
+    "Backup opportuniste de ta photothèque vers un remote rclone.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opportunistic backup of your photo library to an rclone remote."
+          }
+        }
+      }
+    },
+    "Bibliothèque fichiers": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "File library"
+          }
+        }
+      }
+    },
+    "Bientôt": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coming soon"
+          }
+        }
+      }
+    },
+    "Cache média": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Media cache"
+          }
+        }
+      }
+    },
+    "Chaque remote = un emplacement natif": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Each remote = a native location"
+          }
+        }
+      }
+    },
+    "Chaque remote disponible dans l'app Fichiers iOS": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Every remote available in the iOS Files app"
+          }
+        }
+      }
+    },
+    "Charger": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Load"
+          }
+        }
+      }
+    },
+    "Charger rclone.conf": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Load rclone.conf"
+          }
+        }
+      }
+    },
+    "Choisis tes albums": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose your albums"
+          }
+        }
+      }
+    },
+    "Configuration importée": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configuration imported"
+          }
+        }
+      }
+    },
+    "Crypt rclone illimité": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unlimited rclone crypt"
+          }
+        }
+      }
+    },
+    "Crypt rclone natif": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Native rclone crypt"
+          }
+        }
+      }
+    },
+    "Créer une entrée rclone manuellement": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create an rclone entry manually"
+          }
+        }
+      }
+    },
+    "Depuis Fichiers": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "From Files"
+          }
+        }
+      }
+    },
+    "Depuis Fichiers, iCloud ou AirDrop": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "From Files, iCloud or AirDrop"
+          }
+        }
+      }
+    },
+    "Derniers dossiers ouverts": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recently opened folders"
+          }
+        }
+      }
+    },
+    "Dernières ouvertures": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recently opened"
+          }
+        }
+      }
+    },
+    "Dossiers épinglés": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pinned folders"
+          }
+        }
+      }
+    },
+    "Développeur (DEBUG)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Developer (DEBUG)"
+          }
+        }
+      }
+    },
+    "Efface l'ancre d'essai (Keychain + iCloud) pour rejouer les 7 jours. Absent du build App Store.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clears the trial anchor (Keychain + iCloud) to replay the 7 days. Excluded from App Store builds."
+          }
+        }
+      }
+    },
+    "Exporter rclone.conf": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export rclone.conf"
+          }
+        }
+      }
+    },
+    "Favoris": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Favorites"
+          }
+        }
+      }
+    },
+    "File calme": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Queue is quiet"
+          }
+        }
+      }
+    },
+    "Hors-ligne": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Offline"
+          }
+        }
+      }
+    },
+    "Import impossible": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import failed"
+          }
+        }
+      }
+    },
+    "Importe ton rclone.conf pour afficher tes remotes et parcourir tes fichiers.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import your rclone.conf to show your remotes and browse your files."
+          }
+        }
+      }
+    },
+    "Intégration Fichiers": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Files integration"
+          }
+        }
+      }
+    },
+    "Intégration Fichiers complète": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Full Files integration"
+          }
+        }
+      }
+    },
+    "La navigation et les transferts réels nécessitent RcloneKit.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Real browsing and transfers require RcloneKit."
+          }
+        }
+      }
+    },
+    "Lance un téléchargement, un upload ou active PhotoSync depuis les réglages.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start a download, an upload, or enable PhotoSync from settings."
+          }
+        }
+      }
+    },
+    "Lecture partielle": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Partial read"
+          }
+        }
+      }
+    },
+    "Lecture plus fluide, purge locale et limite LRU.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Smoother playback, local purge and LRU limit."
+          }
+        }
+      }
+    },
+    "Les chemins les plus courts": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The shortest paths"
+          }
+        }
+      }
+    },
+    "Les nouvelles photos sont envoyées en arrière-plan": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New photos are uploaded in the background"
+          }
+        }
+      }
+    },
+    "Les prochains uploads, téléchargements ou syncs apparaîtront ici.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Upcoming uploads, downloads or syncs will appear here."
+          }
+        }
+      }
+    },
+    "Limite de bande passante et pause globale des transferts": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bandwidth limit and global transfer pause"
+          }
+        }
+      }
+    },
+    "Mode mock actif": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mock mode active"
+          }
+        }
+      }
+    },
+    "Modifié": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modified"
+          }
+        }
+      }
+    },
+    "Mon iPhone": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "My iPhone"
+          }
+        }
+      }
+    },
+    "Nouveau": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New"
+          }
+        }
+      }
+    },
+    "Ouverture externe indisponible": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "External open unavailable"
+          }
+        }
+      }
+    },
+    "Ouvre un remote depuis Fichiers pour retrouver tes chemins ici.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open a remote from Files to find your paths here."
+          }
+        }
+      }
+    },
+    "Partager": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Share"
+          }
+        }
+      }
+    },
+    "Partager ta configuration déchiffrée": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Share your decrypted configuration"
+          }
+        }
+      }
+    },
+    "Pas de surprise data, batterie préservée": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No data surprises, battery preserved"
+          }
+        }
+      }
+    },
+    "Pause et débit": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pause and bandwidth"
+          }
+        }
+      }
+    },
+    "PhotoSync sans limite": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unlimited PhotoSync"
+          }
+        }
+      }
+    },
+    "Protège la configuration rclone, le cache et l’accès à l’app.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Protects the rclone configuration, the cache and app access."
+          }
+        }
+      }
+    },
+    "Racines disponibles": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Available roots"
+          }
+        }
+      }
+    },
+    "Restaurables pendant 30 jours avant purge automatique.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recoverable for 30 days before automatic purge."
+          }
+        }
+      }
+    },
+    "Restaurer ou purger les fichiers supprimés (30 jours)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore or purge deleted files (30 days)"
+          }
+        }
+      }
+    },
+    "Récents": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recent"
+          }
+        }
+      }
+    },
+    "Réinitialiser l'essai": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset trial"
+          }
+        }
+      }
+    },
+    "Scanner un QR": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scan a QR code"
+          }
+        }
+      }
+    },
+    "Selection de dossier indisponible": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Folder selection unavailable"
+          }
+        }
+      }
+    },
+    "Synchro Photos en pause": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Photo sync paused"
+          }
+        }
+      }
+    },
+    "Synchro Photos reprise": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Photo sync resumed"
+          }
+        }
+      }
+    },
+    "Sécurité & biométrie": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Security & biometrics"
+          }
+        }
+      }
+    },
+    "Sécurité locale": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Local security"
+          }
+        }
+      }
+    },
+    "Taille": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Size"
+          }
+        }
+      }
+    },
+    "Taille limite et purge des fichiers temporaires": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Size limit and purge of temporary files"
+          }
+        }
+      }
+    },
+    "Tes dossiers épinglés": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your pinned folders"
+          }
+        }
+      }
+    },
+    "Tous les transferts sont en pause": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All transfers are paused"
+          }
+        }
+      }
+    },
+    "Tous tes remotes, partout": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All your remotes, everywhere"
+          }
+        }
+      }
+    },
+    "Transferts et hygiène locale": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transfers and local hygiene"
+          }
+        }
+      }
+    },
+    "Transferts repris": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transfers resumed"
+          }
+        }
+      }
+    },
+    "Type": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Type"
+          }
+        }
+      }
+    },
+    "Verrouillage, Keychain et effacement local": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lock, Keychain and local wipe"
+          }
+        }
+      }
+    },
+    "Version, licences et détails de l’app": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Version, licenses and app details"
+          }
+        }
+      }
+    },
+    "Wi-Fi + charge par défaut": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wi-Fi + charging by default"
+          }
+        }
+      }
+    },
+    "biométrie": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "biometrics"
+          }
+        }
+      }
+    },
+    "cache média": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "media cache"
+          }
+        }
+      }
+    },
+    "photos indexées": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "indexed photos"
+          }
+        }
+      }
+    },
+    "rétention": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "retention"
+          }
+        }
+      }
+    },
+    "terminés": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "completed"
+          }
+        }
+      }
+    },
+    "utilisé": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "used"
+          }
+        }
+      }
+    },
+    "échecs": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "failures"
+          }
+        }
+      }
+    },
+    "80+ backends": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "80+ backends"
+          }
+        }
+      }
+    },
+    "80+ backends — S3, R2, Drive, Dropbox, SFTP, B2…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "80+ backends — S3, R2, Drive, Dropbox, SFTP, B2…"
+          }
+        }
+      }
+    },
+    "AES-256, déchiffrement à la volée, clés sur ton appareil": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AES-256, on-the-fly decryption, keys on your device"
+          }
+        }
+      }
+    },
+    "AES-256, noms déchiffrés à la volée": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AES-256, names decrypted on the fly"
+          }
+        }
+      }
+    },
+    "Retry lancé": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retry started"
+          }
+        }
+      }
+    },
+    "Échec retry": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retry failed"
           }
         }
       }

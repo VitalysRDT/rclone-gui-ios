@@ -85,8 +85,8 @@ struct AppStatusBadge: View {
 }
 
 struct AppSectionHeader: View {
-    let title: String
-    var subtitle: String?
+    let title: LocalizedStringKey
+    var subtitle: LocalizedStringKey?
     var systemImage: String?
 
     var body: some View {
@@ -113,7 +113,7 @@ struct AppSectionHeader: View {
 
 struct AppMetricPill: View {
     let value: String
-    let label: String
+    let label: LocalizedStringKey
     var systemImage: String
     var tint: Color = .accentColor
 
@@ -140,7 +140,7 @@ struct AppMetricPill: View {
 
 struct AppMetricTile: View {
     let value: String
-    let label: String
+    let label: LocalizedStringKey
     var systemImage: String
     var tint: Color = .accentColor
 
@@ -170,8 +170,8 @@ struct AppMetricTile: View {
 }
 
 struct AppActionTile: View {
-    let title: String
-    let subtitle: String
+    let title: LocalizedStringKey
+    let subtitle: LocalizedStringKey
     var systemImage: String
     var tint: Color = .accentColor
 
@@ -202,8 +202,8 @@ struct AppActionTile: View {
 }
 
 struct AppHeroCard<Content: View>: View {
-    let title: String
-    let subtitle: String
+    let title: LocalizedStringKey
+    let subtitle: LocalizedStringKey
     var systemImage: String
     var tint: Color = .accentColor
     @ViewBuilder var content: Content
@@ -267,8 +267,8 @@ struct AppLocationRow: View {
 }
 
 struct AppInlineMessage: View {
-    let title: String
-    let message: String
+    let title: LocalizedStringKey
+    let message: LocalizedStringKey
     var systemImage: String
     var tint: Color
 
@@ -295,8 +295,8 @@ struct AppInlineMessage: View {
 }
 
 struct AppEmptyStateView: View {
-    let title: String
-    let message: String
+    let title: LocalizedStringKey
+    let message: LocalizedStringKey
     var systemImage: String
     var tint: Color = .accentColor
 

@@ -364,7 +364,7 @@ private struct PhotoSyncActivityCard: View {
     var body: some View {
         AppHeroCard(
             title: "PhotoSync rclone",
-            subtitle: subtitle,
+            subtitle: LocalizedStringKey(subtitle),
             systemImage: "photo.stack",
             tint: RG.photoSync.accent
         ) {
