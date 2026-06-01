@@ -69,6 +69,14 @@ struct Rclone_GUIApp: App {
             RootGateView {
                 ContentView()
             }
+                #if os(macOS)
+                // macOS rend les Form en style « colonnes » par défaut (libellé à
+                // gauche / contrôle à droite), ce qui casse les en-têtes/pieds de
+                // section et les TextField. .formStyle(.grouped) se propage par
+                // l'environnement à tous les Form descendants (y compris dans les
+                // sheets) et leur donne le rendu groupé pleine largeur, comme iOS.
+                .formStyle(.grouped)
+                #endif
                 .task {
                     await MainActor.run {
                         TransferQueue.shared.attach(modelContext: sharedModelContainer.mainContext)

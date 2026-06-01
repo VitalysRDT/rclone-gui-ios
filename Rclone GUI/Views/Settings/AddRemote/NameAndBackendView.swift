@@ -91,7 +91,11 @@ struct NameAndBackendView: View {
 
     private var nameSection: some View {
         Section {
-            TextField("ex : mondrive", text: $state.name)
+            // Label masqué (l'en-tête de section dit déjà « Nom du remote ») et
+            // exemple en prompt → s'affiche comme placeholder dans le champ sur
+            // iOS comme sur macOS (sinon le titre devient un libellé à gauche).
+            TextField("Nom du remote", text: $state.name, prompt: Text("ex : mondrive"))
+                .labelsHidden()
                 .rgNoAutocap()
                 .autocorrectionDisabled()
                 .focused($nameFocused)
