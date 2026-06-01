@@ -154,6 +154,75 @@ private final class PassthroughGestureRecognizer: UIGestureRecognizer {
     override func shouldRequireFailure(of otherGestureRecognizer: UIGestureRecognizer) -> Bool { false }
     override func shouldBeRequiredToFail(by otherGestureRecognizer: UIGestureRecognizer) -> Bool { false }
 }
+#elseif os(macOS)
+import Foundation
+import AppKit
+
+extension Notification.Name {
+    public static let userActivityDidChange = Notification.Name("rcloneGUI.userActivityDidChange")
+}
+
+@MainActor
+public final class UserActivityMonitor {
+    public static let shared = UserActivityMonitor()
+    private init() {}
+
+    private static let inactivityThreshold: TimeInterval = 3
+
+    private var lastActivity: Date = .distantPast
+    private var observerTask: Task<Void, Never>?
+    private var eventMonitor: Any?
+    private var didStart = false
+
+    public private(set) var isUserActive: Bool = false {
+        didSet {
+            guard oldValue != isUserActive else { return }
+            NotificationCenter.default.post(
+                name: .userActivityDidChange,
+                object: nil,
+                userInfo: ["isActive": isUserActive]
+            )
+        }
+    }
+
+    /// Démarre la détection via un moniteur d'événements local AppKit : clics,
+    /// drags, scroll et frappes clavier dans les fenêtres de l'app comptent
+    /// comme interaction. On retourne l'event sans le consommer pour ne pas
+    /// perturber l'UI. (On omet `.mouseMoved` pour ne pas throttler sur un
+    /// simple survol/dérive de souris au repos.)
+    public func start() {
+        guard !didStart else { return }
+        didStart = true
+        let mask: NSEvent.EventTypeMask = [
+            .leftMouseDown, .leftMouseDragged, .rightMouseDown,
+            .scrollWheel, .keyDown, .flagsChanged,
+        ]
+        eventMonitor = NSEvent.addLocalMonitorForEvents(matching: mask) { [weak self] event in
+            Task { @MainActor [weak self] in self?.userDidInteract() }
+            return event
+        }
+        startInactivityObserver()
+    }
+
+    private func userDidInteract() {
+        lastActivity = .now
+        if !isUserActive { isUserActive = true }
+    }
+
+    private func startInactivityObserver() {
+        observerTask?.cancel()
+        observerTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(1))
+                guard let self else { return }
+                if self.isUserActive,
+                   Date().timeIntervalSince(self.lastActivity) > Self.inactivityThreshold {
+                    self.isUserActive = false
+                }
+            }
+        }
+    }
+}
 #else
 import Foundation
 
