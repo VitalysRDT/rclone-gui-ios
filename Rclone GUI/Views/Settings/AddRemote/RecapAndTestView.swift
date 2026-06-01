@@ -309,6 +309,17 @@ struct RecapAndTestView: View {
             }
         }
 
+        // Re-encrypt the runtime config (now containing the new remote, written
+        // by librclone via config/create) back into ConfigStore AVANT le reload.
+        // Sans ça, refreshRuntimeAndNotify rechargerait l'ancien store chiffré et
+        // le remote fraîchement créé disparaîtrait (bug « ajouté mais pas apparu »).
+        do {
+            try await ConfigStore.shared.persistRuntimeConfigToStore()
+        } catch {
+            state.configCreateError = error.localizedDescription
+            return
+        }
+
         // Mirror to ConfigStore (re-encrypt) + reload + notifications.
         await RcloneConfigEditor.refreshRuntimeAndNotify()
         await LogService.shared.log(

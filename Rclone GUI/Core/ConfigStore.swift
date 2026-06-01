@@ -150,6 +150,28 @@ public actor ConfigStore {
         return target
     }
 
+    /// Re-encrypts the current plaintext runtime config back into the encrypted
+    /// store. librclone persists `config/create` and `config/update` changes to
+    /// the plaintext file at the path set via `config/setpath`
+    /// (`Caches/rclone.conf`). Without copying it back, a subsequent
+    /// `reloadConfigurationFromStore()` overwrites the runtime with the stale
+    /// encrypted store and the freshly added remote vanishes — which is exactly
+    /// why a wizard-created remote did not appear after import. No-op when the
+    /// runtime file is absent or empty.
+    public func persistRuntimeConfigToStore() async throws {
+        let caches = try FileManager.default.url(
+            for: .cachesDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: false
+        )
+        let runtime = caches.appending(path: "rclone.conf")
+        guard FileManager.default.fileExists(atPath: runtime.path) else { return }
+        let data = try Data(contentsOf: runtime)
+        guard !data.isEmpty else { return }
+        try await save(data)
+    }
+
     private func removeDecryptedTempFile() throws {
         let caches = try FileManager.default.url(
             for: .cachesDirectory,

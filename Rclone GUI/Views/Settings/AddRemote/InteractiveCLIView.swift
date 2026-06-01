@@ -286,6 +286,11 @@ struct InteractiveCLIView: View {
         guard session.isDone else { return }
         isFinalizing = true
         defer { isFinalizing = false }
+        // Le mode CLI a écrit le remote dans la config runtime de librclone ;
+        // on ré-encode ce runtime dans ConfigStore AVANT le reload, sinon
+        // refreshRuntimeAndNotify rechargerait l'ancien store et le remote
+        // disparaîtrait.
+        try? await ConfigStore.shared.persistRuntimeConfigToStore()
         await RcloneConfigEditor.refreshRuntimeAndNotify()
         await LogService.shared.log(
             .info,
