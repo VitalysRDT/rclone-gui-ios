@@ -66,6 +66,8 @@ struct AddRemoteWizard: View {
             NameAndBackendView(state: state, onNext: { state.advance() })
         case .formFields:
             DynamicRemoteFormView(state: state, onNext: { state.advance() })
+        case .cryptConfig:
+            CryptSetupView(state: state, onNext: { state.advance() })
         case .oauth:
             OAuthView(state: state, onNext: { state.advance() })
         case .recapAndTest:
@@ -79,6 +81,7 @@ struct AddRemoteWizard: View {
         switch state.step {
         case .nameAndBackend: return String(localized: "Nouveau remote")
         case .formFields:     return state.selectedBackend?.displayName ?? String(localized: "Configuration")
+        case .cryptConfig:    return String(localized: "Coffre chiffré")
         case .oauth:          return String(localized: "Authentification")
         case .recapAndTest:   return String(localized: "Récapitulatif")
         case .interactiveCLI: return String(localized: "Mode interactif (CLI)")

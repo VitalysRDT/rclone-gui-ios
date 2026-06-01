@@ -279,11 +279,15 @@ struct RecapAndTestView: View {
             }
         }
 
+        // crypt stocke un mot de passe : rclone doit l'obscurcir à l'écriture
+        // (sinon crypt échoue à le décoder). obscure=true demande à rclone
+        // d'obscurcir les paramètres de type password.
+        let needsObscure = backend.name == "crypt"
         let input = ConfigCreateInput(
             name: state.name,
             type: backend.name,
             parameters: params,
-            opt: ConfigCreateOpt(nonInteractive: true)
+            opt: ConfigCreateOpt(nonInteractive: true, obscure: needsObscure ? true : nil)
         )
         let _: ConfigCreateResponse = try await RcloneCore.shared.rpc(
             "config/create",

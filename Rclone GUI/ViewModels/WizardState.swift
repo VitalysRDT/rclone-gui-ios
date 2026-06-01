@@ -23,6 +23,7 @@ final class WizardState {
     enum Step: Sendable, Hashable {
         case nameAndBackend
         case formFields
+        case cryptConfig
         case oauth
         case recapAndTest
         case interactiveCLI
@@ -64,6 +65,20 @@ final class WizardState {
     /// `true` when the user opted into the interactive CLI flow from
     /// step 1. Bypasses the graphical form/OAuth/recap path entirely.
     var useInteractiveCLI: Bool = false
+
+    // MARK: - Crypt (guided flow) — wraps an existing remote + folder
+
+    /// Name of the underlying (plaintext) remote that crypt will wrap.
+    var cryptUnderlyingRemote: String = ""
+    /// Folder path inside the underlying remote where the vault lives
+    /// (empty = the remote root).
+    var cryptFolderPath: String = ""
+    var cryptPassword: String = ""
+    /// Optional salt (rclone `password2`).
+    var cryptPassword2: String = ""
+    /// `standard` | `obfuscate` | `off`.
+    var cryptFilenameEncryption: String = "standard"
+    var cryptDirNameEncryption: Bool = true
 
     // MARK: - Step 3 — OAuth
 
@@ -116,6 +131,36 @@ final class WizardState {
         selectedBackend?.requiresOAuth ?? false
     }
 
+    /// `true` when the selected backend is rclone `crypt` — routed through the
+    /// guided crypt flow (pick remote + folder + password) instead of the
+    /// generic dynamic form.
+    var isCrypt: Bool {
+        selectedBackend?.name == "crypt"
+    }
+
+    /// The `remote` parameter for a crypt config: `<underlying>:<folder>`
+    /// (or `<underlying>:` for the root).
+    var cryptRemoteValue: String {
+        let folder = cryptFolderPath.trimmingCharacters(in: CharacterSet(charactersIn: " /"))
+        return folder.isEmpty ? "\(cryptUnderlyingRemote):" : "\(cryptUnderlyingRemote):\(folder)"
+    }
+
+    var canProceedFromCrypt: Bool {
+        !cryptUnderlyingRemote.isEmpty && !cryptPassword.isEmpty
+    }
+
+    /// Pushes the guided crypt selections into `fieldValues` so the recap and
+    /// `config/create` steps see them like any other backend.
+    func commitCryptFieldValues() {
+        var values: [String: String] = [:]
+        values["remote"] = cryptRemoteValue
+        values["password"] = cryptPassword
+        if !cryptPassword2.isEmpty { values["password2"] = cryptPassword2 }
+        values["filename_encryption"] = cryptFilenameEncryption
+        values["directory_name_encryption"] = cryptDirNameEncryption ? "true" : "false"
+        fieldValues = values
+    }
+
     // MARK: - Navigation helpers
 
     func advance() {
@@ -123,10 +168,15 @@ final class WizardState {
         case .nameAndBackend:
             if useInteractiveCLI {
                 step = .interactiveCLI
+            } else if isCrypt {
+                step = .cryptConfig
             } else {
                 initializeFormValues()
                 step = .formFields
             }
+        case .cryptConfig:
+            commitCryptFieldValues()
+            step = .recapAndTest
         case .formFields:
             step = requiresOAuthStep ? .oauth : .recapAndTest
         case .oauth:
@@ -140,12 +190,18 @@ final class WizardState {
         switch step {
         case .nameAndBackend:
             break
+        case .cryptConfig:
+            step = .nameAndBackend
         case .formFields:
             step = .nameAndBackend
         case .oauth:
             step = .formFields
         case .recapAndTest:
-            step = requiresOAuthStep ? .oauth : .formFields
+            if isCrypt {
+                step = .cryptConfig
+            } else {
+                step = requiresOAuthStep ? .oauth : .formFields
+            }
         case .interactiveCLI:
             step = .nameAndBackend
             useInteractiveCLI = false
