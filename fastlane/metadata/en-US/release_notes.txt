@@ -1,4 +1,6 @@
-What's new in 1.1:
-- Full English localization: the interface now follows your device language (English and French).
-- Smoother first-launch experience.
+What's new in 1.2:
+- Native macOS app: Rclone GUI now runs natively on Apple Silicon Macs, with a sidebar layout and Finder integration.
+- New guided wizard for encrypted (crypt) remotes: pick the underlying storage, browse to the destination folder, set your password — no manual path typing.
+- Add-remote wizard: clearer fields, a Back button, and a native file picker for importing rclone.conf.
+- Full English & French localization across the whole app.
 - Stability and polish improvements.

@@ -172,6 +172,21 @@ platform :mac do
     )
   end
 
+  desc "Push localized metadata to the macOS App Store version"
+  lane :upload_mac_metadata do
+    deliver(
+      api_key: asc_key,
+      platform: "osx",
+      app_version: "1.2",
+      skip_binary_upload: true,
+      skip_screenshots: true,
+      skip_metadata: false,
+      force: true,
+      precheck_include_in_app_purchases: false,
+      run_precheck_before_submit: false
+    )
+  end
+
   desc "Push macOS screenshots only (en-US + fr-FR)"
   lane :upload_mac_screenshots do
     deliver(
