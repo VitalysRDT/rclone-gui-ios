@@ -35,6 +35,20 @@ struct AddRemoteWizard: View {
                 .rgInlineNavTitle()
                 #endif
                 .toolbar {
+                    // Les étapes sont échangées via state.step dans un seul
+                    // NavigationStack (pas de push), donc le bouton retour système
+                    // n'apparaît pas — on en fournit un explicite dès qu'on a
+                    // dépassé la 1re étape. state.goBack() respecte le flux
+                    // (OAuth conditionnel, mode CLI).
+                    if state.step != .nameAndBackend {
+                        ToolbarItem(placement: .navigation) {
+                            Button {
+                                state.goBack()
+                            } label: {
+                                Label("Retour", systemImage: "chevron.backward")
+                            }
+                        }
+                    }
                     ToolbarItem(placement: .cancellationAction) {
                         Button("Annuler") { handleCancel() }
                     }
