@@ -1,0 +1,12 @@
+# Gitleaks config — Rclone GUI
+# Les "client secrets" OAuth présents dans BackendOverrides.swift sont les
+# identifiants PUBLICS du client OAuth de rclone (installed app : non
+# confidentiels par design, publiés dans le repo rclone lui-même). Pas des
+# secrets du projet.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "rclone public OAuth installed-app credentials"
+paths = ['''Rclone GUI/Core/BackendOverrides\.swift''']
