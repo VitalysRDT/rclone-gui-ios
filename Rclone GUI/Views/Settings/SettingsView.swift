@@ -147,6 +147,19 @@ struct SettingsView: View {
                 }
             }
 
+            Section("Support") {
+                NavigationLink {
+                    ContactSupportView()
+                } label: {
+                    SettingsNavigationRow(
+                        icon: "envelope.fill",
+                        title: "Contacter le développeur",
+                        subtitle: "Bug, idée ou question — par e-mail",
+                        tint: .blue
+                    )
+                }
+            }
+
             #if DEBUG
             Section {
                 DebugTrialResetRow()
