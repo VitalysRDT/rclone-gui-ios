@@ -5,6 +5,12 @@
       "comment" : "Bundle display name",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Rclone GUI"
+          }
+        },
         "fr" : {
           "stringUnit" : {
             "state" : "new",
@@ -17,6 +23,12 @@
       "comment" : "Bundle name",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "RcloneGUI"
+          }
+        },
         "fr" : {
           "stringUnit" : {
             "state" : "new",
@@ -77,5 +89,5 @@
       }
     }
   },
-  "version" : "1.0"
+  "version" : "1.3"
 }
