@@ -17,11 +17,19 @@ import SwiftUI
 import StoreKit
 #if canImport(UIKit)
 import UIKit
+#elseif canImport(AppKit)
+import AppKit
 #endif
 
 struct PaywallView: View {
     @ObservedObject private var subs = SubscriptionService.shared
     @State private var selectedProductID: String = SubscriptionProductID.monthly
+    @State private var showOfferCodeSheet = false
+
+    /// Apple ID numérique de l'app sur l'App Store. Sert à l'URL de
+    /// redemption des offer codes sur macOS, où la sheet StoreKit native
+    /// n'existe pas.
+    private static let appStoreID = "6770088773"
 
     var body: some View {
         ScrollView {
@@ -287,7 +295,38 @@ struct PaywallView: View {
             }
             .buttonStyle(.plain)
             .disabled(subs.isRestoring)
+
+            offerCodeButton
         }
+    }
+
+    /// Redemption d'un offer code Apple (abonnement offert X mois, créé dans
+    /// App Store Connect). Sur iOS, la sheet StoreKit native ; sur macOS elle
+    /// n'existe pas → page de redemption App Store dans le navigateur. La
+    /// transaction résultante arrive via Transaction.updates, déjà écoutée
+    /// par SubscriptionService.
+    private var offerCodeButton: some View {
+        Button {
+            #if os(iOS)
+            showOfferCodeSheet = true
+            #else
+            openURL("https://apps.apple.com/redeem?ctx=offercodes&id=\(Self.appStoreID)")
+            #endif
+        } label: {
+            Text("J'ai un code")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 6)
+        }
+        .buttonStyle(.plain)
+        #if os(iOS)
+        .offerCodeRedemption(isPresented: $showOfferCodeSheet) { result in
+            if case .failure(let error) = result {
+                subs.lastErrorMessage = error.localizedDescription
+            }
+        }
+        #endif
     }
 
     private var primaryCTALabel: String {
@@ -324,7 +363,7 @@ struct PaywallView: View {
                 .font(.system(size: 11))
                 Text("·").foregroundStyle(.secondary).font(.system(size: 11))
                 Button("Politique de confidentialité") {
-                    openURL("https://rclone-gui.rougetet.com/privacy")
+                    openURL("https://vitalysrdt.github.io/rclone-gui-ios/privacy.html")
                 }
                 .font(.system(size: 11))
             }
@@ -336,6 +375,8 @@ struct PaywallView: View {
         guard let url = URL(string: string) else { return }
         #if canImport(UIKit)
         UIApplication.shared.open(url)
+        #elseif canImport(AppKit)
+        NSWorkspace.shared.open(url)
         #endif
     }
 }
