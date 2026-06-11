@@ -22,7 +22,14 @@ import AppKit
 #endif
 
 struct PaywallView: View {
+    /// `false` (défaut) : hard paywall bloquant (onboarding, SubscriptionGate).
+    /// `true` : présenté volontairement (Réglages → « Voir les offres ») —
+    /// affiche un bouton de fermeture, l'utilisateur est en période d'essai
+    /// ou simplement curieux des plans.
+    var isDismissable = false
+
     @ObservedObject private var subs = SubscriptionService.shared
+    @Environment(\.dismiss) private var dismiss
     @State private var selectedProductID: String = SubscriptionProductID.monthly
     @State private var showOfferCodeSheet = false
 
@@ -34,8 +41,26 @@ struct PaywallView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
+                if isDismissable {
+                    HStack {
+                        Spacer()
+                        Button {
+                            dismiss()
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 26))
+                                .foregroundStyle(.secondary)
+                                .symbolRenderingMode(.hierarchical)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(Text("Fermer"))
+                    }
+                    .padding(.top, 14)
+                    .padding(.horizontal, 16)
+                }
+
                 hero
-                    .padding(.top, 24)
+                    .padding(.top, isDismissable ? 4 : 24)
 
                 bullets
                     .padding(.top, 28)

@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import StoreKit
 
 struct SettingsView: View {
     @State private var showAddRemote = false
@@ -235,9 +236,9 @@ private struct SettingsHeaderCard: View {
                     .lineLimit(1)
             }
             Spacer(minLength: 0)
-            Image(systemName: "chevron.right")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.tertiary)
+            // Pas de chevron : la carte est purement informative. Le chevron
+            // historique faisait croire à une navigation (« My iPhone does
+            // not open » — retour App Store) alors que rien n'était câblé.
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -277,6 +278,15 @@ private struct SettingsHeaderCard: View {
 private struct SubscriptionStatusRow: View {
     @ObservedObject private var subs = SubscriptionService.shared
     @Environment(\.openURL) private var openURL
+    @State private var showOffers = false
+
+    /// True quand l'utilisateur a un vrai abonnement Apple en cours. Pendant
+    /// l'essai 7 jours app-managé il n'y a RIEN à « gérer » côté Apple : le
+    /// bouton « Gérer mon abonnement » ouvrait une page vide (retour App
+    /// Store) — on montre « Voir les offres » à la place.
+    private var hasAppleSubscription: Bool {
+        subs.snapshot.entitlement == .active
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -302,19 +312,33 @@ private struct SubscriptionStatusRow: View {
             .padding(.vertical, 4)
 
             HStack(spacing: 8) {
-                Button {
-                    if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
-                        openURL(url)
+                if hasAppleSubscription {
+                    Button {
+                        if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
+                            openURL(url)
+                        }
+                    } label: {
+                        Text("Gérer mon abonnement")
+                            .font(.system(size: 14, weight: .semibold))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 9)
+                            .background(RG.accentSoft, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                            .foregroundStyle(RG.accent)
                     }
-                } label: {
-                    Text("Gérer mon abonnement")
-                        .font(.system(size: 14, weight: .semibold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 9)
-                        .background(RG.accentSoft, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
-                        .foregroundStyle(RG.accent)
+                    .buttonStyle(.plain)
+                } else {
+                    Button {
+                        showOffers = true
+                    } label: {
+                        Text("Voir les offres")
+                            .font(.system(size: 14, weight: .semibold))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 9)
+                            .background(RG.accentSoft, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                            .foregroundStyle(RG.accent)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
 
                 Button {
                     Task { await subs.restorePurchases() }
@@ -336,6 +360,10 @@ private struct SubscriptionStatusRow: View {
                 .disabled(subs.isRestoring)
             }
         }
+        .task { await subs.loadProducts() }
+        .sheet(isPresented: $showOffers) {
+            PaywallView(isDismissable: true)
+        }
     }
 
     private var statusTitle: String {
@@ -354,10 +382,14 @@ private struct SubscriptionStatusRow: View {
 
         switch subs.snapshot.entitlement {
         case .trial:
+            // Affiche aussi ce qui suit l'essai : sans ça, l'utilisateur en
+            // période d'essai ne voyait nulle part les plans ni les prix.
+            let monthly = subs.product(for: SubscriptionProductID.monthly)?.displayPrice ?? "1,99 €"
+            let yearly = subs.product(for: SubscriptionProductID.yearly)?.displayPrice ?? "19,99 €"
             if let expiration = subs.snapshot.expirationDate {
-                return String(localized: "Fin de l'essai : \(formatter.string(from: expiration))")
+                return String(localized: "Fin de l'essai : \(formatter.string(from: expiration)) · ensuite \(monthly)/mois ou \(yearly)/an")
             }
-            return String(localized: "7 jours offerts")
+            return String(localized: "7 jours offerts · ensuite \(monthly)/mois ou \(yearly)/an")
         case .active:
             let plan = planLabel(for: subs.snapshot.productID)
             if let expiration = subs.snapshot.expirationDate {

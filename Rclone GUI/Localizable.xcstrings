@@ -491,9 +491,27 @@
     "%lld éléments" : {
       "localizations" : {
         "en" : {
-          "stringUnit" : {
-            "state" : "machine_translated",
-            "value" : "%lld items"
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "machine_translated",
+                  "value" : "%lld item"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "machine_translated",
+                  "value" : "%lld items"
+                }
+              },
+              "zero" : {
+                "stringUnit" : {
+                  "state" : "machine_translated",
+                  "value" : "%lld items"
+                }
+              }
+            }
           }
         }
       }
@@ -639,9 +657,27 @@
     "%lld remote%@ configuré%@" : {
       "localizations" : {
         "en" : {
-          "stringUnit" : {
-            "state" : "machine_translated",
-            "value" : "%1$lld remote%2$@ configured"
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "machine_translated",
+                  "value" : "%1$lld remote configured"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "machine_translated",
+                  "value" : "%1$lld remotes configured"
+                }
+              },
+              "zero" : {
+                "stringUnit" : {
+                  "state" : "machine_translated",
+                  "value" : "%1$lld remotes configured"
+                }
+              }
+            }
           }
         },
         "fr" : {
@@ -1031,6 +1067,7 @@
       }
     },
     "7 jours offerts" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1042,6 +1079,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "7 jours offerts"
+          }
+        }
+      }
+    },
+    "7 jours offerts · ensuite %@/mois ou %@/an" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "7 days free · then %@/month or %@/year"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "7 jours offerts · ensuite %1$@/mois ou %2$@/an"
           }
         }
       }
@@ -2793,7 +2846,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
-            "value" : "Bug report, feature idea or question — every message is read."
+            "value" : "Bug, feature idea or question — every message gets read."
           }
         }
       }
@@ -3772,9 +3825,27 @@
     "Configuration importée et chiffrée (%lld octets)." : {
       "localizations" : {
         "en" : {
-          "stringUnit" : {
-            "state" : "machine_translated",
-            "value" : "Configuration imported and encrypted (%lld bytes)."
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "machine_translated",
+                  "value" : "Configuration imported and encrypted (%lld byte)."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "machine_translated",
+                  "value" : "Configuration imported and encrypted (%lld bytes)."
+                }
+              },
+              "zero" : {
+                "stringUnit" : {
+                  "state" : "machine_translated",
+                  "value" : "Configuration imported and encrypted (%lld bytes)."
+                }
+              }
+            }
           }
         }
       }
@@ -5318,7 +5389,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
-            "value" : "Write an Email"
+            "value" : "Send an email"
           }
         }
       }
@@ -6220,6 +6291,7 @@
       }
     },
     "Fin de l'essai : %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -6231,6 +6303,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Fin de l'essai : %@"
+          }
+        }
+      }
+    },
+    "Fin de l'essai : %@ · ensuite %@/mois ou %@/an" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Trial ends: %@ · then %@/month or %@/year"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Fin de l'essai : %1$@ · ensuite %2$@/mois ou %3$@/an"
           }
         }
       }
@@ -7468,7 +7556,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
-            "value" : "The subject automatically includes the app version to speed up diagnosis. Replies usually within a few days."
+            "value" : "The subject automatically includes the app version to speed up diagnostics. Usually answered within a few days."
           }
         }
       }
@@ -9473,7 +9561,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
-            "value" : "rclone PhotoSync"
+            "value" : "PhotoSync rclone"
           }
         }
       }
@@ -10480,7 +10568,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
-            "value" : "Only required if your rclone.conf is encrypted (“rclone config encryption set”). Used once to decrypt during import, never stored."
+            "value" : "Only required if your rclone.conf is encrypted (“rclone config encryption set”). Used once to decrypt on import, never stored."
           }
         }
       }
@@ -12885,6 +12973,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "VLC"
+          }
+        }
+      }
+    },
+    "Voir les offres" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "View Plans"
           }
         }
       }
