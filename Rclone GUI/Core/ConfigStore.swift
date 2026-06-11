@@ -84,6 +84,14 @@ public actor ConfigStore {
         guard let plaintext = try await load() else {
             throw RcloneError.engineNotAvailable(String(localized: "Aucune configuration rclone importée"))
         }
+        // GARDE CRITIQUE : un rclone.conf chiffré par rclone (RCLONE_ENCRYPT_V0)
+        // ne doit JAMAIS atteindre librclone. Sans mot de passe disponible,
+        // le chargement lazy de la config Go finit en fs.Fatalf → os.Exit :
+        // l'app entière est tuée, y compris à chaque relancement tant que le
+        // blob chiffré reste dans le store. On échoue proprement à la place.
+        if Self.isRcloneEncrypted(plaintext) {
+            throw RcloneError.configPasswordRequired
+        }
         let scrubbed = Self.scrubHostPaths(plaintext)
         let caches = try FileManager.default.url(
             for: .cachesDirectory,
@@ -94,6 +102,21 @@ public actor ConfigStore {
         let target = caches.appending(path: "rclone.conf")
         try scrubbed.write(to: target, options: [.atomic, .completeFileProtection])
         return target
+    }
+
+    /// Détecte le format de configuration chiffrée native rclone
+    /// (`rclone config encryption set`) : la première ligne non vide et
+    /// non commentaire est exactement `RCLONE_ENCRYPT_V0:` (ou une version
+    /// future `RCLONE_ENCRYPT_Vn:`). Reproduit la détection de
+    /// fs/config/crypt.go côté Go.
+    public nonisolated static func isRcloneEncrypted(_ data: Data) -> Bool {
+        guard let text = String(data: data, encoding: .utf8) else { return false }
+        for rawLine in text.split(separator: "\n", omittingEmptySubsequences: false) {
+            let line = rawLine.trimmingCharacters(in: .whitespaces)
+            if line.isEmpty || line.hasPrefix("#") || line.hasPrefix(";") { continue }
+            return line.hasPrefix("RCLONE_ENCRYPT_V")
+        }
+        return false
     }
 
     /// Retire les clés qui pointent vers des chemins macOS/Linux (par ex.

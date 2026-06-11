@@ -37,4 +37,10 @@ public protocol RcloneEngine: Sendable {
     ///   - inputJSON: JSON-encoded request body. Use `"{}"` for empty.
     /// - Returns: JSON-encoded response body.
     nonisolated func rpcRaw(method: String, inputJSON: String) async throws -> String
+
+    /// Decrypt an rclone-encrypted configuration file (`RCLONE_ENCRYPT_V0`)
+    /// and return its plaintext INI content. Never routes through rclone's
+    /// interactive password prompt (which is fatal on iOS — no terminal).
+    /// - Throws: `RcloneError.configPasswordIncorrect` on bad password.
+    nonisolated func decryptConfig(path: String, password: String) async throws -> String
 }

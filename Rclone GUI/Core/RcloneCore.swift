@@ -138,6 +138,29 @@ public actor RcloneCore {
         cachedConfigDump = nil
     }
 
+    /// Déchiffre une configuration rclone chiffrée nativement
+    /// (`RCLONE_ENCRYPT_V0`, produite par `rclone config encryption set`)
+    /// et renvoie l'INI en clair. Passe par le bridge Go — jamais par le
+    /// chemin interactif de rclone, qui est fatal sur iOS.
+    /// - Throws: `RcloneError.configPasswordRequired` si le mot de passe est vide,
+    ///           `RcloneError.configPasswordIncorrect` s'il ne déchiffre pas.
+    public func decryptEncryptedConfig(_ data: Data, password: String) async throws -> Data {
+        guard !password.isEmpty else {
+            throw RcloneError.configPasswordRequired
+        }
+        // Le bridge lit depuis un fichier : on écrit le blob dans un dossier
+        // temporaire unique, supprimé quoi qu'il arrive.
+        let tmpDir = FileManager.default.temporaryDirectory
+            .appending(path: "rclone-gui-decrypt-\(UUID().uuidString)", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmpDir) }
+        let tmp = tmpDir.appending(path: "rclone.conf")
+        try data.write(to: tmp, options: [.atomic, .completeFileProtection])
+
+        let plaintext = try await engine.decryptConfig(path: tmp.path, password: password)
+        return Data(plaintext.utf8)
+    }
+
     /// Rewrites the decrypted config file and points the running engine at it.
     /// Call after import or local config edits so long-lived tabs do not keep
     /// the previous `config/listremotes` / `config/dump` values.

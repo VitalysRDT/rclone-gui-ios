@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/rclone/rclone/fs"
+	"github.com/rclone/rclone/fs/config"
 	"github.com/rclone/rclone/fs/operations"
 	"github.com/rclone/rclone/librclone/librclone"
 
@@ -106,6 +107,47 @@ func Finalize() {
 func RPC(method, inputJSON string) *RPCResult {
 	out, status := librclone.RPC(method, inputJSON)
 	return &RPCResult{Output: out, Status: status}
+}
+
+// DecryptConfig decrypts an rclone-encrypted configuration file
+// (RCLONE_ENCRYPT_V0 format, produced by `rclone config encryption set`)
+// and returns the plaintext INI as Output with Status 200.
+//
+// It exists because handing an encrypted rclone.conf to librclone is
+// fatal on iOS: the lazy config load path ends in fs.Fatalf →
+// os.Exit when no terminal is available to prompt for the password
+// (fs/config/config.go + config_read_password.go). This function uses
+// config.Decrypt directly with AskPassword disabled so a wrong password
+// is a recoverable error (Status 400), never a process kill.
+//
+// The global configKey is cleared before returning so later config
+// saves performed by librclone stay plaintext.
+func DecryptConfig(path string, password string) *RPCResult {
+	ci := fs.GetConfig(context.Background())
+	oldAsk := ci.AskPassword
+	ci.AskPassword = false
+	defer func() { ci.AskPassword = oldAsk }()
+	defer config.ClearConfigPassword()
+
+	if err := config.SetConfigPassword(password); err != nil {
+		return &RPCResult{Output: jsonError(err), Status: 400}
+	}
+
+	f, err := os.Open(path)
+	if err != nil {
+		return &RPCResult{Output: jsonError(err), Status: 400}
+	}
+	defer func() { _ = f.Close() }()
+
+	r, err := config.Decrypt(f)
+	if err != nil {
+		return &RPCResult{Output: jsonError(err), Status: 400}
+	}
+	out, err := io.ReadAll(r)
+	if err != nil {
+		return &RPCResult{Output: jsonError(err), Status: 400}
+	}
+	return &RPCResult{Output: string(out), Status: 200}
 }
 
 // StartFileHTTP starts a loopback-only HTTP server that serves one rclone

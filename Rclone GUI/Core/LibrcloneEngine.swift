@@ -46,6 +46,28 @@ public struct LibrcloneEngine: RcloneEngine {
         }
     }
 
+    public nonisolated func decryptConfig(path: String, password: String) async throws -> String {
+        // Même contrainte que rpcRaw : appel Go/cgo synchrone, on sort du
+        // MainActor pour ne pas bloquer l'UI pendant le déchiffrement.
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<String, Error>) in
+            DispatchQueue.global(qos: .userInitiated).async {
+                guard let result = RclonebridgeDecryptConfig(path, password) else {
+                    continuation.resume(throwing: RcloneError.rcloneError(
+                        code: 0,
+                        method: "bridge/decryptConfig",
+                        message: "rclonebridge returned nil — bridge not initialised?"
+                    ))
+                    return
+                }
+                if (200..<300).contains(Int(result.status)) {
+                    continuation.resume(returning: result.output)
+                } else {
+                    continuation.resume(throwing: RcloneError.configPasswordIncorrect)
+                }
+            }
+        }
+    }
+
     public nonisolated func rpcRaw(method: String, inputJSON: String) async throws -> String {
         // RclonebridgeRPC est un appel Go/cgo synchrone qui bloque le
         // thread appelant pendant toute la durée du RPC (qui peut être

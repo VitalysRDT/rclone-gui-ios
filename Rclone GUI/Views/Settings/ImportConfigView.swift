@@ -16,6 +16,11 @@ struct ImportConfigView: View {
     @State private var importing = false
     @State private var error: String?
     @State private var success: String?
+    @State private var rclonePassword = ""
+    /// Config chiffrée (RCLONE_ENCRYPT_V0) déjà lue depuis Fichiers,
+    /// en attente du mot de passe rclone pour être déchiffrée.
+    @State private var pendingEncrypted: Data?
+    @State private var decrypting = false
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -72,15 +77,37 @@ struct ImportConfigView: View {
                         HStack(spacing: 8) {
                             Image(systemName: "lock")
                                 .foregroundStyle(.secondary)
-                            Text("Mot de passe rclone (optionnel)")
-                                .foregroundStyle(.secondary)
-                            Spacer(minLength: 0)
+                            SecureField("Mot de passe rclone (optionnel)", text: $rclonePassword)
+                                .textContentType(.password)
+                                #if os(iOS)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
+                                #endif
                         }
                         .padding(12)
                         .background(Color.rgGroupedRowBackground, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        Text("Si ton rclone.conf est protégé par un mot de passe rclone, il sera demandé à la lecture. Stocké en Keychain et protégé par la biométrie.")
+                        Text("Requis uniquement si ton rclone.conf est chiffré (« rclone config encryption set »). Utilisé une seule fois pour déchiffrer à l'import, jamais stocké.")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
+
+                        if pendingEncrypted != nil {
+                            Button {
+                                Task { await decryptPending() }
+                            } label: {
+                                HStack {
+                                    if decrypting {
+                                        ProgressView()
+                                            .controlSize(.small)
+                                    } else {
+                                        Image(systemName: "lock.open.fill")
+                                    }
+                                    Text("Déchiffrer et importer")
+                                }
+                                .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .disabled(rclonePassword.isEmpty || decrypting)
+                        }
                     }
 
                     if let success {
@@ -205,20 +232,60 @@ struct ImportConfigView: View {
             defer { if didStart { url.stopAccessingSecurityScopedResource() } }
 
             let data = try Data(contentsOf: url)
-            try await ConfigStore.shared.save(data)
-            try await ConfigStore.shared.migrateMasterKeyToSharedAccessGroupIfNeeded()
-            await RcloneConfigEditor.refreshRuntimeAndNotify()
 
-            success = "Configuration importée et chiffrée (\(data.count) octets)."
-            error = nil
+            // Une config chiffrée par rclone (RCLONE_ENCRYPT_V0) ne doit
+            // jamais être stockée telle quelle : librclone ne peut pas la
+            // lire sans mot de passe et son chemin d'erreur est fatal (crash
+            // au lancement). On déchiffre ici, à l'import.
+            if ConfigStore.isRcloneEncrypted(data) {
+                if rclonePassword.isEmpty {
+                    pendingEncrypted = data
+                    error = String(localized: "Cette configuration est chiffrée par rclone. Saisis ton mot de passe ci-dessus puis touche « Déchiffrer et importer ».")
+                    success = nil
+                    return
+                }
+                pendingEncrypted = data
+                await decryptPending()
+                return
+            }
 
-            // Give the UI a moment to show the success state before dismissing.
-            try? await Task.sleep(for: .milliseconds(800))
-            onImported()
-            dismiss()
+            try await store(data)
         } catch {
-            self.error = "Échec de l'import : \(error.localizedDescription)"
+            self.error = String(localized: "Échec de l'import : \(error.localizedDescription)")
             self.success = nil
         }
+    }
+
+    private func decryptPending() async {
+        guard let encrypted = pendingEncrypted else { return }
+        decrypting = true
+        defer { decrypting = false }
+        do {
+            let plaintext = try await RcloneCore.shared.decryptEncryptedConfig(
+                encrypted,
+                password: rclonePassword
+            )
+            pendingEncrypted = nil
+            rclonePassword = ""
+            try await store(plaintext)
+        } catch {
+            self.error = error.localizedDescription
+            self.success = nil
+        }
+    }
+
+    /// Stockage commun : chiffre at-rest via ConfigStore, recharge librclone.
+    private func store(_ data: Data) async throws {
+        try await ConfigStore.shared.save(data)
+        try await ConfigStore.shared.migrateMasterKeyToSharedAccessGroupIfNeeded()
+        await RcloneConfigEditor.refreshRuntimeAndNotify()
+
+        success = String(localized: "Configuration importée et chiffrée (\(data.count) octets).")
+        error = nil
+
+        // Give the UI a moment to show the success state before dismissing.
+        try? await Task.sleep(for: .milliseconds(800))
+        onImported()
+        dismiss()
     }
 }

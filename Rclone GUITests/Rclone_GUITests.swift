@@ -239,6 +239,49 @@ struct SavedLocationStoreTests {
 
 // MARK: - ChaChaPoly round-trip (mirrors ConfigStore seal/open primitive)
 
+@Suite("Détection config rclone chiffrée (RCLONE_ENCRYPT_V0)")
+struct EncryptedConfigDetectionTests {
+
+    @Test("Détecte le format produit par « rclone config encryption set »")
+    func detectsEncryptedConfig() {
+        let blob = """
+        # Encrypted rclone configuration File
+
+        RCLONE_ENCRYPT_V0:
+        qK5Z8mFhYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5ego=
+        """
+        #expect(ConfigStore.isRcloneEncrypted(Data(blob.utf8)))
+    }
+
+    @Test("Détecte aussi les versions futures (RCLONE_ENCRYPT_Vn)")
+    func detectsFutureVersions() {
+        let blob = "RCLONE_ENCRYPT_V1:\nabc=\n"
+        #expect(ConfigStore.isRcloneEncrypted(Data(blob.utf8)))
+    }
+
+    @Test("Une config INI en clair n'est pas signalée comme chiffrée")
+    func plaintextIsNotEncrypted() {
+        let conf = """
+        # commentaire
+        [drive]
+        type = drive
+        """
+        #expect(!ConfigStore.isRcloneEncrypted(Data(conf.utf8)))
+    }
+
+    @Test("Un remote nommé RCLONE_ENCRYPT_V0 n'est pas un faux positif")
+    func sectionHeaderIsNotEncrypted() {
+        let conf = "[RCLONE_ENCRYPT_V0]\ntype = local\n"
+        #expect(!ConfigStore.isRcloneEncrypted(Data(conf.utf8)))
+    }
+
+    @Test("Données vides ou binaires → non chiffré (pas de crash)")
+    func emptyAndBinaryAreSafe() {
+        #expect(!ConfigStore.isRcloneEncrypted(Data()))
+        #expect(!ConfigStore.isRcloneEncrypted(Data([0xFF, 0xFE, 0x00, 0x01])))
+    }
+}
+
 @Suite("ChaChaPoly seal/open primitive")
 struct CryptoRoundTripTests {
 
@@ -390,7 +433,8 @@ struct PhotoSyncServiceBatchingTests {
             PhotoSyncCandidate(
                 localIdentifier: "asset-\(index)",
                 mediaType: "image",
-                creationDate: Date(timeIntervalSince1970: TimeInterval(index))
+                creationDate: Date(timeIntervalSince1970: TimeInterval(index)),
+                contentFingerprint: nil
             )
         }
 

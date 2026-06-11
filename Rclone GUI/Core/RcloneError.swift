@@ -21,10 +21,23 @@ public enum RcloneError: Error, LocalizedError, Sendable {
     /// The response shape did not match the expected typed result.
     case unexpectedResponseShape(method: String, expected: String, raw: String)
 
+    /// The stored/imported rclone.conf is rclone-encrypted (RCLONE_ENCRYPT_V0)
+    /// and a password is required before librclone may read it. Feeding the
+    /// encrypted blob to librclone is fatal (fs.Fatalf → os.Exit), hence this
+    /// guard error.
+    case configPasswordRequired
+
+    /// The provided rclone configuration password did not decrypt the file.
+    case configPasswordIncorrect
+
     public var errorDescription: String? {
         switch self {
         case .engineNotAvailable(let msg):
             return "Rclone engine not available: \(msg)"
+        case .configPasswordRequired:
+            return String(localized: "Cette configuration rclone est chiffrée. Saisis ton mot de passe rclone pour l’importer.")
+        case .configPasswordIncorrect:
+            return String(localized: "Mot de passe rclone incorrect — la configuration n’a pas pu être déchiffrée.")
         case .rpcFailed(let method, let msg):
             return "RPC '\(method)' failed: \(msg)"
         case .rcloneError(let code, let method, let msg):

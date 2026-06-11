@@ -29,6 +29,22 @@ public struct MockRcloneEngine: RcloneEngine {
         // no-op
     }
 
+    public nonisolated func decryptConfig(path: String, password: String) async throws -> String {
+        // Le mock n'embarque pas NaCl secretbox : il ne sait relire que les
+        // fichiers en clair. Suffisant pour les previews/tests d'UI.
+        let data = try Data(contentsOf: URL(filePath: path))
+        guard let text = String(data: data, encoding: .utf8) else {
+            throw RcloneError.configPasswordIncorrect
+        }
+        if ConfigStore.isRcloneEncrypted(data) {
+            throw RcloneError.rpcFailed(
+                method: "bridge/decryptConfig",
+                message: "MockRcloneEngine ne peut pas déchiffrer une config RCLONE_ENCRYPT_V0. Build et intégrer RcloneKit.xcframework."
+            )
+        }
+        return text
+    }
+
     public func rpcRaw(method: String, inputJSON: String) async throws -> String {
         switch method {
         case "core/version":
