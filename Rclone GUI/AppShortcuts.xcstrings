@@ -1,0 +1,237 @@
+{
+  "sourceLanguage": "fr",
+  "strings": {
+    "Liste mes remotes ${applicationName}": {
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "fr": {
+          "stringSet": {
+            "state": "new",
+            "values": [
+              "Liste mes remotes ${applicationName}",
+              "Affiche les remotes ${applicationName}"
+            ]
+          }
+        },
+        "en": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "List my ${applicationName} remotes",
+              "Show ${applicationName} remotes"
+            ]
+          }
+        },
+        "es": {
+          "stringSet": {
+            "state": "machine_translated",
+            "values": [
+              "Lista mis remotes de ${applicationName}",
+              "Muestra los remotes de ${applicationName}"
+            ]
+          }
+        },
+        "de": {
+          "stringSet": {
+            "state": "machine_translated",
+            "values": [
+              "Meine ${applicationName}-Remotes auflisten",
+              "${applicationName}-Remotes anzeigen"
+            ]
+          }
+        },
+        "it": {
+          "stringSet": {
+            "state": "machine_translated",
+            "values": [
+              "Elenca i miei remote ${applicationName}",
+              "Mostra i remote ${applicationName}"
+            ]
+          }
+        },
+        "pt-BR": {
+          "stringSet": {
+            "state": "machine_translated",
+            "values": [
+              "Listar meus remotes do ${applicationName}",
+              "Mostrar remotes do ${applicationName}"
+            ]
+          }
+        },
+        "ja": {
+          "stringSet": {
+            "state": "machine_translated",
+            "values": [
+              "${applicationName} のリモートを一覧表示",
+              "${applicationName} のリモートを表示"
+            ]
+          }
+        },
+        "zh-Hans": {
+          "stringSet": {
+            "state": "machine_translated",
+            "values": [
+              "列出我的 ${applicationName} 远程",
+              "显示 ${applicationName} 远程"
+            ]
+          }
+        },
+        "zh-Hant": {
+          "stringSet": {
+            "state": "machine_translated",
+            "values": [
+              "列出我的 ${applicationName} 遠端",
+              "顯示 ${applicationName} 遠端"
+            ]
+          }
+        },
+        "nl": {
+          "stringSet": {
+            "state": "machine_translated",
+            "values": [
+              "Mijn ${applicationName}-remotes tonen",
+              "${applicationName}-remotes weergeven"
+            ]
+          }
+        },
+        "ru": {
+          "stringSet": {
+            "state": "machine_translated",
+            "values": [
+              "Показать мои remotes ${applicationName}",
+              "Показать remotes ${applicationName}"
+            ]
+          }
+        },
+        "pl": {
+          "stringSet": {
+            "state": "machine_translated",
+            "values": [
+              "Pokaż moje remotes ${applicationName}",
+              "Wyświetl remotes ${applicationName}"
+            ]
+          }
+        },
+        "ko": {
+          "stringSet": {
+            "state": "machine_translated",
+            "values": [
+              "내 ${applicationName} 원격 목록",
+              "${applicationName} 원격 보기"
+            ]
+          }
+        }
+      }
+    },
+    "Ouvrir un remote ${applicationName}": {
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "fr": {
+          "stringSet": {
+            "state": "new",
+            "values": [
+              "Ouvrir un remote ${applicationName}"
+            ]
+          }
+        },
+        "en": {
+          "stringSet": {
+            "state": "translated",
+            "values": [
+              "Open a ${applicationName} remote"
+            ]
+          }
+        },
+        "es": {
+          "stringSet": {
+            "state": "machine_translated",
+            "values": [
+              "Abrir un remote de ${applicationName}"
+            ]
+          }
+        },
+        "de": {
+          "stringSet": {
+            "state": "machine_translated",
+            "values": [
+              "Ein ${applicationName}-Remote öffnen"
+            ]
+          }
+        },
+        "it": {
+          "stringSet": {
+            "state": "machine_translated",
+            "values": [
+              "Apri un remote ${applicationName}"
+            ]
+          }
+        },
+        "pt-BR": {
+          "stringSet": {
+            "state": "machine_translated",
+            "values": [
+              "Abrir um remote do ${applicationName}"
+            ]
+          }
+        },
+        "ja": {
+          "stringSet": {
+            "state": "machine_translated",
+            "values": [
+              "${applicationName} のリモートを開く"
+            ]
+          }
+        },
+        "zh-Hans": {
+          "stringSet": {
+            "state": "machine_translated",
+            "values": [
+              "打开 ${applicationName} 远程"
+            ]
+          }
+        },
+        "zh-Hant": {
+          "stringSet": {
+            "state": "machine_translated",
+            "values": [
+              "開啟 ${applicationName} 遠端"
+            ]
+          }
+        },
+        "nl": {
+          "stringSet": {
+            "state": "machine_translated",
+            "values": [
+              "Een ${applicationName}-remote openen"
+            ]
+          }
+        },
+        "ru": {
+          "stringSet": {
+            "state": "machine_translated",
+            "values": [
+              "Открыть remote ${applicationName}"
+            ]
+          }
+        },
+        "pl": {
+          "stringSet": {
+            "state": "machine_translated",
+            "values": [
+              "Otwórz remote ${applicationName}"
+            ]
+          }
+        },
+        "ko": {
+          "stringSet": {
+            "state": "machine_translated",
+            "values": [
+              "${applicationName} 원격 열기"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "version": "1.3"
+}

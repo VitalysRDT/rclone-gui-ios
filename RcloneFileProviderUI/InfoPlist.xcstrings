@@ -1,0 +1,258 @@
+{
+  "sourceLanguage": "fr",
+  "strings": {
+    "CFBundleDisplayName": {
+      "comment": "Bundle display name",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "RcloneFileProviderUI"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "RcloneFileProviderUI"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "RcloneFileProviderUI"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "RcloneFileProviderUI"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "RcloneFileProviderUI"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "RcloneFileProviderUI"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "RcloneFileProviderUI"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "RcloneFileProviderUI"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "RcloneFileProviderUI"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "RcloneFileProviderUI"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "RcloneFileProviderUI"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "RcloneFileProviderUI"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "RcloneFileProviderUI"
+          }
+        }
+      }
+    },
+    "CFBundleName": {
+      "comment": "Bundle name",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "RcloneFileProviderUI"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "RcloneFileProviderUI"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "RcloneFileProviderUI"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "RcloneFileProviderUI"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "RcloneFileProviderUI"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "RcloneFileProviderUI"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "RcloneFileProviderUI"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "RcloneFileProviderUI"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "RcloneFileProviderUI"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "RcloneFileProviderUI"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "RcloneFileProviderUI"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "RcloneFileProviderUI"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "RcloneFileProviderUI"
+          }
+        }
+      }
+    },
+    "NSHumanReadableCopyright": {
+      "comment": "Copyright (human-readable)",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "new",
+            "value": ""
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": ""
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": ""
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": ""
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": ""
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": ""
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": ""
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": ""
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": ""
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": ""
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": ""
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": ""
+          }
+        }
+      }
+    }
+  },
+  "version": "1.3"
+}

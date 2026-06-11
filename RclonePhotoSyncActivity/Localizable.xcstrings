@@ -1,0 +1,1564 @@
+{
+  "sourceLanguage": "fr",
+  "strings": {
+    "%lld": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "%lld"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "%lld"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "%lld"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "%lld"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "%lld"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "%lld"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "%lld"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "%lld"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "%lld"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "%lld"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "%lld"
+          }
+        }
+      }
+    },
+    "%lld en attente": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld en attente"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld pending"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "%lld pendientes"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "%lld ausstehend"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "%lld in attesa"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "%lld pendentes"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "%lld 件待機中"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "%lld 个待处理"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "%lld 個待處理"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "%lld in behandeling"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "%lld в ожидании"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "%lld oczekuje"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "%lld개 대기 중"
+          }
+        }
+      }
+    },
+    "%lld sauvegardées": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld sauvegardées"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld backed up"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "%lld guardadas"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "%lld gesichert"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "%lld salvate"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "%lld salvas"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "%lld 件バックアップ済み"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "已备份 %lld 个"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "已備份 %lld 個"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "%lld opgeslagen"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "%lld сохранено"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "%lld zapisano"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "%lld개 백업됨"
+          }
+        }
+      }
+    },
+    "A an example control that runs a timer.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un exemple de contrôle qui lance un minuteur."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An example control that runs a timer."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Un control de ejemplo que ejecuta un temporizador."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Ein Beispielsteuerelement, das einen Timer startet."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Un controllo di esempio che avvia un timer."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Um controle de exemplo que executa um timer."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "タイマーを実行するサンプルコントロール。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "一个运行计时器的示例控件。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "一個執行計時器的範例控制項。"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Een voorbeeldbediening die een timer start."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Пример элемента управления, запускающего таймер."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Przykładowy element sterujący uruchamiający minutnik."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "타이머를 실행하는 예제 컨트롤입니다."
+          }
+        }
+      }
+    },
+    "Configuration": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configuration"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configuration"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Configuración"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Konfiguration"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Configurazione"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Configuração"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "設定"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "配置"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "設定"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Configuratie"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Конфигурация"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Konfiguracja"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "구성"
+          }
+        }
+      }
+    },
+    "État de la sauvegarde de ta photothèque.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "État de la sauvegarde de ta photothèque."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backup status for your photo library."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Estado de la copia de seguridad de tu fototeca."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Sicherungsstatus deiner Fotomediathek."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Stato del backup della tua libreria foto."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Status do backup da sua fototeca."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "写真ライブラリのバックアップ状況。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "你的照片图库备份状态。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "你的照片圖庫備份狀態。"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Back-upstatus van je fotobibliotheek."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Состояние резервного копирования вашей фототеки."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Stan kopii zapasowej biblioteki zdjęć."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "사진 보관함 백업 상태입니다."
+          }
+        }
+      }
+    },
+    "Favorite Emoji": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Emoji favori"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Favorite Emoji"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Emoji favorito"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Lieblings-Emoji"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Emoji preferita"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Emoji favorito"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "お気に入りの絵文字"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "收藏的表情符号"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "喜愛的表情符號"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Favoriete emoji"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Любимый эмодзи"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Ulubione emoji"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "즐겨찾는 이모지"
+          }
+        }
+      }
+    },
+    "Off": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Désactivé"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Off"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Desactivado"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Aus"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Disattivato"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Desativado"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "オフ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "关闭"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "關閉"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Uit"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Выкл."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Wył."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "끔"
+          }
+        }
+      }
+    },
+    "On": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activé"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Activado"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Ein"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Attivato"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Ativado"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "オン"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "开启"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "開啟"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Aan"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Вкл."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Wł."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "켬"
+          }
+        }
+      }
+    },
+    "photos sauvegardées": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "photos sauvegardées"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "photos backed up"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "fotos guardadas"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Fotos gesichert"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "foto salvate"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "fotos salvas"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "写真をバックアップ済み"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "已备份照片"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "已備份照片"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "foto's opgeslagen"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "фото сохранены"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "zdjęcia zapisane"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "사진 백업됨"
+          }
+        }
+      }
+    },
+    "PhotoSync": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PhotoSync"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PhotoSync"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "PhotoSync"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "PhotoSync"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "PhotoSync"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "PhotoSync"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "PhotoSync"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "PhotoSync"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "PhotoSync"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "PhotoSync"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "PhotoSync"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "PhotoSync"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "PhotoSync"
+          }
+        }
+      }
+    },
+    "Start a timer": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Démarrer un minuteur"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start a timer"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Iniciar un temporizador"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Timer starten"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Avvia un timer"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Iniciar um timer"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "タイマーを開始"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "启动计时器"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "啟動計時器"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Timer starten"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Запустить таймер"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Uruchom minutnik"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "타이머 시작"
+          }
+        }
+      }
+    },
+    "Start Timer": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Démarrer le minuteur"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start Timer"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Iniciar temporizador"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Timer starten"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Avvia timer"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Iniciar timer"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "タイマー開始"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "启动计时器"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "啟動計時器"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Timer starten"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Запустить таймер"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Uruchom minutnik"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "타이머 시작"
+          }
+        }
+      }
+    },
+    "Synchro Photos": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Synchro Photos"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Photo Sync"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Sincronización de fotos"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Fotosynchronisierung"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Sincronizzazione foto"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Sincronização de fotos"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "写真同期"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "照片同步"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "照片同步"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Fotosynchronisatie"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Синхронизация фото"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Synchronizacja zdjęć"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "사진 동기화"
+          }
+        }
+      }
+    },
+    "This is an example widget.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ceci est un widget d'exemple."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This is an example widget."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Este es un widget de ejemplo."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Dies ist ein Beispiel-Widget."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Questo è un widget di esempio."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Este é um widget de exemplo."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "これはサンプルウィジェットです。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "这是一个示例小组件。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "這是一個範例小工具。"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Dit is een voorbeeldwidget."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Это пример виджета."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "To jest przykładowy widżet."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "예제 위젯입니다."
+          }
+        }
+      }
+    },
+    "Timer": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Minuteur"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Timer"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Temporizador"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Timer"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Timer"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Timer"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "タイマー"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "计时器"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "計時器"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Timer"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Таймер"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Minutnik"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "타이머"
+          }
+        }
+      }
+    },
+    "Timer is running": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le minuteur est en cours"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Timer is running"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "El temporizador está en marcha"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Timer läuft"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Il timer è in esecuzione"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "O timer está em execução"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "タイマー実行中"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "计时器正在运行"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "計時器正在執行"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Timer loopt"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Таймер запущен"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Minutnik działa"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "타이머 실행 중"
+          }
+        }
+      }
+    },
+    "Timer Name": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nom du minuteur"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Timer Name"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Nombre del temporizador"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Timername"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Nome timer"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Nome do timer"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "タイマー名"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "计时器名称"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "計時器名稱"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Timernaam"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Название таймера"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Nazwa minutnika"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "타이머 이름"
+          }
+        }
+      }
+    },
+    "Timer Name Configuration": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configuration du nom du minuteur"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Timer Name Configuration"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Configuración del nombre del temporizador"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Timernamen-Konfiguration"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Configurazione nome timer"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Configuração do nome do timer"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "タイマー名の設定"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "计时器名称配置"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "計時器名稱設定"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Timernaamconfiguratie"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Настройка названия таймера"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Konfiguracja nazwy minutnika"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "타이머 이름 구성"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.3"
+}

@@ -1,419 +1,506 @@
 {
   "sourceLanguage": "fr",
   "strings": {
-    "CFBundleDisplayName": {
-      "comment": "Bundle display name",
+    "3gV-2h-5zD.normalTitle": {
+      "comment": "Class = \"UIButton\"; normalTitle = \"Cancel\"; ObjectID = \"3gV-2h-5zD\";",
       "extractionState": "extracted_with_value",
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Rclone GUI"
-          }
-        },
         "fr": {
           "stringUnit": {
             "state": "new",
-            "value": "Rclone GUI"
+            "value": "Cancel"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel"
           }
         },
         "es": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "Rclone GUI"
+            "value": "Cancelar"
           }
         },
         "de": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "Rclone GUI"
+            "value": "Abbrechen"
           }
         },
         "it": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "Rclone GUI"
+            "value": "Annulla"
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "Rclone GUI"
+            "value": "Cancelar"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "Rclone GUI"
+            "value": "キャンセル"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "Rclone GUI"
+            "value": "取消"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "Rclone GUI"
+            "value": "取消"
           }
         },
         "nl": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "Rclone GUI"
+            "value": "Annuleer"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "Rclone GUI"
+            "value": "Отмена"
           }
         },
         "pl": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "Rclone GUI"
+            "value": "Anuluj"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "Rclone GUI"
+            "value": "취소"
           }
         }
       }
     },
-    "CFBundleName": {
-      "comment": "Bundle name",
+    "Fwj-fa-AqO.text": {
+      "comment": "Class = \"UILabel\"; text = \"Label\"; ObjectID = \"Fwj-fa-AqO\";",
       "extractionState": "extracted_with_value",
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "RcloneGUI"
-          }
-        },
         "fr": {
           "stringUnit": {
             "state": "new",
-            "value": "RcloneGUI"
+            "value": "Label"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Label"
           }
         },
         "es": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "RcloneGUI"
+            "value": "Etiqueta"
           }
         },
         "de": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "RcloneGUI"
+            "value": "Beschriftung"
           }
         },
         "it": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "RcloneGUI"
+            "value": "Etichetta"
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "RcloneGUI"
+            "value": "Rótulo"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "RcloneGUI"
+            "value": "ラベル"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "RcloneGUI"
+            "value": "标签"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "RcloneGUI"
+            "value": "標籤"
           }
         },
         "nl": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "RcloneGUI"
+            "value": "Label"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "RcloneGUI"
+            "value": "Метка"
           }
         },
         "pl": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "RcloneGUI"
+            "value": "Etykieta"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "RcloneGUI"
+            "value": "레이블"
           }
         }
       }
     },
-    "NSFaceIDUsageDescription": {
-      "comment": "Privacy - Face ID Usage Description",
+    "g6k-sp-jtu.text": {
+      "comment": "Class = \"UILabel\"; text = \"Type:\"; ObjectID = \"g6k-sp-jtu\";",
+      "extractionState": "extracted_with_value",
       "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Type:"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Face ID protects access to your rclone configuration and your stored credentials."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Face ID protège l'accès à votre configuration rclone et à vos identifiants stockés."
+            "value": "Type:"
           }
         },
         "es": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "Face ID protege el acceso a tu configuración de rclone y a tus credenciales guardadas."
+            "value": "Tipo:"
           }
         },
         "de": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "Face ID schützt den Zugriff auf deine rclone-Konfiguration und deine gespeicherten Zugangsdaten."
+            "value": "Typ:"
           }
         },
         "it": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "Face ID protegge l'accesso alla configurazione rclone e alle credenziali salvate."
+            "value": "Tipo:"
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "O Face ID protege o acesso à sua configuração do rclone e às credenciais armazenadas."
+            "value": "Tipo:"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "Face ID は rclone 設定と保存済み認証情報へのアクセスを保護します。"
+            "value": "種類:"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "Face ID 用于保护对 rclone 配置和已存储凭据的访问。"
+            "value": "类型："
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "Face ID 會保護 rclone 設定與已儲存憑證的存取。"
+            "value": "類型："
           }
         },
         "nl": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "Face ID beschermt toegang tot je rclone-configuratie en opgeslagen inloggegevens."
+            "value": "Type:"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "Face ID защищает доступ к вашей конфигурации rclone и сохраненным учетным данным."
+            "value": "Тип:"
           }
         },
         "pl": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "Face ID chroni dostęp do konfiguracji rclone i zapisanych danych logowania."
+            "value": "Typ:"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "Face ID는 rclone 구성과 저장된 자격 증명에 대한 접근을 보호합니다."
+            "value": "유형:"
           }
         }
       }
     },
-    "NSLocalNetworkUsageDescription": {
-      "comment": "Privacy - Local Network Usage Description",
+    "gdj-d0-nZ2.text": {
+      "comment": "Class = \"UILabel\"; text = \"Label\"; ObjectID = \"gdj-d0-nZ2\";",
+      "extractionState": "extracted_with_value",
       "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Label"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Rclone GUI uses an internal localhost server to stream your files (audio/video), including encrypted files. No traffic leaves your device through this channel."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Rclone GUI utilise un serveur localhost interne pour streamer vos fichiers (audio/vidéo), y compris les fichiers chiffrés. Aucun trafic ne quitte votre appareil par cette voie."
+            "value": "Label"
           }
         },
         "es": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "Rclone GUI usa un servidor localhost interno para transmitir tus archivos de audio y vídeo, incluidos archivos cifrados. Ningún tráfico sale de tu dispositivo por este canal."
+            "value": "Etiqueta"
           }
         },
         "de": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "Rclone GUI verwendet einen internen Localhost-Server, um deine Dateien (Audio/Video), einschließlich verschlüsselter Dateien, zu streamen. Über diesen Kanal verlässt kein Datenverkehr dein Gerät."
+            "value": "Beschriftung"
           }
         },
         "it": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "Rclone GUI usa un server localhost interno per riprodurre in streaming i tuoi file audio/video, inclusi quelli cifrati. Nessun traffico lascia il dispositivo tramite questo canale."
+            "value": "Etichetta"
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "O Rclone GUI usa um servidor localhost interno para transmitir seus arquivos de áudio e vídeo, incluindo arquivos criptografados. Nenhum tráfego sai do dispositivo por esse canal."
+            "value": "Rótulo"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "Rclone GUI は内部 localhost サーバーを使用して、暗号化ファイルを含む音声/動画ファイルをストリーミングします。この経路でデバイス外へ通信が出ることはありません。"
+            "value": "ラベル"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "Rclone GUI 使用内部 localhost 服务器来流式传输你的音频/视频文件，包括加密文件。此通道不会让任何流量离开你的设备。"
+            "value": "标签"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "Rclone GUI 使用內部 localhost 伺服器串流你的音訊/影片檔案，包括加密檔案。此通道不會讓任何流量離開你的裝置。"
+            "value": "標籤"
           }
         },
         "nl": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "Rclone GUI gebruikt een interne localhost-server om je audio- en videobestanden te streamen, inclusief versleutelde bestanden. Via dit kanaal verlaat geen verkeer je apparaat."
+            "value": "Label"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "Rclone GUI использует внутренний сервер localhost для потоковой передачи ваших аудио- и видеофайлов, включая зашифрованные файлы. Через этот канал трафик не покидает устройство."
+            "value": "Метка"
           }
         },
         "pl": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "Rclone GUI używa wewnętrznego serwera localhost do strumieniowania plików audio i wideo, także zaszyfrowanych. Ten kanał nie wysyła żadnego ruchu poza urządzenie."
+            "value": "Etykieta"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "Rclone GUI는 내부 localhost 서버를 사용해 암호화된 파일을 포함한 오디오/비디오 파일을 스트리밍합니다. 이 채널을 통해 기기 밖으로 나가는 트래픽은 없습니다."
+            "value": "레이블"
           }
         }
       }
     },
-    "NSPhotoLibraryUsageDescription": {
-      "comment": "Privacy - Photo Library Usage Description",
+    "k6y-tY-87X.normalTitle": {
+      "comment": "Class = \"UIButton\"; normalTitle = \"Done\"; ObjectID = \"k6y-tY-87X\";",
+      "extractionState": "extracted_with_value",
       "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Done"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lets you upload your photos and videos to your rclone remotes."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Permet d'uploader vos photos et vidéos vers vos remotes rclone."
+            "value": "Done"
           }
         },
         "es": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "Permite subir tus fotos y vídeos a tus remotes de rclone."
+            "value": "OK"
           }
         },
         "de": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "Ermöglicht das Hochladen deiner Fotos und Videos auf deine rclone-Remotes."
+            "value": "Fertig"
           }
         },
         "it": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "Consente di caricare foto e video sui tuoi remote rclone."
+            "value": "Fine"
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "Permite enviar suas fotos e vídeos para seus remotes do rclone."
+            "value": "OK"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "写真や動画を rclone リモートへアップロードできるようにします。"
+            "value": "完了"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "允许你将照片和视频上传到 rclone 远程。"
+            "value": "完成"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "允許你將照片與影片上傳到 rclone 遠端。"
+            "value": "完成"
           }
         },
         "nl": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "Hiermee kun je je foto's en video's uploaden naar je rclone-remotes."
+            "value": "Gereed"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "Позволяет загружать фото и видео в ваши удаленные хранилища rclone."
+            "value": "Готово"
           }
         },
         "pl": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "Pozwala przesyłać zdjęcia i filmy do zdalnych lokalizacji rclone."
+            "value": "Gotowe"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "machine_translated",
-            "value": "사진과 비디오를 rclone 원격 저장소에 업로드할 수 있습니다."
+            "value": "완료"
+          }
+        }
+      }
+    },
+    "lAh-Rn-dzR.text": {
+      "comment": "Class = \"UILabel\"; text = \"Action name:\"; ObjectID = \"lAh-Rn-dzR\";",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Action name:"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Action name:"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Nombre de la acción:"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Aktionsname:"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Nome azione:"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Nome da ação:"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "アクション名:"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "操作名称："
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "動作名稱："
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Actienaam:"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Название действия:"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Nazwa czynności:"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "동작 이름:"
           }
         }
       }
