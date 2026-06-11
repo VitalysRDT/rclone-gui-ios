@@ -1,6 +1,6 @@
-Nouveautés de la version 1.2 :
-- Application macOS native : Rclone GUI tourne désormais nativement sur les Mac Apple Silicon, avec une barre latérale et l'intégration au Finder.
-- Nouvel assistant guidé pour les remotes chiffrés (crypt) : choix du stockage sous-jacent, navigation jusqu'au dossier de destination, mot de passe — sans saisie manuelle de chemin.
-- Assistant d'ajout de remote : champs plus clairs, bouton Retour, et sélecteur de fichier natif pour importer rclone.conf.
-- Localisation anglaise et française complète dans toute l'app.
-- Améliorations de stabilité et finitions.
+Nouveautés de la version 1.3 :
+- Correction importante : l'import d'une configuration rclone chiffrée par mot de passe (« rclone config encryption set ») ne fait plus planter l'app. Saisis ton mot de passe à l'import — il sert une seule fois au déchiffrement et n'est jamais stocké.
+- Nouveau : bouton « J'ai un code » dans l'écran d'abonnement pour utiliser un code promo.
+- Nouveau : page « Contacter le développeur » dans Réglages → Support.
+- Traduction anglaise complétée dans toute l'app.
+- Le code source de l'app est désormais public : github.com/VitalysRDT/rclone-gui-ios
