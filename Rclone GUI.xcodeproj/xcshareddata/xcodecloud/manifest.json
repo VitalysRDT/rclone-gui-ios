@@ -1,0 +1,9 @@
+{
+  "id" : "a6f26c6e-adef-43e4-bf70-89f6e7cd88dc",
+  "targets" : [
+    {
+      "id" : "e4348b1e-3e95-4eed-8fdf-c28e5ff48574",
+      "name" : "Rclone GUI"
+    }
+  ]
+}
