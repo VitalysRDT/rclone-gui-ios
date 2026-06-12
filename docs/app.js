@@ -2688,7 +2688,10 @@ const Features = () => {
 const FreeMonth = () => {
   const t = useT();
   const STORE_KEY = 'rclone_trial_code_v1';
-  const [state, setState] = React.useState('idle'); // idle|loading|done|already|soldout|error
+  const [state, setState] = React.useState('idle'); // idle|loading|done|soldout|error
+  const [email, setEmail] = React.useState('');
+  const [newsletter, setNewsletter] = React.useState(false);
+  const [emailErr, setEmailErr] = React.useState(false);
   const [code, setCode] = React.useState(null);
   const [url, setUrl] = React.useState(null);
   const [copied, setCopied] = React.useState(false);
@@ -2702,15 +2705,25 @@ const FreeMonth = () => {
       }
     } catch (e) {}
   }, []);
+  const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
   const claim = async () => {
+    const mail = email.trim().toLowerCase();
+    if (!EMAIL_RE.test(mail)) {
+      setEmailErr(true);
+      return;
+    }
+    setEmailErr(false);
     setState('loading');
     try {
       const res = await fetch(CLAIM_API, {
         method: 'POST',
-        credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
-        }
+        },
+        body: JSON.stringify({
+          email: mail,
+          newsletter
+        })
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.code) {
@@ -2723,12 +2736,9 @@ const FreeMonth = () => {
           }));
         } catch (e) {}
         setState('done');
-      } else if (res.status === 409 || data.error === 'already_claimed') {
-        if (data.code) {
-          setCode(data.code);
-          setUrl(data.url);
-          setState('done');
-        } else setState('already');
+      } else if (res.status === 400 || data.error === 'invalid_email') {
+        setEmailErr(true);
+        setState('idle');
       } else if (res.status === 410 || data.error === 'sold_out') {
         setState('soldout');
       } else {
@@ -2758,13 +2768,45 @@ const FreeMonth = () => {
     className: "lede"
   }, t('Un code App Store personnel, valable une fois, pour démarrer votre essai sans frais. Un par personne.', 'A personal, single-use App Store code to start your trial at no cost. One per person.')), /*#__PURE__*/React.createElement("div", {
     className: "claimbox"
-  }, state === 'idle' && /*#__PURE__*/React.createElement("button", {
+  }, state === 'idle' && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("input", {
+    className: "field",
+    type: "email",
+    inputMode: "email",
+    autoComplete: "email",
+    placeholder: t('Votre adresse e-mail', 'Your email address'),
+    value: email,
+    onChange: e => {
+      setEmail(e.target.value);
+      if (emailErr) setEmailErr(false);
+    },
+    onKeyDown: e => {
+      if (e.key === 'Enter') claim();
+    },
+    style: emailErr ? {
+      borderColor: '#fff',
+      boxShadow: '0 0 0 3px rgba(255,255,255,.55)'
+    } : null
+  }), emailErr && /*#__PURE__*/React.createElement("p", {
+    className: "mini",
+    style: {
+      marginTop: 8,
+      fontWeight: 700
+    }
+  }, t('Entrez une adresse e-mail valide.', 'Please enter a valid email address.')), /*#__PURE__*/React.createElement("label", {
+    className: "optin"
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "checkbox",
+    checked: newsletter,
+    onChange: e => setNewsletter(e.target.checked)
+  }), /*#__PURE__*/React.createElement("span", null, t('Tenez-moi informé des nouveautés (newsletter, sans spam).', 'Keep me posted about updates (newsletter, no spam).'))), /*#__PURE__*/React.createElement("button", {
     className: "btn btn-light btn-big",
     onClick: claim
   }, /*#__PURE__*/React.createElement(Icon, {
     name: "bolt.fill",
     size: 18
-  }), t('Obtenir mon code', 'Get my code')), state === 'loading' && /*#__PURE__*/React.createElement("button", {
+  }), t('Obtenir mon code', 'Get my code')), /*#__PURE__*/React.createElement("p", {
+    className: "mini"
+  }, t('Votre e-mail garantit un code par personne. Jamais partagé avec des tiers.', 'Your email ensures one code per person. Never shared with third parties.'))), state === 'loading' && /*#__PURE__*/React.createElement("button", {
     className: "btn btn-light btn-big",
     disabled: true
   }, /*#__PURE__*/React.createElement("span", {
