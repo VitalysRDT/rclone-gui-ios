@@ -4,7 +4,7 @@ A native iOS & macOS client for [rclone](https://rclone.org) — browse, stream,
 transfer and back up files across 80+ cloud storage backends (S3, R2, Google
 Drive, Dropbox, SFTP, B2, crypt…), with your configuration encrypted on-device.
 
-[**Download on the App Store**](https://apps.apple.com/app/id6770088773)
+[**rclone.rougetet.com**](https://rclone.rougetet.com) · [Download on the App Store](https://apps.apple.com/app/id6770088773)
 
 ## Highlights
 
