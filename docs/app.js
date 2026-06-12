@@ -2687,6 +2687,7 @@ const Features = () => {
 };
 const FreeMonth = () => {
   const t = useT();
+  const lang = React.useContext(LangContext);
   const STORE_KEY = 'rclone_trial_code_v1';
   const [state, setState] = React.useState('idle'); // idle|loading|done|soldout|error
   const [email, setEmail] = React.useState('');
@@ -2722,11 +2723,14 @@ const FreeMonth = () => {
         },
         body: JSON.stringify({
           email: mail,
-          newsletter
+          newsletter,
+          lang
         })
       });
       const data = await res.json().catch(() => ({}));
-      if (res.ok && data.code) {
+      if (res.ok && data.sent) {
+        setState('sent');
+      } else if (res.ok && data.code) {
         setCode(data.code);
         setUrl(data.url);
         try {
@@ -2739,6 +2743,8 @@ const FreeMonth = () => {
       } else if (res.status === 400 || data.error === 'invalid_email') {
         setEmailErr(true);
         setState('idle');
+      } else if (res.status === 429 || data.error === 'ip_blocked') {
+        setState('ipblocked');
       } else if (res.status === 410 || data.error === 'sold_out') {
         setState('soldout');
       } else {
@@ -2837,7 +2843,23 @@ const FreeMonth = () => {
     onClick: copy
   }, copied ? t('Copié ✓', 'Copied ✓') : t('Copier', 'Copy'))), /*#__PURE__*/React.createElement("p", {
     className: "mini"
-  }, t('Ouvrez le lien sur votre iPhone/iPad/Mac connecté à l\'App Store, ou saisissez le code dans App Store → votre photo → « Utiliser une carte cadeau ou un code ».', 'Open the link on your iPhone/iPad/Mac signed in to the App Store, or enter the code in App Store → your photo → “Redeem Gift Card or Code”.'))), state === 'already' && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+  }, t('Ouvrez le lien sur votre iPhone/iPad/Mac connecté à l\'App Store, ou saisissez le code dans App Store → votre photo → « Utiliser une carte cadeau ou un code ».', 'Open the link on your iPhone/iPad/Mac signed in to the App Store, or enter the code in App Store → your photo → “Redeem Gift Card or Code”.'))), state === 'sent' && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 40,
+      lineHeight: 1
+    }
+  }, "\uD83D\uDCEC"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 20,
+      fontWeight: 800,
+      margin: '8px 0 4px'
+    }
+  }, t('Vérifiez votre boîte mail', 'Check your inbox')), /*#__PURE__*/React.createElement("p", {
+    className: "mini",
+    style: {
+      opacity: .95
+    }
+  }, t('Votre code vient d\'être envoyé à votre adresse e-mail (pensez à regarder les spams). Ouvrez-le sur votre appareil Apple pour l\'utiliser.', 'Your code has just been sent to your email (check spam too). Open it on your Apple device to redeem.'))), state === 'ipblocked' && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 18,
       fontWeight: 700,
@@ -2848,7 +2870,15 @@ const FreeMonth = () => {
     style: {
       opacity: .95
     }
-  }, t('Un seul code par personne. Vous avez déjà obtenu le vôtre.', 'One code per person — you already got yours.'))), state === 'soldout' && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+  }, t('Un code a déjà été demandé depuis cet appareil ou ce réseau. Un seul par personne.', 'A code has already been requested from this device or network. One per person.')), /*#__PURE__*/React.createElement("a", {
+    className: "btn btn-light",
+    style: {
+      marginTop: 14
+    },
+    href: APP_STORE_URL,
+    target: "_blank",
+    rel: "noopener"
+  }, /*#__PURE__*/React.createElement(AppleLogo, null), "App Store")), state === 'soldout' && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 18,
       fontWeight: 700,
