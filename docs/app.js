@@ -2902,7 +2902,7 @@ const FreeMonth = () => {
     onClick: claim
   }, t('Réessayer', 'Try again')), /*#__PURE__*/React.createElement("p", {
     className: "mini"
-  }, t('Le générateur n\'est pas encore disponible — réessayez bientôt.', 'The generator isn\'t live yet — try again soon.')))), /*#__PURE__*/React.createElement("div", {
+  }, t('Une erreur est survenue — vérifiez votre connexion et réessayez.', 'Something went wrong — check your connection and try again.')))), /*#__PURE__*/React.createElement("div", {
     className: "steps"
   }, [{
     n: 1,

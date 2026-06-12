@@ -804,7 +804,7 @@ const FreeMonth = () => {
               <div><div style={{ fontSize:18, fontWeight:700, marginBottom:6 }}>{t('Plus de codes','All codes claimed')}</div><p className="mini" style={{ opacity:.95 }}>{t('Tous les codes ont été distribués pour le moment. Vous pouvez quand même télécharger l\'app.','All free codes are gone for now. You can still download the app.')}</p><a className="btn btn-light" style={{ marginTop:14 }} href={APP_STORE_URL} target="_blank" rel="noopener"><AppleLogo/>App Store</a></div>
             )}
             {state === 'error' && (
-              <div><button className="btn btn-light btn-big" onClick={claim}>{t('Réessayer','Try again')}</button><p className="mini">{t('Le générateur n\'est pas encore disponible — réessayez bientôt.','The generator isn\'t live yet — try again soon.')}</p></div>
+              <div><button className="btn btn-light btn-big" onClick={claim}>{t('Réessayer','Try again')}</button><p className="mini">{t('Une erreur est survenue — vérifiez votre connexion et réessayez.','Something went wrong — check your connection and try again.')}</p></div>
             )}
           </div>
 
