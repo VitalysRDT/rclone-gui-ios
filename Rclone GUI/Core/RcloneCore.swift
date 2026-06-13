@@ -236,7 +236,7 @@ public actor RcloneCore {
                 message: "ConfigStore.writeDecryptedToTempFile a échoué : \(error.localizedDescription)"
             )
             throw RcloneError.engineNotAvailable(
-                "Aucune configuration rclone importée. Importe d'abord depuis Réglages."
+                String(localized: "Aucune configuration rclone importée. Importe d'abord depuis Réglages.")
             )
         }
         // RCLONE_CONFIG is intentionally set even though rclone v1.68 does
