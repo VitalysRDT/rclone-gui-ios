@@ -473,7 +473,7 @@ public final class TransferQueue {
                 dstFs: "\(dstRemote):\(dstPath)"
             )
         default:
-            throw RcloneError.engineNotAvailable("Type de transfert remote non supporté : \(kind.rawValue)")
+            throw RcloneError.engineNotAvailable(String(localized: "Type de transfert remote non supporté : \(kind.rawValue)"))
         }
 
         transfer.jobID = jobID
