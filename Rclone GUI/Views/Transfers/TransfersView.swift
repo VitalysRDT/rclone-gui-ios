@@ -116,25 +116,25 @@ struct TransfersView: View {
                 let bytesPerSecond = Int64(bandwidthLimitMBps * 1024 * 1024)
                 try await TransferQueue.shared.resumeAllTransfers(bytesPerSecond: bytesPerSecond)
                 isPausedGlobally = false
-                toast = AppToast(title: "Transferts repris", severity: .success)
+                toast = AppToast(title: String(localized: "Transferts repris"), severity: .success)
             } else {
                 try await TransferQueue.shared.pauseAllTransfers()
                 isPausedGlobally = true
-                toast = AppToast(title: "Tous les transferts sont en pause", severity: .info)
+                toast = AppToast(title: String(localized: "Tous les transferts sont en pause"), severity: .info)
             }
             hapticTrigger &+= 1
         } catch {
-            toast = AppToast(title: "Échec", message: error.localizedDescription, severity: .error)
+            toast = AppToast(title: String(localized: "Échec"), message: error.localizedDescription, severity: .error)
         }
     }
 
     private func retry(_ transfer: Transfer) async {
         do {
             try await TransferQueue.shared.retry(transfer)
-            toast = AppToast(title: "Retry lancé", severity: .success)
+            toast = AppToast(title: String(localized: "Retry lancé"), severity: .success)
             hapticTrigger &+= 1
         } catch {
-            toast = AppToast(title: "Échec retry", message: error.localizedDescription, severity: .error)
+            toast = AppToast(title: String(localized: "Échec retry"), message: error.localizedDescription, severity: .error)
         }
     }
 
@@ -145,10 +145,10 @@ struct TransfersView: View {
 
         if summary.pausedByUser {
             await PhotoSyncService.shared.resumePhotoSync()
-            toast = AppToast(title: "Synchro Photos reprise", severity: .success)
+            toast = AppToast(title: String(localized: "Synchro Photos reprise"), severity: .success)
         } else {
             await PhotoSyncService.shared.pausePhotoSync()
-            toast = AppToast(title: "Synchro Photos en pause", severity: .info)
+            toast = AppToast(title: String(localized: "Synchro Photos en pause"), severity: .info)
         }
         hapticTrigger &+= 1
         await refreshPhotoSyncState()

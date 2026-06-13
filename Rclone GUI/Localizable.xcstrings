@@ -1,6 +1,22 @@
 {
   "sourceLanguage" : "fr",
   "strings" : {
+    "Type de transfert remote non supporté : %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unsupported remote transfer type: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Type de transfert remote non supporté : %@"
+          }
+        }
+      }
+    },
     "Aucune configuration rclone importée. Importe d'abord depuis Réglages." : {
       "localizations" : {
         "en" : {
