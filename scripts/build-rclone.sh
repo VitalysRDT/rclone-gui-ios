@@ -118,6 +118,45 @@ echo ""
 echo "Resolving bridge module dependencies (go mod tidy)..."
 go mod tidy
 
+# --- Patch storj.io/common: drop its //go:linkname to internal/cpu.sysctlEnabled
+#
+# The storj.io/common version pulled by rclone >= 1.73 (the Storj backend's dep)
+# adds, in internal/hmacsha512/cpu_darwin_arm64.go:
+#     //go:linkname sysctlEnabled internal/cpu.sysctlEnabled
+# to enable a hardware SHA512 fast path. In the gomobile c-archive the Go linker
+# prunes internal/cpu.sysctlEnabled's definition while keeping that reference, so
+# the wrap_slice dylib relink fails with:
+#     Undefined symbols: _internal/cpu.sysctlEnabled
+# (reproduced on both the amd64 Xcode Cloud runner and a local arm64 Mac — it is
+# not arch-specific). We vendor storj.io/common locally with that one file
+# neutralised; it then falls back to golang.org/x/sys/cpu (generic SHA512). No
+# functional change, only a tiny perf cost on Storj's HMAC-SHA512. The replace is
+# added at build time and dropped on exit so the committed go.mod stays clean.
+STORJ_SRC="$(go list -m -f '{{.Dir}}' storj.io/common)"
+STORJ_DST="$WORK_DIR/storj-common-patched"
+echo ""
+echo "Patching storj.io/common (dropping internal/cpu.sysctlEnabled linkname)..."
+echo "  from: $STORJ_SRC"
+rm -rf "$STORJ_DST"
+mkdir -p "$STORJ_DST"
+cp -R "$STORJ_SRC/." "$STORJ_DST/"
+chmod -R u+w "$STORJ_DST"
+cat > "$STORJ_DST/internal/hmacsha512/cpu_darwin_arm64.go" <<'STORJEOF'
+// Neutralised for the gomobile iOS/macOS c-archive build by scripts/build-rclone.sh.
+// Upstream this file does //go:linkname sysctlEnabled internal/cpu.sysctlEnabled
+// to enable a hardware SHA512 fast path; that linkname leaves
+// _internal/cpu.sysctlEnabled undefined when relinking the gomobile c-archive.
+// Dropping it falls back to golang.org/x/sys/cpu (generic SHA512 otherwise) —
+// no functional change, only a minor perf cost on Storj's HMAC-SHA512.
+package hmacsha512
+STORJEOF
+# Restore the committed go.mod on exit (success or failure) so the build-time
+# absolute-path replace never lingers in the working tree.
+trap 'go -C "$BRIDGE_DIR" mod edit -dropreplace storj.io/common 2>/dev/null || true' EXIT
+go mod edit -replace "storj.io/common=$STORJ_DST"
+echo "Re-resolving with patched storj.io/common (go mod tidy)..."
+go mod tidy
+
 mkdir -p "$OUTPUT_DIR"
 
 # Clean previous output to avoid xcframework merge conflicts
