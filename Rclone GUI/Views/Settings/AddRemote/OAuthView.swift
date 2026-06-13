@@ -228,6 +228,6 @@ struct OAuthView: View {
     // MARK: - Helpers
 
     private func linkLabel(for backend: BackendSchema) -> String {
-        "Ouvrir la page \(backend.displayName)"
+        String(localized: "Ouvrir la page \(backend.displayName)")
     }
 }

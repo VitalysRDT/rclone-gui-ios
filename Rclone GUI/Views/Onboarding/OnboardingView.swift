@@ -141,7 +141,7 @@ struct OnboardingView: View {
         }
     }
 
-    private func featureRow(icon: String, tint: Color, title: String, subtitle: String) -> some View {
+    private func featureRow(icon: String, tint: Color, title: LocalizedStringKey, subtitle: LocalizedStringKey) -> some View {
         HStack(spacing: 14) {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(tint.opacity(0.18))

@@ -13,9 +13,9 @@ import SwiftUI
 
 struct LockedView: View {
     /// Localized title — defaults to "Déverrouillez Rclone".
-    var title: String = "Déverrouillez Rclone"
+    var title: LocalizedStringKey = "Déverrouillez Rclone"
     /// Localized rationale — what does the user gain by authenticating?
-    var subtitle: String = "Face ID est requis pour lire votre rclone.conf chiffré."
+    var subtitle: LocalizedStringKey = "Face ID est requis pour lire votre rclone.conf chiffré."
     /// Triggered when the user taps the primary tile or the passcode pill.
     var onAuthenticate: (() -> Void)? = nil
 
@@ -74,7 +74,6 @@ struct LockedView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.horizontal, 24)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(title). \(subtitle)")
         .accessibilityHint("Tape pour déverrouiller avec Face ID ou un code")
     }
 }
