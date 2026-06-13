@@ -56,6 +56,42 @@ enum RcloneConfigEditor {
         await refreshRuntimeAndNotify()
     }
 
+    /// Supprime un remote de rclone.conf (retire la section `[name]` et son
+    /// corps), réécrit le store chiffré, puis recharge le moteur et le
+    /// manifest FileProvider. Les données distantes ne sont pas touchées.
+    static func deleteRemote(name: String) async throws {
+        let existingData = try await ConfigStore.shared.load()
+        guard let existingData,
+              let existingText = String(data: existingData, encoding: .utf8) else {
+            // Pas de config → rien à supprimer.
+            return
+        }
+        let updatedText = configText(existingText, removingSectionNamed: name)
+        try await ConfigStore.shared.save(Data(updatedText.utf8))
+        await refreshRuntimeAndNotify()
+    }
+
+    /// Retourne le texte INI privé de la section `[rawName]` (en-tête + lignes
+    /// jusqu'à la prochaine section ou la fin du fichier).
+    static func configText(_ text: String, removingSectionNamed rawName: String) -> String {
+        let target = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
+        var result: [String] = []
+        var skipping = false
+        for rawLine in text.split(separator: "\n", omittingEmptySubsequences: false) {
+            let line = rawLine.trimmingCharacters(in: .whitespaces)
+            if line.hasPrefix("["), let close = line.firstIndex(of: "]"), close > line.startIndex {
+                let sectionName = line[line.index(after: line.startIndex)..<close]
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                skipping = (sectionName == target)
+                if skipping { continue }
+            }
+            if !skipping {
+                result.append(String(rawLine))
+            }
+        }
+        return result.joined(separator: "\n")
+    }
+
     static func refreshRuntimeAndNotify() async {
         do {
             try await RcloneCore.shared.reloadConfigurationFromStore()

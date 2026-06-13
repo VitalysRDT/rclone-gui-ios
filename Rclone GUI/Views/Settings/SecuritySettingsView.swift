@@ -8,10 +8,13 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct SecuritySettingsView: View {
+    @Environment(\.modelContext) private var modelContext
     @AppStorage("security.requireBiometricsAtLaunch") private var requireBiometrics = true
     @AppStorage("security.inactivityWipeMinutes") private var inactivityWipeMinutes: Int = 30
+    @AppStorage(VaultManager.unlockMinutesKey) private var vaultUnlockMinutes: Int = 15
     @State private var biometricsAvailable: Bool = true
     @State private var wipeError: String?
     @State private var wipeSuccess: String?
@@ -62,6 +65,20 @@ struct SecuritySettingsView: View {
             }
 
             Section {
+                Picker("Durée de déverrouillage du coffre-fort", selection: $vaultUnlockMinutes) {
+                    Text("À chaque accès").tag(0)
+                    Text("5 min").tag(5)
+                    Text("15 min").tag(15)
+                    Text("30 min").tag(30)
+                    Text("1 h").tag(60)
+                }
+            } header: {
+                Text("Coffre-fort")
+            } footer: {
+                Text("Mets un remote au coffre-fort depuis l'onglet Fichiers (appui long). Il disparaît alors de l'app Fichiers d'iOS et ne s'ouvre qu'après Face ID / Touch ID. Cette durée définit combien de temps il reste déverrouillé après authentification.")
+            }
+
+            Section {
                 Button(role: .destructive) {
                     showWipeConfirm = true
                 } label: {
@@ -107,8 +124,13 @@ struct SecuritySettingsView: View {
     private func wipeConfig() async {
         do {
             try await ConfigStore.shared.wipe()
-            await RcloneCore.shared.invalidateConfigCache()
+            // Oublie les remotes encore chargés en mémoire par librclone
+            // (sinon ils restent navigables après effacement).
+            await RcloneCore.shared.resetToEmptyConfig()
             await FileProviderManager.shared.writeRemotesManifest([])
+            // Purge les favoris/récents locaux et l'état du coffre-fort.
+            try? SavedLocationStore.removeAll(in: modelContext)
+            VaultManager.shared.clearAll()
             await MainActor.run {
                 NotificationCenter.default.post(name: .rcloneConfigurationDidChange, object: nil)
             }
