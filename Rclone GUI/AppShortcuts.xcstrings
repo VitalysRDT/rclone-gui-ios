@@ -14,12 +14,9 @@
           }
         },
         "en" : {
-          "stringSet" : {
-            "state" : "translated",
-            "values" : [
-              "List my ${applicationName} remotes",
-              "Show ${applicationName} remotes"
-            ]
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "List my remotes ${applicationName}"
           }
         },
         "es" : {
@@ -135,11 +132,9 @@
           }
         },
         "en" : {
-          "stringSet" : {
-            "state" : "translated",
-            "values" : [
-              "Open a ${applicationName} remote"
-            ]
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Open a remote ${applicationName}"
           }
         },
         "es" : {
