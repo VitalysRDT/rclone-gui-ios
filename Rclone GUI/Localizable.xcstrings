@@ -1,50 +1,34 @@
 {
   "sourceLanguage" : "fr",
   "strings" : {
-    "Type de transfert remote non supporté : %@" : {
+    "%@/mois ou %@/an" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Unsupported remote transfer type: %@"
+            "value" : "%@/month or %@/year"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Type de transfert remote non supporté : %@"
+            "value" : "%@/mois ou %@/an"
           }
         }
       }
     },
-    "Aucune configuration rclone importée. Importe d'abord depuis Réglages." : {
+    "%@, puis %@/mois ou %@/an" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No rclone configuration imported. Import one first from Settings."
+            "value" : "%@, then %@/month or %@/year"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Aucune configuration rclone importée. Importe d'abord depuis Réglages."
-          }
-        }
-      }
-    },
-    "Repart à 7 jours puis ferme l'app" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Restarts the 7 days then quits the app"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Repart à 7 jours puis ferme l'app"
+            "value" : "%@, puis %@/mois ou %@/an"
           }
         }
       }
@@ -7898,6 +7882,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Aucune configuration rclone importée"
+          }
+        }
+      }
+    },
+    "Aucune configuration rclone importée. Importe d'abord depuis Réglages." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No rclone configuration imported. Import one first from Settings."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune configuration rclone importée. Importe d'abord depuis Réglages."
           }
         }
       }
@@ -29375,6 +29375,23 @@
         }
       }
     },
+    "Repart à 7 jours puis ferme l'app" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restarts the 7 days then quits the app"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Repart à 7 jours puis ferme l'app"
+          }
+        }
+      }
+    },
     "Réplique `rclone config` — utile pour crypt, alias, union, combine et tout backend exigeant des prompts dynamiques." : {
       "localizations" : {
         "en" : {
@@ -34983,6 +35000,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Type"
+          }
+        }
+      }
+    },
+    "Type de transfert remote non supporté : %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unsupported remote transfer type: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Type de transfert remote non supporté : %@"
           }
         }
       }
