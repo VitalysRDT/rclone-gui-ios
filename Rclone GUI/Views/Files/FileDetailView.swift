@@ -217,7 +217,7 @@ struct FileDetailView: View {
         }
     }
 
-    private func infoRow(title: String, value: String) -> some View {
+    private func infoRow(title: LocalizedStringKey, value: String) -> some View {
         HStack {
             Text(title)
                 .foregroundStyle(.primary)

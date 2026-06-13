@@ -182,8 +182,8 @@ struct ImportConfigView: View {
     private func importSourceRow(
         icon: String,
         tint: Color,
-        title: String,
-        subtitle: String,
+        title: LocalizedStringKey,
+        subtitle: LocalizedStringKey,
         disabled: Bool = false
     ) -> some View {
         HStack(spacing: 12) {

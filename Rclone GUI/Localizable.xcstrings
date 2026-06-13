@@ -8768,6 +8768,9 @@
         }
       }
     },
+    "Bug, idée ou question — par e-mail" : {
+
+    },
     "C’est prêt" : {
       "localizations" : {
         "en" : {
@@ -15717,22 +15720,6 @@
         }
       }
     },
-    "Fichier" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "File"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fichier"
-          }
-        }
-      }
-    },
     "Échec" : {
       "localizations" : {
         "de" : {
@@ -17210,6 +17197,9 @@
         }
       }
     },
+    "Événements rclone et erreurs récentes" : {
+
+    },
     "ex : mondrive" : {
       "localizations" : {
         "en" : {
@@ -17890,6 +17880,70 @@
           "stringUnit" : {
             "state" : "machine_translated",
             "value" : "关闭提示"
+          }
+        }
+      }
+    },
+    "Déverrouillez Rclone" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unlock Rclone"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Déverrouillez Rclone"
+          }
+        }
+      }
+    },
+    "Face ID est requis pour lire votre rclone.conf chiffré." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Face ID is required to read your encrypted rclone.conf."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Face ID est requis pour lire votre rclone.conf chiffré."
+          }
+        }
+      }
+    },
+    "Ouvrir la page %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open the %@ page"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrir la page %@"
+          }
+        }
+      }
+    },
+    "Fichier" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "File"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fichier"
           }
         }
       }
