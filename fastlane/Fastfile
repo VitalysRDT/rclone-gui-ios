@@ -33,6 +33,7 @@ platform :ios do
   lane :upload_metadata do
     deliver(
       api_key: asc_key,
+      app_version: "1.4",    # cible explicitement la version 1.4 (ne touche pas la 1.3 en ligne)
       skip_binary_upload: true,
       skip_screenshots: true,
       skip_metadata: false,
