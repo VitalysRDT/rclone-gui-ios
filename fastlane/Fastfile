@@ -180,7 +180,7 @@ platform :mac do
     deliver(
       api_key: asc_key,
       platform: "osx",
-      app_version: "1.2",
+      app_version: "1.4",
       skip_binary_upload: true,
       skip_screenshots: true,
       skip_metadata: false,
@@ -196,7 +196,7 @@ platform :mac do
       api_key: asc_key,
       platform: "osx",
       screenshots_path: "./fastlane/screenshots-mac",
-      app_version: "1.2",
+      app_version: "1.4",
       skip_binary_upload: true,
       skip_metadata: true,
       skip_screenshots: false,
@@ -206,12 +206,12 @@ platform :mac do
     )
   end
 
-  desc "Submit the macOS 1.2 version for review (build already uploaded)"
+  desc "Submit the macOS 1.4 version for review (build already uploaded)"
   lane :submit_mac do
     deliver(
       api_key: asc_key,
       platform: "osx",
-      app_version: "1.2",
+      app_version: "1.4",
       submit_for_review: true,
       automatic_release: false,
       skip_binary_upload: true,
