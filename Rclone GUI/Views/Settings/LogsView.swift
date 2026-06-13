@@ -17,8 +17,17 @@ struct LogsView: View {
     @State private var displayLimit: Int = 100
     private static let pageSize = 100
 
+    // Rapport de crash de la session précédente (capturé par CrashReporter).
+    @State private var crashReport: String?
+    @State private var crashReportURL: URL?
+    @State private var showCrashReport = false
+
     var body: some View {
         VStack(spacing: 0) {
+            if crashReport != nil {
+                crashBanner
+                Divider()
+            }
             filterBar
             Divider()
             if entries.isEmpty {
@@ -102,7 +111,36 @@ struct LogsView: View {
                 }
             }
         }
-        .task { await reload() }
+        .task {
+            await reload()
+            crashReport = CrashReporter.pendingReportText()
+            crashReportURL = CrashReporter.pendingReportFileURL()
+        }
+        #if canImport(UIKit)
+        .sheet(isPresented: $showCrashReport) {
+            NavigationStack {
+                ScrollView {
+                    Text(crashReport ?? "")
+                        .font(.caption.monospaced())
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding()
+                }
+                .navigationTitle("Rapport de crash")
+                .rgInlineNavTitle()
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        if let url = crashReportURL {
+                            ShareLink(item: url) { Image(systemName: "square.and.arrow.up") }
+                        }
+                    }
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Fermer") { showCrashReport = false }
+                    }
+                }
+            }
+        }
+        #endif
         #if canImport(UIKit)
         .sheet(isPresented: $showShare) {
             if let url = exportURL {
@@ -125,6 +163,50 @@ struct LogsView: View {
         } message: { msg in
             Text(msg)
         }
+    }
+
+    @ViewBuilder
+    private var crashBanner: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("Crash détecté", systemImage: "exclamationmark.triangle.fill")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.orange)
+            Text("L'app a quitté inopinément lors de la session précédente. Envoie le rapport au développeur pour aider à corriger le problème.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            HStack(spacing: 10) {
+                Button {
+                    showCrashReport = true
+                } label: {
+                    Label("Voir le rapport", systemImage: "doc.text.magnifyingglass")
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+
+                #if canImport(UIKit)
+                if let url = crashReportURL {
+                    ShareLink(item: url) {
+                        Label("Envoyer", systemImage: "square.and.arrow.up")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
+                #endif
+
+                Spacer(minLength: 0)
+
+                Button("Ignorer") {
+                    CrashReporter.clearPendingReport()
+                    crashReport = nil
+                    crashReportURL = nil
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.orange.opacity(0.1))
     }
 
     private var filterBar: some View {

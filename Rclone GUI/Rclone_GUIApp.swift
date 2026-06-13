@@ -10,7 +10,12 @@ import Darwin
 
 @main
 struct Rclone_GUIApp: App {
+    @Environment(\.scenePhase) private var scenePhase
+
     init() {
+        // EN TOUT PREMIER : redirige stderr + arme la capture de crash avant
+        // que librclone ne démarre (son fatal OAuth écrit sur stderr puis os.Exit).
+        CrashReporter.install()
         prepareRuntime()
         PhotoSyncService.shared.registerBackgroundTasks()
         #if os(iOS) || os(macOS)
@@ -77,6 +82,16 @@ struct Rclone_GUIApp: App {
                 // sheets) et leur donne le rendu groupé pleine largeur, comme iOS.
                 .formStyle(.grouped)
                 #endif
+                .onChange(of: scenePhase) { _, phase in
+                    // Marqueur de session : présent en avant-plan, retiré au
+                    // vrai passage en arrière-plan. S'il survit jusqu'au
+                    // lancement suivant → la session a crashé en avant-plan.
+                    switch phase {
+                    case .active: CrashReporter.armSession()
+                    case .background: CrashReporter.markCleanExit()
+                    default: break
+                    }
+                }
                 .task {
                     await MainActor.run {
                         TransferQueue.shared.attach(modelContext: sharedModelContainer.mainContext)
