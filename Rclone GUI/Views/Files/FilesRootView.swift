@@ -22,6 +22,7 @@ struct FilesRootView: View {
 
     @State private var remotes: [RemoteSummaryDTO] = []
     @State private var remoteSpaces: [String: String] = [:]
+    @State private var spacesLoading: Set<String> = []
     @State private var loadState: LoadState = .idle
     @State private var isMockEngine = false
     @State private var showImport = false
@@ -267,6 +268,7 @@ struct FilesRootView: View {
                 ForEach(remotes) { remote in
                     remoteRow(for: remote)
                         .contextMenu { vaultMenu(for: remote) }
+                        .task { loadSpaceIfNeeded(for: remote.name) }
                 }
             } header: {
                 AppSectionHeader(title: "Remotes", subtitle: "Racines disponibles", systemImage: "externaldrive")
@@ -323,18 +325,22 @@ struct FilesRootView: View {
     /// lazily quand l'utilisateur tap sur un remote — sans bloquer la
     /// navigation. Échec silencieux : on n'affiche juste pas le quota.
     fileprivate func loadSpaceIfNeeded(for remoteName: String) {
-        guard remoteSpaces[remoteName] == nil else { return }
-        remoteSpaces[remoteName] = "Chargement…"
+        guard remoteSpaces[remoteName] == nil, !spacesLoading.contains(remoteName) else { return }
+        spacesLoading.insert(remoteName)
         Task {
+            defer { Task { @MainActor in spacesLoading.remove(remoteName) } }
             do {
-                let space = try await RemoteService.shared.space(remote: remoteName)
+                // Timeout strict : un backend qui ne répond pas (quota non
+                // supporté, token expiré…) ne doit pas laisser la ligne en
+                // attente. En cas d'échec on garde le sous-titre = type backend.
+                let space = try await Self.withTimeout(seconds: 8) {
+                    try await RemoteService.shared.space(remote: remoteName)
+                }
                 await MainActor.run {
                     remoteSpaces[remoteName] = Self.spaceLabel(space)
                 }
             } catch {
-                await MainActor.run {
-                    remoteSpaces[remoteName] = "Espace indisponible"
-                }
+                // Silencieux : pas de quota affiché, le sous-titre reste le type.
             }
         }
     }
@@ -506,7 +512,11 @@ struct FilesRootView: View {
             try await RcloneConfigEditor.deleteRemote(name: remote.name)
             vault.removeFromVault(remote.name)
             try? SavedLocationStore.removeForRemote(remote.name, in: modelContext)
+            // Purge le cache de listing (folder manifests) pour que le remote
+            // ne soit plus navigable depuis Fichiers / les Récents.
+            FileProviderManager.shared.purgeFolderManifests(remote: remote.name)
             remoteSpaces[remote.name] = nil
+            spacesLoading.remove(remote.name)
             await load(force: true)
         } catch {
             loadState = .failed(error.localizedDescription)
@@ -644,14 +654,12 @@ private struct FilesRemoteRow: View {
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(.green)
         case .none:
-            if spaceText == nil {
-                ProgressView()
-                    .controlSize(.small)
-            } else {
-                Circle()
-                    .fill(Color.green)
-                    .frame(width: 8, height: 8)
-            }
+            // Un remote listé est disponible : on montre le point vert tout de
+            // suite. Le quota se charge en arrière-plan (loadSpaceIfNeeded) et
+            // met à jour le sous-titre — sans spinner bloquant.
+            Circle()
+                .fill(Color.green)
+                .frame(width: 8, height: 8)
         }
     }
 

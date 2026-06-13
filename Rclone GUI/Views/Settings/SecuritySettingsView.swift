@@ -128,6 +128,7 @@ struct SecuritySettingsView: View {
             // (sinon ils restent navigables après effacement).
             await RcloneCore.shared.resetToEmptyConfig()
             await FileProviderManager.shared.writeRemotesManifest([])
+            FileProviderManager.shared.purgeAllFolderManifests()
             // Purge les favoris/récents locaux et l'état du coffre-fort.
             try? SavedLocationStore.removeAll(in: modelContext)
             VaultManager.shared.clearAll()
