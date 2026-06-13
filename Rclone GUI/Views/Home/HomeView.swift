@@ -29,6 +29,7 @@ struct HomeView: View {
     @State private var cacheBytes: Int64 = 0
     @State private var showImport = false
     @State private var showAddRemote = false
+    @State private var vault = VaultManager.shared
 
     // D4 : snapshot live de PhotoSync pour la mini-card. Polling 4s
     // tant qu'on est sur Home (le hero PhotoSync de l'écran Transferts
@@ -38,7 +39,10 @@ struct HomeView: View {
 
     private var pinnedLocations: [SavedLocation] {
         savedLocations
-            .filter { $0.kind == .pinned }
+            // Masque les remotes au coffre-fort verrouillés (cf. FilesRootView) :
+            // ils ne doivent pas être navigables depuis les Favoris tant qu'ils
+            // n'ont pas été déverrouillés par Face ID.
+            .filter { $0.kind == .pinned && vault.isAccessible($0.remote) }
             .sorted {
                 if $0.sortIndex == $1.sortIndex {
                     return $0.createdAt < $1.createdAt
@@ -49,7 +53,9 @@ struct HomeView: View {
 
     private var recentLocations: [SavedLocation] {
         savedLocations
-            .filter { $0.kind == .recent }
+            // Idem : un remote au coffre-fort verrouillé reste hors des Récents
+            // tant qu'il n'est pas déverrouillé.
+            .filter { $0.kind == .recent && vault.isAccessible($0.remote) }
             .prefix(6)
             .map { $0 }
     }
