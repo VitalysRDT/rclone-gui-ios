@@ -6,7 +6,9 @@
 #   ./scripts/build-rclone.sh [tag]
 #
 # Args:
-#   tag — rclone git tag to checkout (default: v1.68.0)
+#   tag — rclone git tag to checkout (default: v1.74.3)
+#         v1.74.x / v1.73.x add the Drime, Internxt, Filen and Shade backends.
+#         Conservative alternative: v1.73.5 (last 1.73 patch).
 #
 # Requirements:
 #   - Go 1.22+      (brew install go)
@@ -26,7 +28,10 @@
 
 set -euo pipefail
 
-RCLONE_TAG="${1:-v1.68.0}"
+# Drime / Internxt / Filen / Shade landed in rclone v1.73.0 (2026-01-30).
+# Default to the latest stable (v1.74.3) so they ship; override with an arg
+# (e.g. ./build-rclone.sh v1.73.5) for a more conservative bump.
+RCLONE_TAG="${1:-v1.74.3}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 WORK_DIR="$PROJECT_ROOT/.build/rclone"

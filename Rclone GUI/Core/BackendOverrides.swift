@@ -9,10 +9,18 @@
 //  what we want users to see (hidden backends).
 //
 //  Coverage :
-//    - 69 backends categorised
-//    - 69 backends with an explicit SF Symbol
-//    - 69 backends with a French description
-//    - 22 backends with a manual auth guide (link + numbered steps + paste)
+//    Cette table est un SUR-ENSEMBLE statique indexé par nom de backend
+//    rclone. Le wizard n'affiche QUE les backends réellement renvoyés par le
+//    moteur embarqué via `config/providers` (cf. RemoteCatalogService) — les
+//    entrées présentes ici pour des backends absents du rclone compilé sont
+//    simplement inutilisées, jamais affichées. Les comptes ci-dessous sont
+//    donc une « couverture catalogue », pas « ce qui est livré ».
+//    - ~70 backends catégorisés / iconés / décrits en français.
+//    - 24 backends avec un guide d'auth manuel (lien + étapes + collage),
+//      dont Drime + Filen (nouveaux dans rclone 1.73).
+//    - Internxt (1.73) utilise email + mot de passe dans le formulaire
+//      dynamique (pas de token à coller) ; les comptes avec 2FA doivent
+//      passer par le mode interactif (CLI).
 //
 //  Auth strategy: NO interactive OAuth in P1.
 //    For each backend that needs auth, the wizard:
@@ -30,6 +38,24 @@
 //
 
 import Foundation
+
+/// Guide « où obtenir tes identifiants » affiché EN HAUT du formulaire
+/// dynamique (DynamicRemoteFormView) pour les backends qui exigent une clé /
+/// token / identifiants mais qui ne passent pas par l'étape OAuth (collage
+/// d'un seul secret). Contrairement à `OAuthProviderConfig`, ce guide ne
+/// collecte rien lui-même : il pointe l'utilisateur vers la bonne page et
+/// nomme les champs à remplir. Convient aussi bien aux backends à un seul
+/// secret (pixeldrain, 1Fichier, gofile) qu'à ceux à plusieurs champs
+/// (imagekit, internetarchive, netstorage, storj).
+struct BackendSetupGuide: Sendable, Hashable {
+    /// Page provider à ouvrir pour générer la clé/token. `nil` = pas de page
+    /// externe (ex : Sia auto-hébergé, Uloz.to en user/pass).
+    let setupURL: URL?
+    /// Étapes numérotées, courtes et actionnables (clé FR → String Catalog).
+    let steps: [String]
+    /// Avertissement optionnel d'une ligne.
+    let note: String?
+}
 
 enum BackendOverrides {
 
@@ -756,6 +782,54 @@ enum BackendOverrides {
             tokenFieldName: "token",
             tokenHint: nil
         ),
+
+        // ───────── Nouveaux backends rclone 1.73 ─────────
+        // Drime : un seul champ utile, l'API Access Token créé sur le web.
+        "drime": OAuthProviderConfig(
+            backendName: "drime",
+            authURL: URL(string: "https://app.drime.cloud/")!,
+            tokenURL: URL(string: "https://app.drime.cloud/")!,
+            defaultClientID: "",
+            defaultClientSecret: nil,
+            defaultScopes: [],
+            strategy: .manual,
+            usePKCE: false,
+            setupURL: URL(string: "https://app.drime.cloud/"),
+            setupSteps: [
+                "Connecte-toi à Drime sur le web (app.drime.cloud).",
+                "Ouvre les Réglages du compte → onglet « Développeurs » (Developer).",
+                "Crée un token (API Access Token) et nomme-le, ex : « Rclone GUI ».",
+                "Copie le token affiché.",
+                "Colle-le ci-dessous."
+            ],
+            tokenLabel: "API Access Token Drime",
+            tokenFieldName: "access_token",
+            tokenHint: "Token créé dans Réglages → Développeurs sur app.drime.cloud."
+        ),
+        // Filen : email + mot de passe se saisissent au formulaire (champs
+        // Required du schéma rclone). Il manque la clé API, qui ne s'obtient
+        // QUE via le CLI Filen (`filen export-api-key`) → on guide ici.
+        "filen": OAuthProviderConfig(
+            backendName: "filen",
+            authURL: URL(string: "https://app.filen.io/")!,
+            tokenURL: URL(string: "https://app.filen.io/")!,
+            defaultClientID: "",
+            defaultClientSecret: nil,
+            defaultScopes: [],
+            strategy: .manual,
+            usePKCE: false,
+            setupURL: URL(string: "https://github.com/FilenCloudDienste/filen-cli"),
+            setupSteps: [
+                "À l'étape précédente, remplis ton email et ton mot de passe Filen.",
+                "Sur un ordinateur, installe le CLI Filen (lien ci-dessous).",
+                "Connecte-toi avec `filen`, puis lance `filen export-api-key`.",
+                "Copie la clé API affichée.",
+                "Colle-la ci-dessous."
+            ],
+            tokenLabel: "Clé API Filen (commande `filen export-api-key`)",
+            tokenFieldName: "api_key",
+            tokenHint: "⚠️ La clé API s'obtient seulement via le CLI Filen sur ordinateur. Email + mot de passe se saisissent à l'étape Formulaire."
+        ),
     ]
 
     // MARK: - Backends to hide on iOS
@@ -763,5 +837,100 @@ enum BackendOverrides {
     nonisolated static let hiddenOnIOS: Set<String> = [
         "tardigrade",   // Deprecated alias of storj
         "memory",       // In-process backend — no value to end-users
+    ]
+
+    // MARK: - Setup guides (form path — clé / token sans OAuth)
+    //
+    // Backends qui ont des champs « clé/token/identifiants » dans le
+    // formulaire mais sans tutoriel : on ajoute ici un encart « où obtenir
+    // tes identifiants » (lien + étapes). Ne déclenche PAS l'étape OAuth.
+
+    nonisolated static let setupGuides: [String: BackendSetupGuide] = [
+        "pixeldrain": BackendSetupGuide(
+            setupURL: URL(string: "https://pixeldrain.com/user/api_keys"),
+            steps: [
+                "Connecte-toi à ton compte Pixeldrain (abonnement requis pour l'accès complet).",
+                "Ouvre la page « API keys » (lien ci-dessous) et génère une clé.",
+                "Copie la clé et colle-la dans le champ « Api Key » du formulaire."
+            ],
+            note: "Lecture seule d'un dossier partagé possible sans clé : laisse « Api Key » vide et renseigne l'ID du dossier partagé."
+        ),
+        "fichier": BackendSetupGuide(
+            setupURL: URL(string: "https://1fichier.com/console/params.pl"),
+            steps: [
+                "Connecte-toi sur 1fichier.com.",
+                "Ouvre « Mon compte » → « Paramètres » (Console → Params, lien ci-dessous).",
+                "Génère / copie ta clé API.",
+                "Colle-la dans le champ « Api Key » du formulaire."
+            ],
+            note: "L'API 1Fichier requiert généralement un compte Premium."
+        ),
+        "imagekit": BackendSetupGuide(
+            setupURL: URL(string: "https://imagekit.io/dashboard/developer/api-keys"),
+            steps: [
+                "Connecte-toi à ton dashboard ImageKit.io.",
+                "Ouvre « Developer » → « API Keys » (lien ci-dessous).",
+                "Copie ton URL endpoint, ta Public Key et ta Private Key.",
+                "Renseigne « Endpoint », « Public Key » et « Private Key » dans le formulaire."
+            ],
+            note: nil
+        ),
+        "internetarchive": BackendSetupGuide(
+            setupURL: URL(string: "https://archive.org/account/s3.php"),
+            steps: [
+                "Connecte-toi sur archive.org.",
+                "Ouvre la page des clés S3 (lien ci-dessous).",
+                "Copie ton « access key » et ta « secret key ».",
+                "Renseigne « Access Key Id » et « Secret Access Key » dans le formulaire."
+            ],
+            note: "Laisse les deux champs vides pour un accès anonyme en lecture seule."
+        ),
+        "gofile": BackendSetupGuide(
+            setupURL: URL(string: "https://gofile.io/myProfile"),
+            steps: [
+                "Connecte-toi sur gofile.io.",
+                "Ouvre « My Profile » (lien ci-dessous).",
+                "Copie ton « Account API token ».",
+                "Colle-le dans le champ « Access Token » du formulaire."
+            ],
+            note: "Sans token, seul l'accès public/anonyme est possible."
+        ),
+        "sia": BackendSetupGuide(
+            setupURL: nil,
+            steps: [
+                "Sia vise un nœud auto-hébergé (siad / renterd) que tu fais tourner toi-même.",
+                "Renseigne « Api Url » avec l'adresse de ton démon (ex : http://mon-noeud:9980).",
+                "Récupère le mot de passe dans le fichier « apipassword » du dossier .sia de ton nœud.",
+                "Renseigne « Api Password » avec cette valeur."
+            ],
+            note: "Depuis iOS, le nœud Sia doit être accessible sur le réseau (pas en localhost)."
+        ),
+        "storj": BackendSetupGuide(
+            setupURL: URL(string: "https://docs.storj.io/dcs/access"),
+            steps: [
+                "Ouvre la console Storj de ton projet (satellite, ex : us1.storj.io).",
+                "Simple : crée un « Access Grant » et colle-le dans « Access Grant » (provider = existing).",
+                "Avancé : provider = new, puis renseigne « Satellite Address », « Api Key » et « Passphrase ».",
+                "Le lien ci-dessous explique comment générer ces accès."
+            ],
+            note: "La passphrase chiffre tes données : conserve-la, elle n'est pas récupérable."
+        ),
+        "netstorage": BackendSetupGuide(
+            setupURL: URL(string: "https://control.akamai.com/"),
+            steps: [
+                "Dans Akamai Control Center, ouvre NetStorage → ton Storage Group.",
+                "Récupère le « host » (domaine + chemin), le « account » (Upload Account) et la clé secrète G2O.",
+                "Renseigne « Host », « Account » et « Secret » dans le formulaire."
+            ],
+            note: "Backend entreprise Akamai — nécessite un compte NetStorage."
+        ),
+        "ulozto": BackendSetupGuide(
+            setupURL: nil,
+            steps: [
+                "Renseigne ton identifiant Uloz.to dans « Username » et ton mot de passe dans « Password ».",
+                "Le champ « App Token » est optionnel — laisse-le vide."
+            ],
+            note: "L'app_token Uloz.to est réservé à leur app interne et peu fiable : préfère identifiant + mot de passe."
+        ),
     ]
 }
