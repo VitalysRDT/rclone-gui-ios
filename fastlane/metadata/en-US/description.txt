@@ -1,4 +1,4 @@
-Rclone GUI is a native, open-source iOS client for rclone — the reference tool for managing your personal cloud storage. Connect Amazon S3, Backblaze B2, Cloudflare R2, Storj, Wasabi, Dropbox, Google Drive, Microsoft OneDrive, pCloud, Mega, Box, SFTP, WebDAV, and 60+ other services straight from your iPhone, with no middleman.
+Rclone GUI is a native, open-source iOS client for rclone — the reference tool for managing your personal cloud storage. Connect Amazon S3, Backblaze B2, Cloudflare R2, Storj, Wasabi, Dropbox, Google Drive, Microsoft OneDrive, pCloud, Mega, Box, Filen, Internxt, Drime, SFTP, WebDAV, and 70+ other services straight from your iPhone, with no middleman.
 
 PREMIUM SUBSCRIPTION REQUIRED
 All Rclone GUI features (remote management, transfers, Files app integration, PhotoSync, crypt decryption, streaming, etc.) require a Premium subscription.
@@ -17,7 +17,7 @@ SMART PHOTO SYNC (Premium)
 Automatically sync new photos and videos to the cloud of your choice. Adaptive throttling while you're using the app, background execution, clean resume after a network drop.
 
 GUIDED ADD-REMOTE WIZARD (Premium)
-A step-by-step wizard covers every rclone backend: per-backend forms, tutorials for OAuth providers (Drive, OneDrive, Dropbox), instant validation. Import an existing rclone.conf in one tap, with automatic secret migration to the iOS Keychain.
+A step-by-step wizard covers every rclone backend: per-backend forms, tutorials for OAuth providers (Drive, OneDrive, Dropbox), instant validation. "Where to get your credentials" panels and a remote picker (for crypt vaults, alias, union…) make setup even simpler. Import an existing rclone.conf in one tap, with automatic secret migration to the iOS Keychain.
 
 PRIVACY BY DESIGN
 - No analytics, no tracker, no third-party SDK
