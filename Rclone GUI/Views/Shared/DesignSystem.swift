@@ -351,7 +351,7 @@ struct RGPhotoSyncStatusGlyph: View {
 /// rendered as `primary = true` (filled accent) to mirror the iOS Files
 /// "Open" button hierarchy.
 struct RGActionTile: View {
-    let title: String
+    let title: LocalizedStringKey
     let systemImage: String
     var primary: Bool = false
     var disabled: Bool = false

@@ -672,10 +672,10 @@ private struct TransferGroup {
             }
         }
         var groups: [TransferGroup] = []
-        if !running.isEmpty { groups.append(.init(title: "En cours", items: running)) }
-        if !pending.isEmpty { groups.append(.init(title: "En attente", items: pending)) }
-        if !completed.isEmpty { groups.append(.init(title: "Terminés", items: completed)) }
-        if !failed.isEmpty { groups.append(.init(title: "Échoués", items: failed)) }
+        if !running.isEmpty { groups.append(.init(title: String(localized: "En cours"), items: running)) }
+        if !pending.isEmpty { groups.append(.init(title: String(localized: "En attente"), items: pending)) }
+        if !completed.isEmpty { groups.append(.init(title: String(localized: "Terminés"), items: completed)) }
+        if !failed.isEmpty { groups.append(.init(title: String(localized: "Échec"), items: failed)) }
         return groups
     }
 }
