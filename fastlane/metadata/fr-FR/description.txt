@@ -1,4 +1,4 @@
-Rclone GUI est un client iOS natif et open source pour rclone, l'outil de référence pour gérer vos stockages cloud personnels. Connectez Amazon S3, Backblaze B2, Cloudflare R2, Storj, Wasabi, Dropbox, Google Drive, Microsoft OneDrive, pCloud, Mega, Box, SFTP, WebDAV et plus de 60 autres services depuis votre iPhone, sans intermédiaire.
+Rclone GUI est un client iOS natif et open source pour rclone, l'outil de référence pour gérer vos stockages cloud personnels. Connectez Amazon S3, Backblaze B2, Cloudflare R2, Storj, Wasabi, Dropbox, Google Drive, Microsoft OneDrive, pCloud, Mega, Box, Filen, Internxt, Drime, SFTP, WebDAV et plus de 70 autres services depuis votre iPhone, sans intermédiaire.
 
 ABONNEMENT PREMIUM REQUIS
 Toutes les fonctionnalités de Rclone GUI (gestion des remotes, transferts, intégration Fichiers, PhotoSync, déchiffrement crypt, streaming, etc.) nécessitent un abonnement Premium.
@@ -17,7 +17,7 @@ SYNCHRONISATION PHOTO INTELLIGENTE (Premium)
 Synchronisez automatiquement vos nouvelles photos et vidéos vers le cloud de votre choix. Throttle adaptatif quand vous utilisez l'app, exécution en arrière-plan, reprise propre après coupure réseau.
 
 ASSISTANT D'AJOUT GUIDÉ (Premium)
-Un assistant pas-à-pas couvre tous les backends rclone : champs adaptés à chaque type de remote, tutoriels pour les OAuth (Drive, OneDrive, Dropbox), validation immédiate. Importez aussi votre rclone.conf existant en un geste, avec migration automatique des secrets vers le Trousseau iOS.
+Un assistant pas-à-pas couvre tous les backends rclone : champs adaptés à chaque type de remote, tutoriels pour les OAuth (Drive, OneDrive, Dropbox), validation immédiate. Des fiches « où obtenir tes identifiants » et un sélecteur de remote (pour les coffres crypt, alias, union…) simplifient encore la configuration. Importez aussi votre rclone.conf existant en un geste, avec migration automatique des secrets vers le Trousseau iOS.
 
 CONÇU POUR LA CONFIDENTIALITÉ
 - Aucune analytics, aucun tracker, aucun SDK tiers

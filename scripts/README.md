@@ -8,8 +8,8 @@ Builds `librclone` as an iOS `xcframework` via `gomobile bind`.
 
 ```bash
 chmod +x scripts/build-rclone.sh
-./scripts/build-rclone.sh                # build the default tag (v1.68.0)
-./scripts/build-rclone.sh v1.69.0        # build a specific tag
+./scripts/build-rclone.sh                # build the default tag (v1.74.3)
+./scripts/build-rclone.sh v1.73.5        # build a specific tag
 ```
 
 ### What it does
