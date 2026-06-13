@@ -1,38 +1,6 @@
 {
   "sourceLanguage" : "fr",
   "strings" : {
-    "%@/mois ou %@/an" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@/month or %@/year"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@/mois ou %@/an"
-          }
-        }
-      }
-    },
-    "%@, puis %@/mois ou %@/an" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@, then %@/month or %@/year"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@, puis %@/mois ou %@/an"
-          }
-        }
-      }
-    },
     "" : {
       "localizations" : {
         "en" : {
@@ -951,6 +919,22 @@
         }
       }
     },
+    "%@, puis %@/mois ou %@/an" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, then %@/month or %@/year"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, puis %@/mois ou %@/an"
+          }
+        }
+      }
+    },
     "%@:" : {
       "localizations" : {
         "de" : {
@@ -1082,6 +1066,22 @@
           "stringUnit" : {
             "state" : "machine_translated",
             "value" : "%1$@。%2$@"
+          }
+        }
+      }
+    },
+    "%@/mois ou %@/an" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@/month or %@/year"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@/mois ou %@/an"
           }
         }
       }
@@ -19110,6 +19110,9 @@
         }
       }
     },
+    "GitHub" : {
+
+    },
     "Google Cloud Storage (pas Drive)" : {
       "localizations" : {
         "de" : {
@@ -28446,6 +28449,9 @@
           }
         }
       }
+    },
+    "rclone.rougetet.com" : {
+
     },
     "Récapitulatif" : {
       "localizations" : {
