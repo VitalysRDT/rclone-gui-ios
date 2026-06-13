@@ -161,6 +161,39 @@ public actor RcloneCore {
         return Data(plaintext.utf8)
     }
 
+    /// Pointe le moteur sur une configuration vide après un wipe complet.
+    /// Sans ça, librclone garde en mémoire les remotes déjà chargés et continue
+    /// d'y répondre (`config/listremotes`, navigation) alors que le store
+    /// chiffré a été supprimé — d'où des remotes encore « accessibles » après
+    /// effacement. Best-effort : n'échoue jamais.
+    public func resetToEmptyConfig() async {
+        guard let caches = try? FileManager.default.url(
+            for: .cachesDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: true
+        ) else {
+            invalidateConfigCache()
+            return
+        }
+        let confURL = caches.appending(path: "rclone.conf")
+        try? Data().write(to: confURL, options: [.atomic, .completeFileProtection])
+        engine.setEnv(name: "RCLONE_CONFIG", value: confURL.path)
+        if initialized {
+            struct SetPathInput: Encodable { let path: String }
+            if let payloadData = try? Self.sharedEncoder.encode(SetPathInput(path: confURL.path)) {
+                let pathPayload = String(decoding: payloadData, as: UTF8.self)
+                _ = try? await engine.rpcRaw(method: "config/setpath", inputJSON: pathPayload)
+            }
+        }
+        invalidateConfigCache()
+        await LogService.shared.log(
+            .debug,
+            category: "engine",
+            message: "Configuration rclone réinitialisée (vide) après wipe"
+        )
+    }
+
     /// Rewrites the decrypted config file and points the running engine at it.
     /// Call after import or local config edits so long-lived tabs do not keep
     /// the previous `config/listremotes` / `config/dump` values.

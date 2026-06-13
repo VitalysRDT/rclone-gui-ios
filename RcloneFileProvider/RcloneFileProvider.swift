@@ -105,6 +105,14 @@ public final class RcloneFileProvider: NSObject, NSFileProviderReplicatedExtensi
             return progress
         }
 
+        do {
+            try FileProviderBridge.ensureRemoteAccessible(decoded.remote)
+        } catch {
+            completionHandler(nil, error)
+            progress.completedUnitCount = 1
+            return progress
+        }
+
         if decoded.path.isEmpty {
             completionHandler(RcloneItem(
                 id: identifier,
@@ -169,6 +177,13 @@ public final class RcloneFileProvider: NSObject, NSFileProviderReplicatedExtensi
                 domain: NSFileProviderErrorDomain,
                 code: NSFileProviderError.noSuchItem.rawValue
             ))
+            return progress
+        }
+
+        do {
+            try FileProviderBridge.ensureRemoteAccessible(decoded.remote)
+        } catch {
+            completionHandler(nil, nil, error)
             return progress
         }
 
@@ -379,6 +394,12 @@ public final class RcloneFileProvider: NSObject, NSFileProviderReplicatedExtensi
             completionHandler(nil, [], false, NSError(domain: NSFileProviderErrorDomain, code: NSFileProviderError.noSuchItem.rawValue))
             return progress
         }
+        do {
+            try FileProviderBridge.ensureRemoteAccessible(parent.remote)
+        } catch {
+            completionHandler(nil, [], false, error)
+            return progress
+        }
         let newPath = join(parent.path, itemTemplate.filename)
 
         Task {
@@ -419,6 +440,12 @@ public final class RcloneFileProvider: NSObject, NSFileProviderReplicatedExtensi
             completionHandler(nil, [], false, NSError(domain: NSFileProviderErrorDomain, code: NSFileProviderError.noSuchItem.rawValue))
             return progress
         }
+        do {
+            try FileProviderBridge.ensureRemoteAccessible(decoded.remote)
+        } catch {
+            completionHandler(nil, [], false, error)
+            return progress
+        }
 
         Task {
             do {
@@ -453,6 +480,12 @@ public final class RcloneFileProvider: NSObject, NSFileProviderReplicatedExtensi
         }
         guard let decoded = RcloneItem.decode(identifier), !decoded.path.isEmpty else {
             completionHandler(NSError(domain: NSFileProviderErrorDomain, code: NSFileProviderError.noSuchItem.rawValue))
+            return progress
+        }
+        do {
+            try FileProviderBridge.ensureRemoteAccessible(decoded.remote)
+        } catch {
+            completionHandler(error)
             return progress
         }
 

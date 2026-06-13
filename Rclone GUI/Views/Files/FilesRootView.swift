@@ -27,6 +27,14 @@ struct FilesRootView: View {
     @State private var showImport = false
     @State private var showAddRemote = false
 
+    /// Coffre-fort biométrique par remote.
+    @State private var vault = VaultManager.shared
+    /// Remote vers lequel naviguer après un déverrouillage réussi.
+    @State private var unlockTarget: RemoteSummaryDTO?
+    @State private var vaultError: String?
+    /// Remote en attente de confirmation de suppression.
+    @State private var remoteToDelete: RemoteSummaryDTO?
+
     enum LoadState: Equatable {
         case idle
         case loading
@@ -55,6 +63,30 @@ struct FilesRootView: View {
     var body: some View {
         content
             .navigationTitle("Fichiers")
+            .navigationDestination(item: $unlockTarget) { remote in
+                FolderView(remote: remote.name, path: "")
+            }
+            .alert("Déverrouillage impossible", isPresented: .constant(vaultError != nil)) {
+                Button("OK") { vaultError = nil }
+            } message: {
+                Text(vaultError ?? "")
+            }
+            .confirmationDialog(
+                "Supprimer ce remote ?",
+                isPresented: Binding(
+                    get: { remoteToDelete != nil },
+                    set: { if !$0 { remoteToDelete = nil } }
+                ),
+                titleVisibility: .visible,
+                presenting: remoteToDelete
+            ) { remote in
+                Button("Supprimer « \(remote.name) »", role: .destructive) {
+                    Task { await performDelete(remote) }
+                }
+                Button("Annuler", role: .cancel) { remoteToDelete = nil }
+            } message: { remote in
+                Text("Le remote « \(remote.name) » sera retiré de rclone.conf. Tes fichiers distants ne sont pas supprimés.")
+            }
             .toolbar {
                 ToolbarItemGroup(placement: .primaryAction) {
                     Button {
@@ -233,21 +265,13 @@ struct FilesRootView: View {
 
             Section {
                 ForEach(remotes) { remote in
-                    NavigationLink(value: NavigationDestination.folder(remote: remote.name, path: "")) {
-                        FilesRemoteRow(remote: remote, spaceText: remoteSpaces[remote.name])
-                    }
-                    .contextMenu {
-                        Button {
-                            Task { await pin(remote: remote) }
-                        } label: {
-                            Label("Épingler", systemImage: "pin")
-                        }
-                    }
+                    remoteRow(for: remote)
+                        .contextMenu { vaultMenu(for: remote) }
                 }
             } header: {
                 AppSectionHeader(title: "Remotes", subtitle: "Racines disponibles", systemImage: "externaldrive")
             } footer: {
-                Text("Touche un remote pour ouvrir sa racine. Les favoris et récents restent locaux à cet appareil.")
+                Text("Touche un remote pour ouvrir sa racine. Un remote au coffre-fort se déverrouille par Face ID et reste masqué dans l'app Fichiers d'iOS tant qu'il est verrouillé.")
             }
         }
         .rgInsetGroupedList()
@@ -272,6 +296,9 @@ struct FilesRootView: View {
         guard await ConfigStore.shared.hasStoredConf() else {
             remotes = []
             remoteSpaces = [:]
+            // Plus aucune config → purge les favoris/récents devenus orphelins
+            // (sinon un remote effacé reste listé dans les Récents et navigable).
+            try? SavedLocationStore.removeUnavailableRemotes([], in: modelContext)
             loadState = .loaded
             return
         }
@@ -397,6 +424,117 @@ struct FilesRootView: View {
         }
     }
 
+    // MARK: - Coffre-fort
+
+    @ViewBuilder
+    private func remoteRow(for remote: RemoteSummaryDTO) -> some View {
+        let locked = vault.isLocked(remote.name)
+        let unlocked = vault.isUnlocked(remote.name)
+
+        if locked && !unlocked {
+            // Verrouillé : on intercepte le tap pour demander Face ID au lieu
+            // de naviguer directement.
+            Button {
+                Task { await unlockAndOpen(remote) }
+            } label: {
+                FilesRemoteRow(remote: remote, spaceText: remoteSpaces[remote.name], lockState: .locked)
+            }
+            .buttonStyle(.plain)
+        } else {
+            NavigationLink(value: NavigationDestination.folder(remote: remote.name, path: "")) {
+                FilesRemoteRow(
+                    remote: remote,
+                    spaceText: remoteSpaces[remote.name],
+                    lockState: locked ? .unlocked : .none
+                )
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func vaultMenu(for remote: RemoteSummaryDTO) -> some View {
+        let locked = vault.isLocked(remote.name)
+        let unlocked = vault.isUnlocked(remote.name)
+
+        if locked {
+            if unlocked {
+                Button {
+                    vault.relock(remote.name)
+                } label: {
+                    Label("Verrouiller maintenant", systemImage: "lock")
+                }
+            } else {
+                Button {
+                    Task { await unlockAndOpen(remote) }
+                } label: {
+                    Label("Déverrouiller", systemImage: "lock.open")
+                }
+            }
+            Button(role: .destructive) {
+                Task { await disableVault(remote) }
+            } label: {
+                Label("Retirer du coffre-fort", systemImage: "lock.slash")
+            }
+        } else {
+            Button {
+                vault.addToVault(remote.name)
+            } label: {
+                Label("Mettre au coffre-fort (Face ID)", systemImage: "lock.shield")
+            }
+        }
+
+        Button {
+            Task { await pin(remote: remote) }
+        } label: {
+            Label("Épingler", systemImage: "pin")
+        }
+
+        Divider()
+
+        Button(role: .destructive) {
+            remoteToDelete = remote
+        } label: {
+            Label("Supprimer le remote", systemImage: "trash")
+        }
+    }
+
+    /// Supprime un remote de rclone.conf puis recharge la liste. Nettoie aussi
+    /// l'état du coffre-fort et les favoris/récents associés.
+    private func performDelete(_ remote: RemoteSummaryDTO) async {
+        remoteToDelete = nil
+        do {
+            try await RcloneConfigEditor.deleteRemote(name: remote.name)
+            vault.removeFromVault(remote.name)
+            try? SavedLocationStore.removeForRemote(remote.name, in: modelContext)
+            remoteSpaces[remote.name] = nil
+            await load(force: true)
+        } catch {
+            loadState = .failed(error.localizedDescription)
+        }
+    }
+
+    /// Déverrouille via Face ID puis ouvre le remote.
+    private func unlockAndOpen(_ remote: RemoteSummaryDTO) async {
+        if await vault.unlock(remote.name) {
+            unlockTarget = remote
+        } else {
+            vaultError = String(localized: "Authentification refusée ou biométrie indisponible.")
+        }
+    }
+
+    /// Retire la protection coffre-fort — exige Face ID si non déjà déverrouillé.
+    private func disableVault(_ remote: RemoteSummaryDTO) async {
+        if vault.isUnlocked(remote.name) {
+            vault.removeFromVault(remote.name)
+            return
+        }
+        if await vault.unlock(remote.name) {
+            vault.removeFromVault(remote.name)
+        } else {
+            vaultError = String(localized: "Authentification refusée ou biométrie indisponible.")
+        }
+    }
+
     fileprivate static func spaceLabel(_ space: RemoteSpaceDTO) -> String {
         guard let used = space.used else {
             if let free = space.free {
@@ -443,9 +581,17 @@ private struct FileManagerOverviewCard: View {
     }
 }
 
+/// État du coffre-fort pour une ligne de remote.
+private enum VaultRowState {
+    case none      // hors coffre-fort
+    case locked    // au coffre, verrouillé
+    case unlocked  // au coffre, déverrouillé (temporaire)
+}
+
 private struct FilesRemoteRow: View {
     let remote: RemoteSummaryDTO
     let spaceText: String?
+    var lockState: VaultRowState = .none
 
     var body: some View {
         HStack(spacing: 14) {
@@ -463,12 +609,41 @@ private struct FilesRemoteRow: View {
                         CryptBadge()
                     }
                 }
-                Text(spaceText ?? humanType)
+                Text(subtitleText)
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
             Spacer(minLength: 8)
+            trailingAccessory
+        }
+        .padding(.vertical, 6)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var subtitleText: String {
+        switch lockState {
+        case .locked:
+            return String(localized: "Verrouillé · Face ID requis")
+        case .unlocked:
+            return spaceText ?? String(localized: "Déverrouillé")
+        case .none:
+            return spaceText ?? humanType
+        }
+    }
+
+    @ViewBuilder
+    private var trailingAccessory: some View {
+        switch lockState {
+        case .locked:
+            Image(systemName: "lock.fill")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.orange)
+        case .unlocked:
+            Image(systemName: "lock.open.fill")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.green)
+        case .none:
             if spaceText == nil {
                 ProgressView()
                     .controlSize(.small)
@@ -478,8 +653,6 @@ private struct FilesRemoteRow: View {
                     .frame(width: 8, height: 8)
             }
         }
-        .padding(.vertical, 6)
-        .accessibilityElement(children: .combine)
     }
 
     private var humanType: String {

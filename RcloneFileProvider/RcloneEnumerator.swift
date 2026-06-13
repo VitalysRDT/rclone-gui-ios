@@ -56,7 +56,7 @@ public final class RcloneEnumerator: NSObject, NSFileProviderEnumerator {
             // iOS Files se sert du working set pour décider d'afficher quelque chose
             // à la racine. Renvoyer [] revient à dire "rien à montrer". On y met
             // donc la liste des remotes (= les "documents récents" virtuels).
-            let manifestRemotes = loadRemotesManifest()
+            let manifestRemotes = accessible(loadRemotesManifest())
             let items = manifestRemotes.map { remoteItem(name: $0.name) }
             FileProviderBridge.appendDiagnostic("enumerate workingSet count=\(items.count)")
             observer.didEnumerate(items)
@@ -66,7 +66,7 @@ public final class RcloneEnumerator: NSObject, NSFileProviderEnumerator {
 
         if identifier == NSFileProviderItemIdentifier.rootContainer {
             Task {
-                let manifestRemotes = loadRemotesManifest()
+                let manifestRemotes = accessible(loadRemotesManifest())
                 if !manifestRemotes.isEmpty {
                     fileProviderLog.debug("enumerating root from manifest: \(manifestRemotes.count, privacy: .public) remotes")
                     FileProviderBridge.appendDiagnostic("enumerate root from manifest count=\(manifestRemotes.count)")
@@ -77,6 +77,7 @@ public final class RcloneEnumerator: NSObject, NSFileProviderEnumerator {
 
                 do {
                     let names = try await RcloneProviderClient.shared.listRemoteNames()
+                        .filter { FileProviderBridge.isRemoteAccessible($0) }
                     fileProviderLog.debug("enumerating root from rclone: \(names.count, privacy: .public) remotes")
                     FileProviderBridge.appendDiagnostic("enumerate root from rclone count=\(names.count)")
                     let items = names.map { remoteItem(name: $0) }
@@ -95,6 +96,17 @@ public final class RcloneEnumerator: NSObject, NSFileProviderEnumerator {
         guard let decoded = RcloneItem.decode(itemIdentifier) else {
             fileProviderLog.error("invalid item identifier: \(itemIdentifier.rawValue, privacy: .public)")
             FileProviderBridge.appendDiagnostic("invalid item identifier: \(itemIdentifier.rawValue)")
+            observer.finishEnumeratingWithError(NSError(
+                domain: NSFileProviderErrorDomain,
+                code: NSFileProviderError.noSuchItem.rawValue
+            ))
+            return
+        }
+
+        // Coffre-fort : un remote verrouillé non déverrouillé ne livre aucun
+        // contenu, même si Fichiers.app tente d'énumérer un sous-dossier en cache.
+        guard FileProviderBridge.isRemoteAccessible(decoded.remote) else {
+            FileProviderBridge.appendDiagnostic("enumerate \(decoded.remote):\(decoded.path) bloqué (coffre-fort)")
             observer.finishEnumeratingWithError(NSError(
                 domain: NSFileProviderErrorDomain,
                 code: NSFileProviderError.noSuchItem.rawValue
@@ -178,6 +190,16 @@ public final class RcloneEnumerator: NSObject, NSFileProviderEnumerator {
             components.append("rm:\(Int(mtime.timeIntervalSinceReferenceDate * 1000))")
         }
 
+        // Coffre-fort : tout changement de verrou ou de déverrouillage doit
+        // déplacer l'anchor pour que Fichiers.app ré-énumère et fasse
+        // apparaître / disparaître le remote concerné.
+        if let mtime = fileMTime(at: FileProviderBridge.vaultLockedRemotesURL) {
+            components.append("vl:\(Int(mtime.timeIntervalSinceReferenceDate * 1000))")
+        }
+        if let mtime = fileMTime(at: FileProviderBridge.vaultUnlocksURL) {
+            components.append("vu:\(Int(mtime.timeIntervalSinceReferenceDate * 1000))")
+        }
+
         if identifier != NSFileProviderItemIdentifier.rootContainer,
            identifier != .workingSet,
            identifier != .trashContainer,
@@ -202,14 +224,23 @@ public final class RcloneEnumerator: NSObject, NSFileProviderEnumerator {
     /// Items courants pour ce conteneur, depuis le manifest disque.
     private func currentItems() -> [RcloneItem] {
         if identifier == NSFileProviderItemIdentifier.rootContainer || identifier == .workingSet {
-            return loadRemotesManifest().map { remoteItem(name: $0.name) }
+            return accessible(loadRemotesManifest()).map { remoteItem(name: $0.name) }
         }
         if identifier == .trashContainer { return [] }
         guard let decoded = RcloneItem.decode(identifier) else { return [] }
+        guard FileProviderBridge.isRemoteAccessible(decoded.remote) else { return [] }
         guard let entries = loadFolderManifestIfAvailable(remote: decoded.remote, path: decoded.path) else {
             return []
         }
         return items(for: entries, parentIdentifier: identifier, remote: decoded.remote)
+    }
+
+    /// Filtre les remotes verrouillés non déverrouillés (coffre-fort).
+    private func accessible(_ remotes: [RemoteManifestEntry]) -> [RemoteManifestEntry] {
+        let locked = FileProviderBridge.lockedRemotes()
+        guard !locked.isEmpty else { return remotes }
+        let unlocked = FileProviderBridge.unlockedRemotes()
+        return remotes.filter { !locked.contains($0.name) || unlocked.contains($0.name) }
     }
 
     // MARK: - Manifest loading

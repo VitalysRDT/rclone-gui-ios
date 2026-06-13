@@ -112,6 +112,27 @@ public enum AppGroup {
         return snapshot
     }
 
+    // MARK: - Coffre-fort (verrous biométriques par remote)
+
+    /// Répertoire des fichiers du coffre-fort partagé avec l'extension.
+    public nonisolated static var vaultDir: URL {
+        containerURL.appending(path: "vault", directoryHint: .isDirectory)
+    }
+
+    /// Liste des remotes protégés par biométrie (JSON `[String]`).
+    /// Source de vérité unique : l'extension FileProvider ne peut pas lire
+    /// le store SwiftData, donc l'état du coffre-fort vit dans ce fichier.
+    public nonisolated static var vaultLockedRemotesURL: URL {
+        vaultDir.appending(path: "locked-remotes.json")
+    }
+
+    /// Déverrouillages actifs (JSON `[name: epochSeconds]`). Écrit par l'app
+    /// principale après une authentification biométrique réussie ; l'extension
+    /// le lit et ignore les entrées expirées.
+    public nonisolated static var vaultUnlocksURL: URL {
+        vaultDir.appending(path: "unlocks.json")
+    }
+
     public nonisolated static var pendingFetchesDir: URL {
         containerURL.appending(path: "pending-fetches", directoryHint: .isDirectory)
     }
@@ -157,6 +178,7 @@ public enum AppGroup {
         try fm.createDirectory(at: runtimeWorkingDirectoryURL, withIntermediateDirectories: true)
         try fm.createDirectory(at: pendingFetchesDir, withIntermediateDirectories: true)
         try fm.createDirectory(at: streamingURLsDir, withIntermediateDirectories: true)
+        try fm.createDirectory(at: vaultDir, withIntermediateDirectories: true)
         try fm.createDirectory(
             at: fileProviderDiagnosticsURL.deletingLastPathComponent(),
             withIntermediateDirectories: true

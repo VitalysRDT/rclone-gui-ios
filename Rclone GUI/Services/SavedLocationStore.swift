@@ -110,6 +110,32 @@ public enum SavedLocationStore {
         try context.save()
     }
 
+    /// Supprime tous les favoris et récents (utilisé après un wipe complet).
+    @MainActor
+    public static func removeAll(in context: ModelContext) throws {
+        let all = try context.fetch(FetchDescriptor<SavedLocation>())
+        guard !all.isEmpty else { return }
+        for location in all {
+            context.delete(location)
+        }
+        try context.save()
+    }
+
+    /// Supprime tous les emplacements (favoris + récents) liés à un remote
+    /// donné (utilisé après suppression de ce remote).
+    @MainActor
+    public static func removeForRemote(_ remote: String, in context: ModelContext) throws {
+        let descriptor = FetchDescriptor<SavedLocation>(
+            predicate: #Predicate { $0.remote == remote }
+        )
+        let matches = try context.fetch(descriptor)
+        guard !matches.isEmpty else { return }
+        for location in matches {
+            context.delete(location)
+        }
+        try context.save()
+    }
+
     @MainActor
     public static func locations(kind: SavedLocationKind, in context: ModelContext) throws -> [SavedLocation] {
         // Idem : on capture rawValue dans un let pour que #Predicate puisse

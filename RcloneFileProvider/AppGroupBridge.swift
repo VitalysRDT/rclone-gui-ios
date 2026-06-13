@@ -99,6 +99,63 @@ public enum FileProviderBridge {
         return folderManifestsDir.appending(path: safe).appendingPathExtension("json")
     }
 
+    // MARK: - Coffre-fort (verrous biométriques par remote)
+
+    public static var vaultDir: URL {
+        containerURL.appending(path: "vault", directoryHint: .isDirectory)
+    }
+
+    /// Remotes protégés par biométrie (JSON `[String]`), écrit par l'app principale.
+    public static var vaultLockedRemotesURL: URL {
+        vaultDir.appending(path: "locked-remotes.json")
+    }
+
+    /// Déverrouillages actifs (JSON `[name: epochSeconds]`), écrit par l'app principale.
+    public static var vaultUnlocksURL: URL {
+        vaultDir.appending(path: "unlocks.json")
+    }
+
+    /// Ensemble des remotes actuellement protégés par le coffre-fort.
+    public static func lockedRemotes() -> Set<String> {
+        guard FileManager.default.fileExists(atPath: vaultLockedRemotesURL.path),
+              let data = try? Data(contentsOf: vaultLockedRemotesURL),
+              let names = try? JSONDecoder().decode([String].self, from: data) else {
+            return []
+        }
+        return Set(names)
+    }
+
+    /// Remotes déverrouillés et non expirés (epoch > maintenant).
+    public static func unlockedRemotes() -> Set<String> {
+        guard FileManager.default.fileExists(atPath: vaultUnlocksURL.path),
+              let data = try? Data(contentsOf: vaultUnlocksURL),
+              let map = try? JSONDecoder().decode([String: Double].self, from: data) else {
+            return []
+        }
+        let now = Date().timeIntervalSince1970
+        return Set(map.filter { $0.value > now }.keys)
+    }
+
+    /// Un remote est accessible depuis Fichiers.app s'il n'est pas dans le
+    /// coffre-fort, ou s'il est dans le coffre mais déverrouillé (non expiré).
+    public static func isRemoteAccessible(_ name: String) -> Bool {
+        let locked = lockedRemotes()
+        guard locked.contains(name) else { return true }
+        return unlockedRemotes().contains(name)
+    }
+
+    /// Jette `noSuchItem` si le remote est verrouillé et non déverrouillé, de
+    /// sorte que Fichiers.app ne révèle ni le contenu ni le téléchargement.
+    public static func ensureRemoteAccessible(_ name: String) throws {
+        guard isRemoteAccessible(name) else {
+            appendDiagnostic("vault gate: remote \(redact(name)) verrouillé — accès refusé")
+            throw NSError(
+                domain: NSFileProviderErrorDomain,
+                code: NSFileProviderError.noSuchItem.rawValue
+            )
+        }
+    }
+
     public static var pendingFetchesDir: URL {
         containerURL.appending(path: "pending-fetches", directoryHint: .isDirectory)
     }
@@ -323,6 +380,7 @@ public enum FileProviderBridge {
         try fm.createDirectory(at: pendingFetchesDir, withIntermediateDirectories: true)
         try fm.createDirectory(at: fetchedFilesDir, withIntermediateDirectories: true)
         try fm.createDirectory(at: streamingURLsDir, withIntermediateDirectories: true)
+        try fm.createDirectory(at: vaultDir, withIntermediateDirectories: true)
         try fm.createDirectory(at: diagnosticsURL.deletingLastPathComponent(), withIntermediateDirectories: true)
     }
 
