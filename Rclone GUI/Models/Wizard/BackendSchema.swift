@@ -29,9 +29,17 @@ struct BackendSchema: Identifiable, Hashable, Sendable {
     /// - hidden fields (`hide != 0`)
     /// - OAuth-specific fields managed by the OAuth step
     var formFields: [FieldSpec] {
-        let oauthHidden: Set<String> = [
+        var oauthHidden: Set<String> = [
             "token", "auth_url", "token_url", "client_secret"
         ]
+        // Quand un backend passe par l'étape d'auth guidée (OAuthView), le champ
+        // qu'elle collecte (ex : Drime `access_token`, Filen `api_key`, Box
+        // `access_token`) ne doit PAS réapparaître aussi dans le formulaire
+        // dynamique — sinon l'utilisateur le voit en double. L'étape OAuth écrit
+        // directement dans fieldValues, donc config/create le reçoit quand même.
+        if let tokenField = oauthConfig?.tokenFieldName {
+            oauthHidden.insert(tokenField)
+        }
         return fields.filter { spec in
             spec.hide == 0 && !oauthHidden.contains(spec.name)
         }
