@@ -215,6 +215,33 @@ public final class FileProviderManager {
         #endif
     }
 
+    /// Supprime tous les folder manifests d'un remote après sa suppression,
+    /// pour que l'extension Fichiers ne serve plus son contenu en cache (sinon
+    /// un remote effacé reste navigable depuis Fichiers / les Récents).
+    public func purgeFolderManifests(remote: String) {
+        let dir = AppGroup.containerURL
+            .appending(path: "manifest", directoryHint: .isDirectory)
+            .appending(path: "folders", directoryHint: .isDirectory)
+        guard let files = try? FileManager.default.contentsOfDirectory(
+            at: dir, includingPropertiesForKeys: nil
+        ) else { return }
+        // Les manifests sont nommés percentEncode("<remote>:<path>").json ; le
+        // séparateur ":" encodé (%3A) évite de matcher un remote au nom plus long.
+        let prefix = "\(remote):".addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? "\(remote):"
+        for file in files where file.deletingPathExtension().lastPathComponent.hasPrefix(prefix) {
+            try? FileManager.default.removeItem(at: file)
+        }
+        signalRefresh(remote: remote, path: "")
+    }
+
+    /// Supprime tous les folder manifests (après un wipe complet de la config).
+    public func purgeAllFolderManifests() {
+        let dir = AppGroup.containerURL
+            .appending(path: "manifest", directoryHint: .isDirectory)
+            .appending(path: "folders", directoryHint: .isDirectory)
+        try? FileManager.default.removeItem(at: dir)
+    }
+
     public func diagnosticEntries() -> [LogEntry] {
         let url = AppGroup.fileProviderDiagnosticsURL
         guard let data = try? Data(contentsOf: url),
