@@ -1,0 +1,7 @@
+Neu in Version 1.4:
+- Neue Clouds: Drime, Internxt und Filen ergänzen die über 70 unterstützten Dienste (Internxt und Filen sind Ende-zu-Ende-verschlüsselt).
+- Einfachere Einrichtung: Ein neuer Bereich „Wo du deine Zugangsdaten findest“ führt durch die Konfiguration von Pixeldrain, 1Fichier, ImageKit, Internet Archive, Gofile, Storj, NetStorage und mehr.
+- Einfachere kombinierte Remotes: Eine Auswahl ermöglicht es, den zugrunde liegenden Speicher (und Ordner) für alias, union, combine usw. zu wählen – kein manuelles Eintippen von „remote:pfad“ mehr.
+- Zuverlässigkeit: Verbindung zu passwortgeschützten Remotes (SFTP, FTP, WebDAV, SMB …) korrigiert.
+- Gesperrte Remotes werden jetzt unter „Zuletzt“ und „Favoriten“ ausgeblendet.
+- Verbesserungen bei Übersetzung und Ordnerübersicht.
