@@ -1,0 +1,7 @@
+1.4 版本新功能：
+- 新增云服务：Drime、Internxt 和 Filen 加入 70 多项受支持的服务（Internxt 和 Filen 为端到端加密）。
+- 连接更简单：全新的"在哪里获取凭据"提示，引导你完成 Pixeldrain、1Fichier、ImageKit、Internet Archive、Gofile、Storj、NetStorage 等的设置。
+- 组合远程更轻松：通过选择器即可为 alias、union、combine 等选择底层存储（及文件夹），无需再手动输入"remote:路径"。
+- 可靠性：修复了连接受密码保护的远程（SFTP、FTP、WebDAV、SMB…）的问题。
+- 锁定的远程现在会在"最近"和"收藏"中隐藏。
+- 改进了翻译和文件夹摘要的显示。

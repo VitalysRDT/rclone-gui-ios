@@ -1,0 +1,7 @@
+Nowości w wersji 1.4:
+- Nowe chmury: Drime, Internxt i Filen dołączają do ponad 70 obsługiwanych usług (Internxt i Filen są szyfrowane end-to-end).
+- Łatwiejsze łączenie: nowy panel „gdzie zdobyć dane logowania” prowadzi przez konfigurację Pixeldrain, 1Fichier, ImageKit, Internet Archive, Gofile, Storj, NetStorage i innych.
+- Prostsze remote złożone: selektor pozwala wybrać bazowy magazyn (i folder) dla alias, union, combine itd. — koniec z ręcznym wpisywaniem „remote:ścieżka”.
+- Niezawodność: naprawiono łączenie z remote chronionymi hasłem (SFTP, FTP, WebDAV, SMB…).
+- Zablokowane remote są teraz ukrywane w sekcjach Ostatnie i Ulubione.
+- Ulepszenia tłumaczeń i widoku podsumowania folderów.
