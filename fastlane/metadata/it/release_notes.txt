@@ -1,0 +1,7 @@
+Novità della versione 1.4:
+- Nuovi cloud: Drime, Internxt e Filen si aggiungono agli oltre 70 servizi supportati (Internxt e Filen sono cifrati end-to-end).
+- Connessione più semplice: un nuovo riquadro «dove trovare le tue credenziali» guida la configurazione di Pixeldrain, 1Fichier, ImageKit, Internet Archive, Gofile, Storj, NetStorage e altri.
+- Remote composti più facili: un selettore consente di scegliere l'archivio sottostante (e la cartella) per alias, union, combine, ecc.: niente più «remote:percorso» da digitare a mano.
+- Affidabilità: risolta la connessione ai remote protetti da password (SFTP, FTP, WebDAV, SMB…).
+- I remote bloccati ora sono nascosti da Recenti e Preferiti.
+- Miglioramenti di traduzione e della vista riepilogo cartelle.

@@ -1,0 +1,7 @@
+버전 1.4의 새로운 기능:
+- 새로운 클라우드: Drime, Internxt, Filen이 70개 이상의 지원 서비스에 추가되었습니다(Internxt와 Filen은 종단 간 암호화됩니다).
+- 더 쉬운 연결: 새로운 "자격 증명을 얻는 위치" 안내가 Pixeldrain, 1Fichier, ImageKit, Internet Archive, Gofile, Storj, NetStorage 등의 설정을 도와줍니다.
+- 더 간단한 복합 리모트: 선택기로 alias, union, combine 등에 사용할 기본 저장소(및 폴더)를 고를 수 있어, 더 이상 "remote:경로"를 직접 입력할 필요가 없습니다.
+- 안정성: 비밀번호로 보호된 리모트(SFTP, FTP, WebDAV, SMB…) 연결 문제를 해결했습니다.
+- 잠긴 리모트는 이제 최근 항목과 즐겨찾기에서 숨겨집니다.
+- 번역 및 폴더 요약 표시가 개선되었습니다.
