@@ -1,114 +1,34 @@
 {
   "sourceLanguage" : "fr",
   "strings" : {
-    "Commencer l'essai gratuit" : {
+    "Aucune configuration rclone importée. Importe d'abord depuis Réglages." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Start free trial"
+            "value" : "No rclone configuration imported. Import one first from Settings."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Commencer l'essai gratuit"
+            "value" : "Aucune configuration rclone importée. Importe d'abord depuis Réglages."
           }
         }
       }
     },
-    "S'abonner" : {
+    "Repart à 7 jours puis ferme l'app" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Subscribe"
+            "value" : "Restarts the 7 days then quits the app"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "S'abonner"
-          }
-        }
-      }
-    },
-    "taille inconnue" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "unknown size"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "taille inconnue"
-          }
-        }
-      }
-    },
-    "Fichier %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ file"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fichier %@"
-          }
-        }
-      }
-    },
-    "Transferts fichiers/rclone" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "File / rclone transfers"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Transferts fichiers/rclone"
-          }
-        }
-      }
-    },
-    "1 transfert individuel en cours" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "1 individual transfer in progress"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "1 transfert individuel en cours"
-          }
-        }
-      }
-    },
-    "%lld transferts individuels en cours" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld individual transfers in progress"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld transferts individuels en cours"
+            "value" : "Repart à 7 jours puis ferme l'app"
           }
         }
       }
@@ -1108,6 +1028,7 @@
       }
     },
     "%@. %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -2841,6 +2762,22 @@
         }
       }
     },
+    "%lld transferts individuels en cours" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld individual transfers in progress"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld transferts individuels en cours"
+          }
+        }
+      }
+    },
     "%lld." : {
       "localizations" : {
         "en" : {
@@ -3607,6 +3544,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "1 h"
+          }
+        }
+      }
+    },
+    "1 transfert individuel en cours" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 individual transfer in progress"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 transfert individuel en cours"
           }
         }
       }
@@ -8881,7 +8834,14 @@
       }
     },
     "Bug, idée ou question — par e-mail" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Bug, idea or question — by email"
+          }
+        }
+      }
     },
     "C’est prêt" : {
       "localizations" : {
@@ -11371,6 +11331,22 @@
           "stringUnit" : {
             "state" : "machine_translated",
             "value" : "Łączy kilka remoteów w jeden"
+          }
+        }
+      }
+    },
+    "Commencer l'essai gratuit" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start free trial"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Commencer l'essai gratuit"
           }
         }
       }
@@ -13963,6 +13939,9 @@
         }
       }
     },
+    "Date" : {
+
+    },
     "Débit" : {
       "localizations" : {
         "en" : {
@@ -14945,6 +14924,22 @@
           "stringUnit" : {
             "state" : "machine_translated",
             "value" : "Rclone GUI ontgrendelen"
+          }
+        }
+      }
+    },
+    "Déverrouillez Rclone" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unlock Rclone"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Déverrouillez Rclone"
           }
         }
       }
@@ -17310,7 +17305,14 @@
       }
     },
     "Événements rclone et erreurs récentes" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Recent rclone events and errors"
+          }
+        }
+      }
     },
     "ex : mondrive" : {
       "localizations" : {
@@ -17883,6 +17885,22 @@
         }
       }
     },
+    "Face ID est requis pour lire votre rclone.conf chiffré." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Face ID is required to read your encrypted rclone.conf."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Face ID est requis pour lire votre rclone.conf chiffré."
+          }
+        }
+      }
+    },
     "Faites glisser pour ajuster la limite globale de bande passante en MB/s. Zéro signifie pas de limite." : {
       "localizations" : {
         "en" : {
@@ -17996,70 +18014,6 @@
         }
       }
     },
-    "Déverrouillez Rclone" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Unlock Rclone"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Déverrouillez Rclone"
-          }
-        }
-      }
-    },
-    "Face ID est requis pour lire votre rclone.conf chiffré." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Face ID is required to read your encrypted rclone.conf."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Face ID est requis pour lire votre rclone.conf chiffré."
-          }
-        }
-      }
-    },
-    "Nom" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Name"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nom"
-          }
-        }
-      }
-    },
-    "Ouvrir la page %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Open the %@ page"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ouvrir la page %@"
-          }
-        }
-      }
-    },
     "Fichier" : {
       "localizations" : {
         "en" : {
@@ -18072,6 +18026,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Fichier"
+          }
+        }
+      }
+    },
+    "Fichier %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ file"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fichier %@"
           }
         }
       }
@@ -23028,6 +22998,9 @@
         }
       }
     },
+    "MD5" : {
+
+    },
     "Mensuel" : {
       "localizations" : {
         "en" : {
@@ -24183,6 +24156,22 @@
           "stringUnit" : {
             "state" : "machine_translated",
             "value" : "層級"
+          }
+        }
+      }
+    },
+    "Nom" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Name"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nom"
           }
         }
       }
@@ -26086,6 +26075,22 @@
           "stringUnit" : {
             "state" : "machine_translated",
             "value" : "開啟 PhotoSync 設定"
+          }
+        }
+      }
+    },
+    "Ouvrir la page %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open the %@ page"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrir la page %@"
           }
         }
       }
@@ -28114,6 +28119,9 @@
         }
       }
     },
+    "rclone config dump | qrencode" : {
+
+    },
     "rclone crypt · AES-256-GCM" : {
       "localizations" : {
         "de" : {
@@ -28321,6 +28329,9 @@
           }
         }
       }
+    },
+    "rclone.conf" : {
+
     },
     "rclone.conf · %lld %@ · iCloud sync" : {
       "localizations" : {
@@ -30194,6 +30205,22 @@
         }
       }
     },
+    "S'abonner" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Subscribe"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "S'abonner"
+          }
+        }
+      }
+    },
     "S3 compatible" : {
       "localizations" : {
         "de" : {
@@ -30245,6 +30272,9 @@
           }
         }
       }
+    },
+    "S3, R2, Drive, Dropbox, SFTP, B2…" : {
+
     },
     "Sans album sélectionné, toutes les photos visibles sont sauvegardées. Une notification locale signalera la fin de chaque cycle de sync si vous l'autorisez." : {
       "localizations" : {
@@ -30898,6 +30928,9 @@
           }
         }
       }
+    },
+    "SHA-1" : {
+
     },
     "Si ton rclone.conf est protégé par un mot de passe rclone, il sera demandé à la lecture. Stocké en Keychain et protégé par Face ID." : {
       "extractionState" : "stale",
@@ -32874,6 +32907,22 @@
         }
       }
     },
+    "taille inconnue" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "unknown size"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "taille inconnue"
+          }
+        }
+      }
+    },
     "Taille limite et purge des fichiers temporaires" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -34706,6 +34755,22 @@
         }
       }
     },
+    "Transferts fichiers/rclone" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "File / rclone transfers"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transferts fichiers/rclone"
+          }
+        }
+      }
+    },
     "Transferts repris" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -35199,6 +35264,9 @@
           }
         }
       }
+    },
+    "URL / iCloud" : {
+
     },
     "utilisé" : {
       "extractionState" : "manual",
