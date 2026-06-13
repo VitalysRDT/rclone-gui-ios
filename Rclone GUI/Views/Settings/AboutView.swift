@@ -22,6 +22,12 @@ struct AboutView: View {
             }
 
             Section("Liens") {
+                Link(destination: URL(string: "https://rclone.rougetet.com")!) {
+                    Label("rclone.rougetet.com", systemImage: "globe")
+                }
+                Link(destination: URL(string: "https://github.com/VitalysRDT/rclone-gui-ios")!) {
+                    Label("GitHub", systemImage: "chevron.left.forwardslash.chevron.right")
+                }
                 Link(destination: URL(string: "https://rclone.org")!) {
                     Label("rclone.org", systemImage: "globe")
                 }
