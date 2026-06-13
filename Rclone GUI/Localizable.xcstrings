@@ -1588,19 +1588,13 @@
             "plural" : {
               "one" : {
                 "stringUnit" : {
-                  "state" : "translated",
+                  "state" : "machine_translated",
                   "value" : "%lld item"
                 }
               },
               "other" : {
                 "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld items"
-                }
-              },
-              "zero" : {
-                "stringUnit" : {
-                  "state" : "translated",
+                  "state" : "machine_translated",
                   "value" : "%lld items"
                 }
               }
@@ -1960,19 +1954,13 @@
             "plural" : {
               "one" : {
                 "stringUnit" : {
-                  "state" : "translated",
+                  "state" : "machine_translated",
                   "value" : "%lld pending"
                 }
               },
               "other" : {
                 "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld pending"
-                }
-              },
-              "zero" : {
-                "stringUnit" : {
-                  "state" : "translated",
+                  "state" : "machine_translated",
                   "value" : "%lld pending"
                 }
               }
@@ -2600,20 +2588,14 @@
             "plural" : {
               "one" : {
                 "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%1$lld remote%2$@ configured%3$@"
+                  "state" : "machine_translated",
+                  "value" : "%1$lld remote%2$@ configured"
                 }
               },
               "other" : {
                 "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%1$lld remote%2$@ configured%3$@"
-                }
-              },
-              "zero" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%1$lld remote%2$@ configured%3$@"
+                  "state" : "machine_translated",
+                  "value" : "%1$lld remote%2$@ configured"
                 }
               }
             }
@@ -3899,7 +3881,14 @@
       }
     },
     "À chaque accès" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "On every access"
+          }
+        }
+      }
     },
     "À jour" : {
       "localizations" : {
@@ -8063,7 +8052,14 @@
       }
     },
     "Authentification refusée ou biométrie indisponible." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Authentication denied or biometrics unavailable."
+          }
+        }
+      }
     },
     "Authentification requise" : {
       "localizations" : {
@@ -10773,7 +10769,14 @@
       }
     },
     "Coffre-fort" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Vault"
+          }
+        }
+      }
     },
     "Colle ce JSON ci-dessous." : {
       "localizations" : {
@@ -11583,19 +11586,13 @@
             "plural" : {
               "one" : {
                 "stringUnit" : {
-                  "state" : "translated",
+                  "state" : "machine_translated",
                   "value" : "Configuration imported and encrypted (%lld byte)."
                 }
               },
               "other" : {
                 "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Configuration imported and encrypted (%lld bytes)."
-                }
-              },
-              "zero" : {
-                "stringUnit" : {
-                  "state" : "translated",
+                  "state" : "machine_translated",
                   "value" : "Configuration imported and encrypted (%lld bytes)."
                 }
               }
@@ -14785,13 +14782,34 @@
       }
     },
     "Déverrouillage impossible" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Unlock failed"
+          }
+        }
+      }
     },
     "Déverrouillé" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Unlocked"
+          }
+        }
+      }
     },
     "Déverrouiller" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Unlock"
+          }
+        }
+      }
     },
     "Déverrouiller Rclone GUI" : {
       "comment" : "FaceID prompt at app open",
@@ -15640,7 +15658,14 @@
       }
     },
     "Durée de déverrouillage du coffre-fort" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Vault unlock duration"
+          }
+        }
+      }
     },
     "Échange de token échoué (HTTP %lld) : %@" : {
       "localizations" : {
@@ -21324,7 +21349,14 @@
       }
     },
     "Le remote « %@ » sera retiré de rclone.conf. Tes fichiers distants ne sont pas supprimés." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "The remote “%@” will be removed from rclone.conf. Your remote files are not deleted."
+          }
+        }
+      }
     },
     "Le remote sera créé après un test réussi. Si le test échoue de manière connue, tu peux quand même créer le remote." : {
       "localizations" : {
@@ -22923,7 +22955,14 @@
       }
     },
     "Mets un remote au coffre-fort depuis l'onglet Fichiers (appui long). Il disparaît alors de l'app Fichiers d'iOS et ne s'ouvre qu'après Face ID / Touch ID. Cette durée définit combien de temps il reste déverrouillé après authentification." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Add a remote to the vault from the Files tab (long-press). It then disappears from the iOS Files app and only opens after Face ID / Touch ID. This duration sets how long it stays unlocked after authentication."
+          }
+        }
+      }
     },
     "Mettre à la corbeille" : {
       "localizations" : {
@@ -22942,7 +22981,14 @@
       }
     },
     "Mettre au coffre-fort (Face ID)" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Add to vault (Face ID)"
+          }
+        }
+      }
     },
     "Mettre des étoiles" : {
       "localizations" : {
@@ -29890,7 +29936,14 @@
       }
     },
     "Retirer du coffre-fort" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Remove from vault"
+          }
+        }
+      }
     },
     "Retour" : {
       "localizations" : {
@@ -31703,10 +31756,24 @@
       }
     },
     "Supprimer « %@ »" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Delete “%@”"
+          }
+        }
+      }
     },
     "Supprimer ce remote ?" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Delete this remote?"
+          }
+        }
+      }
     },
     "Supprimer définitivement" : {
       "localizations" : {
@@ -31799,7 +31866,14 @@
       }
     },
     "Supprimer le remote" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Delete remote"
+          }
+        }
+      }
     },
     "Sur app.put.io → Settings → OAuth Apps." : {
       "localizations" : {
@@ -33852,7 +33926,14 @@
       }
     },
     "Touche un remote pour ouvrir sa racine. Un remote au coffre-fort se déverrouille par Face ID et reste masqué dans l'app Fichiers d'iOS tant qu'il est verrouillé." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Tap a remote to open its root. A vaulted remote unlocks with Face ID and stays hidden in the iOS Files app while locked."
+          }
+        }
+      }
     },
     "Tous" : {
       "localizations" : {
@@ -35254,10 +35335,24 @@
       }
     },
     "Verrouillé · Face ID requis" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Locked · Face ID required"
+          }
+        }
+      }
     },
     "Verrouiller maintenant" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Lock now"
+          }
+        }
+      }
     },
     "Version, licences et détails de l’app" : {
       "extractionState" : "manual",
