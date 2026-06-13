@@ -123,9 +123,9 @@ struct PaywallView: View {
         let monthlyPrice = subs.product(for: SubscriptionProductID.monthly)?.displayPrice ?? "1,99 €"
         let yearlyPrice  = subs.product(for: SubscriptionProductID.yearly)?.displayPrice  ?? "19,99 €"
         if trialAvailable, let trial = subs.trialDescription(for: SubscriptionProductID.monthly) {
-            return "\(trial), puis \(monthlyPrice)/mois ou \(yearlyPrice)/an"
+            return String(localized: "\(trial), puis \(monthlyPrice)/mois ou \(yearlyPrice)/an")
         }
-        return "\(monthlyPrice)/mois ou \(yearlyPrice)/an"
+        return String(localized: "\(monthlyPrice)/mois ou \(yearlyPrice)/an")
     }
 
     // MARK: - Bullets
@@ -226,7 +226,7 @@ struct PaywallView: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
-                        Text(product.displayName.isEmpty ? defaultName(for: product) : product.displayName)
+                        Text(defaultName(for: product))
                             .font(.system(size: 16, weight: .semibold))
                         if let badge = badgeText {
                             Text(badge)
@@ -266,7 +266,7 @@ struct PaywallView: View {
         switch product.id {
         case SubscriptionProductID.monthly: return String(localized: "Mensuel")
         case SubscriptionProductID.yearly:  return String(localized: "Annuel")
-        default: return product.id
+        default: return product.displayName.isEmpty ? product.id : product.displayName
         }
     }
 
