@@ -1,258 +1,258 @@
 {
-  "sourceLanguage": "fr",
-  "strings": {
-    "CFBundleDisplayName": {
-      "comment": "Bundle display name",
-      "extractionState": "extracted_with_value",
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "new",
-            "value": "RclonePhotoSyncActivity"
+  "sourceLanguage" : "fr",
+  "strings" : {
+    "CFBundleDisplayName" : {
+      "comment" : "Bundle display name",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "RclonePhotoSyncActivity"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "RclonePhotoSyncActivity"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RclonePhotoSyncActivity"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "RclonePhotoSyncActivity"
+        "es" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "RclonePhotoSyncActivity"
           }
         },
-        "de": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "RclonePhotoSyncActivity"
+        "fr" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "RclonePhotoSyncActivity"
           }
         },
-        "it": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "RclonePhotoSyncActivity"
+        "it" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "RclonePhotoSyncActivity"
           }
         },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "RclonePhotoSyncActivity"
+        "ja" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "RclonePhotoSyncActivity"
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "RclonePhotoSyncActivity"
+        "ko" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "RclonePhotoSyncActivity"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "RclonePhotoSyncActivity"
+        "nl" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "RclonePhotoSyncActivity"
           }
         },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "RclonePhotoSyncActivity"
+        "pl" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "RclonePhotoSyncActivity"
           }
         },
-        "nl": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "RclonePhotoSyncActivity"
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "RclonePhotoSyncActivity"
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "RclonePhotoSyncActivity"
+        "ru" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "RclonePhotoSyncActivity"
           }
         },
-        "pl": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "RclonePhotoSyncActivity"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "RclonePhotoSyncActivity"
           }
         },
-        "ko": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "RclonePhotoSyncActivity"
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "RclonePhotoSyncActivity"
           }
         }
       }
     },
-    "CFBundleName": {
-      "comment": "Bundle name",
-      "extractionState": "extracted_with_value",
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "new",
-            "value": "RclonePhotoSyncActivityExtension"
+    "CFBundleName" : {
+      "comment" : "Bundle name",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "RclonePhotoSyncActivityExtension"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "RclonePhotoSyncActivityExtension"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RclonePhotoSyncActivityExtension"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "RclonePhotoSyncActivityExtension"
+        "es" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "RclonePhotoSyncActivityExtension"
           }
         },
-        "de": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "RclonePhotoSyncActivityExtension"
+        "fr" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "RclonePhotoSyncActivityExtension"
           }
         },
-        "it": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "RclonePhotoSyncActivityExtension"
+        "it" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "RclonePhotoSyncActivityExtension"
           }
         },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "RclonePhotoSyncActivityExtension"
+        "ja" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "RclonePhotoSyncActivityExtension"
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "RclonePhotoSyncActivityExtension"
+        "ko" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "RclonePhotoSyncActivityExtension"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "RclonePhotoSyncActivityExtension"
+        "nl" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "RclonePhotoSyncActivityExtension"
           }
         },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "RclonePhotoSyncActivityExtension"
+        "pl" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "RclonePhotoSyncActivityExtension"
           }
         },
-        "nl": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "RclonePhotoSyncActivityExtension"
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "RclonePhotoSyncActivityExtension"
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "RclonePhotoSyncActivityExtension"
+        "ru" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "RclonePhotoSyncActivityExtension"
           }
         },
-        "pl": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "RclonePhotoSyncActivityExtension"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "RclonePhotoSyncActivityExtension"
           }
         },
-        "ko": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "RclonePhotoSyncActivityExtension"
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "RclonePhotoSyncActivityExtension"
           }
         }
       }
     },
-    "NSHumanReadableCopyright": {
-      "comment": "Copyright (human-readable)",
-      "extractionState": "extracted_with_value",
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "new",
-            "value": ""
+    "NSHumanReadableCopyright" : {
+      "comment" : "Copyright (human-readable)",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : ""
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": ""
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : ""
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": ""
+        "es" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : ""
           }
         },
-        "de": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": ""
+        "fr" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : ""
           }
         },
-        "it": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": ""
+        "it" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : ""
           }
         },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": ""
+        "ja" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : ""
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": ""
+        "ko" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : ""
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": ""
+        "nl" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : ""
           }
         },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": ""
+        "pl" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : ""
           }
         },
-        "nl": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": ""
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : ""
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": ""
+        "ru" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : ""
           }
         },
-        "pl": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": ""
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : ""
           }
         },
-        "ko": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": ""
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : ""
           }
         }
       }
     }
   },
-  "version": "1.3"
+  "version" : "1.3"
 }

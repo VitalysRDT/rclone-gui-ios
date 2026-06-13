@@ -1,510 +1,510 @@
 {
-  "sourceLanguage": "fr",
-  "strings": {
-    "3gV-2h-5zD.normalTitle": {
-      "comment": "Class = \"UIButton\"; normalTitle = \"Cancel\"; ObjectID = \"3gV-2h-5zD\";",
-      "extractionState": "extracted_with_value",
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "new",
-            "value": "Cancel"
+  "sourceLanguage" : "fr",
+  "strings" : {
+    "3gV-2h-5zD.normalTitle" : {
+      "comment" : "Class = \"UIButton\"; normalTitle = \"Cancel\"; ObjectID = \"3gV-2h-5zD\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Abbrechen"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cancel"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Cancelar"
+        "es" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Cancelar"
           }
         },
-        "de": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Abbrechen"
+        "fr" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Cancel"
           }
         },
-        "it": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Annulla"
+        "it" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Annulla"
           }
         },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Cancelar"
+        "ja" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "キャンセル"
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "キャンセル"
+        "ko" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "취소"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "取消"
+        "nl" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Annuleer"
           }
         },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "取消"
+        "pl" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Anuluj"
           }
         },
-        "nl": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Annuleer"
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Cancelar"
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Отмена"
+        "ru" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Отмена"
           }
         },
-        "pl": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Anuluj"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "取消"
           }
         },
-        "ko": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "취소"
-          }
-        }
-      }
-    },
-    "Fwj-fa-AqO.text": {
-      "comment": "Class = \"UILabel\"; text = \"Label\"; ObjectID = \"Fwj-fa-AqO\";",
-      "extractionState": "extracted_with_value",
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "new",
-            "value": "Label"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Label"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Etiqueta"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Beschriftung"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Etichetta"
-          }
-        },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Rótulo"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "ラベル"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "标签"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "標籤"
-          }
-        },
-        "nl": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Label"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Метка"
-          }
-        },
-        "pl": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Etykieta"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "레이블"
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "取消"
           }
         }
       }
     },
-    "g6k-sp-jtu.text": {
-      "comment": "Class = \"UILabel\"; text = \"Type:\"; ObjectID = \"g6k-sp-jtu\";",
-      "extractionState": "extracted_with_value",
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "new",
-            "value": "Type:"
+    "Fwj-fa-AqO.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Label\"; ObjectID = \"Fwj-fa-AqO\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Beschriftung"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Type:"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Label"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Tipo:"
+        "es" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Etiqueta"
           }
         },
-        "de": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Typ:"
+        "fr" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Label"
           }
         },
-        "it": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Tipo:"
+        "it" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Etichetta"
           }
         },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Tipo:"
+        "ja" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "ラベル"
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "種類:"
+        "ko" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "레이블"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "类型："
+        "nl" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Label"
           }
         },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "類型："
+        "pl" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Etykieta"
           }
         },
-        "nl": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Type:"
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Rótulo"
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Тип:"
+        "ru" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Метка"
           }
         },
-        "pl": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Typ:"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "标签"
           }
         },
-        "ko": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "유형:"
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "標籤"
           }
         }
       }
     },
-    "gdj-d0-nZ2.text": {
-      "comment": "Class = \"UILabel\"; text = \"Label\"; ObjectID = \"gdj-d0-nZ2\";",
-      "extractionState": "extracted_with_value",
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "new",
-            "value": "Label"
+    "g6k-sp-jtu.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Type:\"; ObjectID = \"g6k-sp-jtu\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Typ:"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Label"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Type:"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Etiqueta"
+        "es" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Tipo:"
           }
         },
-        "de": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Beschriftung"
+        "fr" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Type:"
           }
         },
-        "it": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Etichetta"
+        "it" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Tipo:"
           }
         },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Rótulo"
+        "ja" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "種類:"
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "ラベル"
+        "ko" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "유형:"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "标签"
+        "nl" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Type:"
           }
         },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "標籤"
+        "pl" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Typ:"
           }
         },
-        "nl": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Label"
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Tipo:"
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Метка"
+        "ru" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Тип:"
           }
         },
-        "pl": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Etykieta"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "类型："
           }
         },
-        "ko": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "레이블"
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "類型："
           }
         }
       }
     },
-    "k6y-tY-87X.normalTitle": {
-      "comment": "Class = \"UIButton\"; normalTitle = \"Done\"; ObjectID = \"k6y-tY-87X\";",
-      "extractionState": "extracted_with_value",
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "new",
-            "value": "Done"
+    "gdj-d0-nZ2.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Label\"; ObjectID = \"gdj-d0-nZ2\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Beschriftung"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Done"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Label"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "OK"
+        "es" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Etiqueta"
           }
         },
-        "de": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Fertig"
+        "fr" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Label"
           }
         },
-        "it": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Fine"
+        "it" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Etichetta"
           }
         },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "OK"
+        "ja" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "ラベル"
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "完了"
+        "ko" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "레이블"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "完成"
+        "nl" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Label"
           }
         },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "完成"
+        "pl" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Etykieta"
           }
         },
-        "nl": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Gereed"
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Rótulo"
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Готово"
+        "ru" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Метка"
           }
         },
-        "pl": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Gotowe"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "标签"
           }
         },
-        "ko": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "완료"
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "標籤"
           }
         }
       }
     },
-    "lAh-Rn-dzR.text": {
-      "comment": "Class = \"UILabel\"; text = \"Action name:\"; ObjectID = \"lAh-Rn-dzR\";",
-      "extractionState": "extracted_with_value",
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "new",
-            "value": "Action name:"
+    "k6y-tY-87X.normalTitle" : {
+      "comment" : "Class = \"UIButton\"; normalTitle = \"Done\"; ObjectID = \"k6y-tY-87X\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Fertig"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Action name:"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Done"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Nombre de la acción:"
+        "es" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "OK"
           }
         },
-        "de": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Aktionsname:"
+        "fr" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Done"
           }
         },
-        "it": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Nome azione:"
+        "it" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Fine"
           }
         },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Nome da ação:"
+        "ja" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "完了"
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "アクション名:"
+        "ko" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "완료"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "操作名称："
+        "nl" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Gereed"
           }
         },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "動作名稱："
+        "pl" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Gotowe"
           }
         },
-        "nl": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Actienaam:"
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "OK"
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Название действия:"
+        "ru" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Готово"
           }
         },
-        "pl": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Nazwa czynności:"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "完成"
           }
         },
-        "ko": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "동작 이름:"
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "完成"
+          }
+        }
+      }
+    },
+    "lAh-Rn-dzR.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Action name:\"; ObjectID = \"lAh-Rn-dzR\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Aktionsname:"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Action name:"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Nombre de la acción:"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Action name:"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Nome azione:"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "アクション名:"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "동작 이름:"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Actienaam:"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Nazwa czynności:"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Nome da ação:"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Название действия:"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "操作名称："
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "動作名稱："
           }
         }
       }
     }
   },
-  "version": "1.3"
+  "version" : "1.3"
 }
