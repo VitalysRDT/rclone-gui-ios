@@ -359,9 +359,9 @@ struct PaywallView: View {
         // confirme un intro offer ET l'eligibilite de l'utilisateur. Sinon
         // on tombe sur "S'abonner" pour ne pas promettre un trial inexistant.
         if subs.isTrialAvailable(for: selectedProductID) {
-            return "Commencer l'essai gratuit"
+            return String(localized: "Commencer l'essai gratuit")
         }
-        return "S'abonner"
+        return String(localized: "S'abonner")
     }
 
     private func purchaseSelected() async {

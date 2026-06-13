@@ -100,10 +100,10 @@ struct FolderView: View {
         public var id: String { rawValue }
         var label: String {
             switch self {
-            case .name: return "Nom"
-            case .size: return "Taille"
-            case .date: return "Date"
-            case .type: return "Type"
+            case .name: return String(localized: "Nom")
+            case .size: return String(localized: "Taille")
+            case .date: return String(localized: "Date")
+            case .type: return String(localized: "Type")
             }
         }
     }
