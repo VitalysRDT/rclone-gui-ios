@@ -1,423 +1,423 @@
 {
-  "sourceLanguage": "fr",
-  "strings": {
-    "CFBundleDisplayName": {
-      "comment": "Bundle display name",
-      "extractionState": "extracted_with_value",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Rclone GUI"
+  "sourceLanguage" : "fr",
+  "strings" : {
+    "CFBundleDisplayName" : {
+      "comment" : "Bundle display name",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Rclone GUI"
           }
         },
-        "fr": {
-          "stringUnit": {
-            "state": "new",
-            "value": "Rclone GUI"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rclone GUI"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Rclone GUI"
+        "es" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Rclone GUI"
           }
         },
-        "de": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Rclone GUI"
+        "fr" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Rclone GUI"
           }
         },
-        "it": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Rclone GUI"
+        "it" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Rclone GUI"
           }
         },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Rclone GUI"
+        "ja" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Rclone GUI"
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Rclone GUI"
+        "ko" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Rclone GUI"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Rclone GUI"
+        "nl" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Rclone GUI"
           }
         },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Rclone GUI"
+        "pl" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Rclone GUI"
           }
         },
-        "nl": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Rclone GUI"
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Rclone GUI"
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Rclone GUI"
+        "ru" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Rclone GUI"
           }
         },
-        "pl": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Rclone GUI"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Rclone GUI"
           }
         },
-        "ko": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Rclone GUI"
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Rclone GUI"
           }
         }
       }
     },
-    "CFBundleName": {
-      "comment": "Bundle name",
-      "extractionState": "extracted_with_value",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "RcloneGUI"
+    "CFBundleName" : {
+      "comment" : "Bundle name",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "RcloneGUI"
           }
         },
-        "fr": {
-          "stringUnit": {
-            "state": "new",
-            "value": "RcloneGUI"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RcloneGUI"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "RcloneGUI"
+        "es" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "RcloneGUI"
           }
         },
-        "de": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "RcloneGUI"
+        "fr" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "RcloneGUI"
           }
         },
-        "it": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "RcloneGUI"
+        "it" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "RcloneGUI"
           }
         },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "RcloneGUI"
+        "ja" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "RcloneGUI"
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "RcloneGUI"
+        "ko" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "RcloneGUI"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "RcloneGUI"
+        "nl" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "RcloneGUI"
           }
         },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "RcloneGUI"
+        "pl" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "RcloneGUI"
           }
         },
-        "nl": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "RcloneGUI"
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "RcloneGUI"
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "RcloneGUI"
+        "ru" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "RcloneGUI"
           }
         },
-        "pl": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "RcloneGUI"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "RcloneGUI"
           }
         },
-        "ko": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "RcloneGUI"
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "RcloneGUI"
           }
         }
       }
     },
-    "NSFaceIDUsageDescription": {
-      "comment": "Privacy - Face ID Usage Description",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Face ID protects access to your rclone configuration and your stored credentials."
+    "NSFaceIDUsageDescription" : {
+      "comment" : "Privacy - Face ID Usage Description",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Face ID schützt den Zugriff auf deine rclone-Konfiguration und deine gespeicherten Zugangsdaten."
           }
         },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Face ID protège l'accès à votre configuration rclone et à vos identifiants stockés."
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Face ID protects access to your rclone configuration and your stored credentials."
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Face ID protege el acceso a tu configuración de rclone y a tus credenciales guardadas."
+        "es" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Face ID protege el acceso a tu configuración de rclone y a tus credenciales guardadas."
           }
         },
-        "de": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Face ID schützt den Zugriff auf deine rclone-Konfiguration und deine gespeicherten Zugangsdaten."
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Face ID protège l'accès à votre configuration rclone et à vos identifiants stockés."
           }
         },
-        "it": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Face ID protegge l'accesso alla configurazione rclone e alle credenziali salvate."
+        "it" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Face ID protegge l'accesso alla configurazione rclone e alle credenziali salvate."
           }
         },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "O Face ID protege o acesso à sua configuração do rclone e às credenciais armazenadas."
+        "ja" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Face ID は rclone 設定と保存済み認証情報へのアクセスを保護します。"
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Face ID は rclone 設定と保存済み認証情報へのアクセスを保護します。"
+        "ko" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Face ID는 rclone 구성과 저장된 자격 증명에 대한 접근을 보호합니다."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Face ID 用于保护对 rclone 配置和已存储凭据的访问。"
+        "nl" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Face ID beschermt toegang tot je rclone-configuratie en opgeslagen inloggegevens."
           }
         },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Face ID 會保護 rclone 設定與已儲存憑證的存取。"
+        "pl" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Face ID chroni dostęp do konfiguracji rclone i zapisanych danych logowania."
           }
         },
-        "nl": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Face ID beschermt toegang tot je rclone-configuratie en opgeslagen inloggegevens."
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "O Face ID protege o acesso à sua configuração do rclone e às credenciais armazenadas."
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Face ID защищает доступ к вашей конфигурации rclone и сохраненным учетным данным."
+        "ru" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Face ID защищает доступ к вашей конфигурации rclone и сохраненным учетным данным."
           }
         },
-        "pl": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Face ID chroni dostęp do konfiguracji rclone i zapisanych danych logowania."
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Face ID 用于保护对 rclone 配置和已存储凭据的访问。"
           }
         },
-        "ko": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Face ID는 rclone 구성과 저장된 자격 증명에 대한 접근을 보호합니다."
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Face ID 會保護 rclone 設定與已儲存憑證的存取。"
           }
         }
       }
     },
-    "NSLocalNetworkUsageDescription": {
-      "comment": "Privacy - Local Network Usage Description",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Rclone GUI uses an internal localhost server to stream your files (audio/video), including encrypted files. No traffic leaves your device through this channel."
+    "NSLocalNetworkUsageDescription" : {
+      "comment" : "Privacy - Local Network Usage Description",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Rclone GUI verwendet einen internen Localhost-Server, um deine Dateien (Audio/Video), einschließlich verschlüsselter Dateien, zu streamen. Über diesen Kanal verlässt kein Datenverkehr dein Gerät."
           }
         },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Rclone GUI utilise un serveur localhost interne pour streamer vos fichiers (audio/vidéo), y compris les fichiers chiffrés. Aucun trafic ne quitte votre appareil par cette voie."
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rclone GUI uses an internal localhost server to stream your files (audio/video), including encrypted files. No traffic leaves your device through this channel."
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Rclone GUI usa un servidor localhost interno para transmitir tus archivos de audio y vídeo, incluidos archivos cifrados. Ningún tráfico sale de tu dispositivo por este canal."
+        "es" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Rclone GUI usa un servidor localhost interno para transmitir tus archivos de audio y vídeo, incluidos archivos cifrados. Ningún tráfico sale de tu dispositivo por este canal."
           }
         },
-        "de": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Rclone GUI verwendet einen internen Localhost-Server, um deine Dateien (Audio/Video), einschließlich verschlüsselter Dateien, zu streamen. Über diesen Kanal verlässt kein Datenverkehr dein Gerät."
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rclone GUI utilise un serveur localhost interne pour streamer vos fichiers (audio/vidéo), y compris les fichiers chiffrés. Aucun trafic ne quitte votre appareil par cette voie."
           }
         },
-        "it": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Rclone GUI usa un server localhost interno per riprodurre in streaming i tuoi file audio/video, inclusi quelli cifrati. Nessun traffico lascia il dispositivo tramite questo canale."
+        "it" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Rclone GUI usa un server localhost interno per riprodurre in streaming i tuoi file audio/video, inclusi quelli cifrati. Nessun traffico lascia il dispositivo tramite questo canale."
           }
         },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "O Rclone GUI usa um servidor localhost interno para transmitir seus arquivos de áudio e vídeo, incluindo arquivos criptografados. Nenhum tráfego sai do dispositivo por esse canal."
+        "ja" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Rclone GUI は内部 localhost サーバーを使用して、暗号化ファイルを含む音声/動画ファイルをストリーミングします。この経路でデバイス外へ通信が出ることはありません。"
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Rclone GUI は内部 localhost サーバーを使用して、暗号化ファイルを含む音声/動画ファイルをストリーミングします。この経路でデバイス外へ通信が出ることはありません。"
+        "ko" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Rclone GUI는 내부 localhost 서버를 사용해 암호화된 파일을 포함한 오디오/비디오 파일을 스트리밍합니다. 이 채널을 통해 기기 밖으로 나가는 트래픽은 없습니다."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Rclone GUI 使用内部 localhost 服务器来流式传输你的音频/视频文件，包括加密文件。此通道不会让任何流量离开你的设备。"
+        "nl" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Rclone GUI gebruikt een interne localhost-server om je audio- en videobestanden te streamen, inclusief versleutelde bestanden. Via dit kanaal verlaat geen verkeer je apparaat."
           }
         },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Rclone GUI 使用內部 localhost 伺服器串流你的音訊/影片檔案，包括加密檔案。此通道不會讓任何流量離開你的裝置。"
+        "pl" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Rclone GUI używa wewnętrznego serwera localhost do strumieniowania plików audio i wideo, także zaszyfrowanych. Ten kanał nie wysyła żadnego ruchu poza urządzenie."
           }
         },
-        "nl": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Rclone GUI gebruikt een interne localhost-server om je audio- en videobestanden te streamen, inclusief versleutelde bestanden. Via dit kanaal verlaat geen verkeer je apparaat."
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "O Rclone GUI usa um servidor localhost interno para transmitir seus arquivos de áudio e vídeo, incluindo arquivos criptografados. Nenhum tráfego sai do dispositivo por esse canal."
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Rclone GUI использует внутренний сервер localhost для потоковой передачи ваших аудио- и видеофайлов, включая зашифрованные файлы. Через этот канал трафик не покидает устройство."
+        "ru" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Rclone GUI использует внутренний сервер localhost для потоковой передачи ваших аудио- и видеофайлов, включая зашифрованные файлы. Через этот канал трафик не покидает устройство."
           }
         },
-        "pl": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Rclone GUI używa wewnętrznego serwera localhost do strumieniowania plików audio i wideo, także zaszyfrowanych. Ten kanał nie wysyła żadnego ruchu poza urządzenie."
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Rclone GUI 使用内部 localhost 服务器来流式传输你的音频/视频文件，包括加密文件。此通道不会让任何流量离开你的设备。"
           }
         },
-        "ko": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Rclone GUI는 내부 localhost 서버를 사용해 암호화된 파일을 포함한 오디오/비디오 파일을 스트리밍합니다. 이 채널을 통해 기기 밖으로 나가는 트래픽은 없습니다."
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Rclone GUI 使用內部 localhost 伺服器串流你的音訊/影片檔案，包括加密檔案。此通道不會讓任何流量離開你的裝置。"
           }
         }
       }
     },
-    "NSPhotoLibraryUsageDescription": {
-      "comment": "Privacy - Photo Library Usage Description",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Lets you upload your photos and videos to your rclone remotes."
+    "NSPhotoLibraryUsageDescription" : {
+      "comment" : "Privacy - Photo Library Usage Description",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Ermöglicht das Hochladen deiner Fotos und Videos auf deine rclone-Remotes."
           }
         },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Permet d'uploader vos photos et vidéos vers vos remotes rclone."
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lets you upload your photos and videos to your rclone remotes."
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Permite subir tus fotos y vídeos a tus remotes de rclone."
+        "es" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Permite subir tus fotos y vídeos a tus remotes de rclone."
           }
         },
-        "de": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Ermöglicht das Hochladen deiner Fotos und Videos auf deine rclone-Remotes."
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Permet d'uploader vos photos et vidéos vers vos remotes rclone."
           }
         },
-        "it": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Consente di caricare foto e video sui tuoi remote rclone."
+        "it" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Consente di caricare foto e video sui tuoi remote rclone."
           }
         },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Permite enviar suas fotos e vídeos para seus remotes do rclone."
+        "ja" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "写真や動画を rclone リモートへアップロードできるようにします。"
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "写真や動画を rclone リモートへアップロードできるようにします。"
+        "ko" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "사진과 비디오를 rclone 원격 저장소에 업로드할 수 있습니다."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "允许你将照片和视频上传到 rclone 远程。"
+        "nl" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Hiermee kun je je foto's en video's uploaden naar je rclone-remotes."
           }
         },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "允許你將照片與影片上傳到 rclone 遠端。"
+        "pl" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Pozwala przesyłać zdjęcia i filmy do zdalnych lokalizacji rclone."
           }
         },
-        "nl": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Hiermee kun je je foto's en video's uploaden naar je rclone-remotes."
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Permite enviar suas fotos e vídeos para seus remotes do rclone."
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Позволяет загружать фото и видео в ваши удаленные хранилища rclone."
+        "ru" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Позволяет загружать фото и видео в ваши удаленные хранилища rclone."
           }
         },
-        "pl": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "Pozwala przesyłać zdjęcia i filmy do zdalnych lokalizacji rclone."
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "允许你将照片和视频上传到 rclone 远程。"
           }
         },
-        "ko": {
-          "stringUnit": {
-            "state": "machine_translated",
-            "value": "사진과 비디오를 rclone 원격 저장소에 업로드할 수 있습니다."
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "允許你將照片與影片上傳到 rclone 遠端。"
           }
         }
       }
     }
   },
-  "version": "1.3"
+  "version" : "1.3"
 }

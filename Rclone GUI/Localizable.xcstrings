@@ -3,6 +3,12 @@
   "strings" : {
     "" : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : ""
+          }
+        },
         "ja" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -1582,19 +1588,19 @@
             "plural" : {
               "one" : {
                 "stringUnit" : {
-                  "state" : "machine_translated",
+                  "state" : "translated",
                   "value" : "%lld item"
                 }
               },
               "other" : {
                 "stringUnit" : {
-                  "state" : "machine_translated",
+                  "state" : "translated",
                   "value" : "%lld items"
                 }
               },
               "zero" : {
                 "stringUnit" : {
-                  "state" : "machine_translated",
+                  "state" : "translated",
                   "value" : "%lld items"
                 }
               }
@@ -1950,9 +1956,27 @@
           }
         },
         "en" : {
-          "stringUnit" : {
-            "state" : "machine_translated",
-            "value" : "%lld pending"
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld pending"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld pending"
+                }
+              },
+              "zero" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld pending"
+                }
+              }
+            }
           }
         },
         "ko" : {
@@ -2576,20 +2600,20 @@
             "plural" : {
               "one" : {
                 "stringUnit" : {
-                  "state" : "machine_translated",
-                  "value" : "%1$lld remote configured"
+                  "state" : "translated",
+                  "value" : "%1$lld remote%2$@ configured%3$@"
                 }
               },
               "other" : {
                 "stringUnit" : {
-                  "state" : "machine_translated",
-                  "value" : "%1$lld remotes configured"
+                  "state" : "translated",
+                  "value" : "%1$lld remote%2$@ configured%3$@"
                 }
               },
               "zero" : {
                 "stringUnit" : {
-                  "state" : "machine_translated",
-                  "value" : "%1$lld remotes configured"
+                  "state" : "translated",
+                  "value" : "%1$lld remote%2$@ configured%3$@"
                 }
               }
             }
@@ -3465,7 +3489,7 @@
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "machine_translated",
+            "state" : "translated",
             "value" : "1 item"
           }
         },
@@ -3666,8 +3690,8 @@
         },
         "en" : {
           "stringUnit" : {
-            "state" : "machine_translated",
-            "value" : "7 days free · then %@/month or %@/year"
+            "state" : "translated",
+            "value" : "7 days free · then %1$@/month or %2$@/year"
           }
         },
         "fr" : {
@@ -3873,6 +3897,9 @@
           }
         }
       }
+    },
+    "À chaque accès" : {
+
     },
     "À jour" : {
       "localizations" : {
@@ -4603,7 +4630,7 @@
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "machine_translated",
+            "state" : "translated",
             "value" : "active"
           }
         },
@@ -4991,8 +5018,8 @@
         },
         "en" : {
           "stringUnit" : {
-            "state" : "machine_translated",
-            "value" : "Address Copied"
+            "state" : "translated",
+            "value" : "Address copied"
           }
         },
         "es" : {
@@ -6469,8 +6496,8 @@
         },
         "en" : {
           "stringUnit" : {
-            "state" : "machine_translated",
-            "value" : "pending"
+            "state" : "translated",
+            "value" : "Pending"
           }
         },
         "es" : {
@@ -8035,6 +8062,9 @@
         }
       }
     },
+    "Authentification refusée ou biométrie indisponible." : {
+
+    },
     "Authentification requise" : {
       "localizations" : {
         "de" : {
@@ -8414,7 +8444,7 @@
         },
         "en" : {
           "stringUnit" : {
-            "state" : "machine_translated",
+            "state" : "translated",
             "value" : "Backup configured"
           }
         },
@@ -8694,8 +8724,8 @@
         },
         "en" : {
           "stringUnit" : {
-            "state" : "machine_translated",
-            "value" : "Bug, feature idea or question — every message gets read."
+            "state" : "translated",
+            "value" : "Bug, feature idea or question — every message is read."
           }
         },
         "es" : {
@@ -9242,8 +9272,8 @@
         },
         "en" : {
           "stringUnit" : {
-            "state" : "machine_translated",
-            "value" : "This configuration is encrypted by rclone. Enter your password above, then tap “Decrypt and Import”."
+            "state" : "translated",
+            "value" : "This configuration is encrypted by rclone. Enter your password above, then tap \"Decrypt and Import\"."
           }
         },
         "es" : {
@@ -9318,7 +9348,7 @@
         },
         "en" : {
           "stringUnit" : {
-            "state" : "machine_translated",
+            "state" : "translated",
             "value" : "This rclone configuration is encrypted. Enter your rclone password to import it."
           }
         },
@@ -10742,6 +10772,9 @@
         }
       }
     },
+    "Coffre-fort" : {
+
+    },
     "Colle ce JSON ci-dessous." : {
       "localizations" : {
         "en" : {
@@ -11550,19 +11583,19 @@
             "plural" : {
               "one" : {
                 "stringUnit" : {
-                  "state" : "machine_translated",
+                  "state" : "translated",
                   "value" : "Configuration imported and encrypted (%lld byte)."
                 }
               },
               "other" : {
                 "stringUnit" : {
-                  "state" : "machine_translated",
+                  "state" : "translated",
                   "value" : "Configuration imported and encrypted (%lld bytes)."
                 }
               },
               "zero" : {
                 "stringUnit" : {
-                  "state" : "machine_translated",
+                  "state" : "translated",
                   "value" : "Configuration imported and encrypted (%lld bytes)."
                 }
               }
@@ -12061,7 +12094,7 @@
         },
         "en" : {
           "stringUnit" : {
-            "state" : "machine_translated",
+            "state" : "translated",
             "value" : "Contact"
           }
         },
@@ -12113,8 +12146,8 @@
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "machine_translated",
-            "value" : "Contact the Developer"
+            "state" : "translated",
+            "value" : "Contact the developer"
           }
         },
         "it" : {
@@ -12819,8 +12852,8 @@
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "machine_translated",
-            "value" : "Copy Address"
+            "state" : "translated",
+            "value" : "Copy address"
           }
         }
       }
@@ -13003,8 +13036,8 @@
         },
         "en" : {
           "stringUnit" : {
-            "state" : "machine_translated",
-            "value" : "trash"
+            "state" : "translated",
+            "value" : "Trash"
           }
         },
         "nl" : {
@@ -13660,7 +13693,7 @@
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "machine_translated",
+            "state" : "translated",
             "value" : "crypt"
           }
         },
@@ -14058,7 +14091,7 @@
         },
         "en" : {
           "stringUnit" : {
-            "state" : "machine_translated",
+            "state" : "translated",
             "value" : "Decrypt and Import"
           }
         },
@@ -14750,6 +14783,15 @@
           }
         }
       }
+    },
+    "Déverrouillage impossible" : {
+
+    },
+    "Déverrouillé" : {
+
+    },
+    "Déverrouiller" : {
+
     },
     "Déverrouiller Rclone GUI" : {
       "comment" : "FaceID prompt at app open",
@@ -15597,6 +15639,9 @@
         }
       }
     },
+    "Durée de déverrouillage du coffre-fort" : {
+
+    },
     "Échange de token échoué (HTTP %lld) : %@" : {
       "localizations" : {
         "en" : {
@@ -15749,7 +15794,7 @@
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "machine_translated",
+            "state" : "translated",
             "value" : "Import failed: %@"
           }
         },
@@ -15971,8 +16016,8 @@
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "machine_translated",
-            "value" : "Send an email"
+            "state" : "translated",
+            "value" : "Write an email"
           }
         },
         "it" : {
@@ -18394,8 +18439,8 @@
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "machine_translated",
-            "value" : "Trial ends: %@ · then %@/month or %@/year"
+            "state" : "translated",
+            "value" : "Trial ends: %1$@ · then %2$@/month or %3$@/year"
           }
         },
         "fr" : {
@@ -19789,7 +19834,7 @@
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "machine_translated",
+            "state" : "translated",
             "value" : "I have a code"
           }
         },
@@ -21278,6 +21323,9 @@
         }
       }
     },
+    "Le remote « %@ » sera retiré de rclone.conf. Tes fichiers distants ne sont pas supprimés." : {
+
+    },
     "Le remote sera créé après un test réussi. Si le test échoue de manière connue, tu peux quand même créer le remote." : {
       "localizations" : {
         "de" : {
@@ -21426,8 +21474,8 @@
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "machine_translated",
-            "value" : "The subject automatically includes the app version to speed up diagnostics. Usually answered within a few days."
+            "state" : "translated",
+            "value" : "The subject automatically includes the app version to speed up diagnosis. You'll usually get a reply within a few days."
           }
         }
       }
@@ -22001,8 +22049,8 @@
         },
         "en" : {
           "stringUnit" : {
-            "state" : "machine_translated",
-            "value" : "limit"
+            "state" : "translated",
+            "value" : "Limit"
           }
         },
         "nl" : {
@@ -22874,6 +22922,9 @@
         }
       }
     },
+    "Mets un remote au coffre-fort depuis l'onglet Fichiers (appui long). Il disparaît alors de l'app Fichiers d'iOS et ne s'ouvre qu'après Face ID / Touch ID. Cette durée définit combien de temps il reste déverrouillé après authentification." : {
+
+    },
     "Mettre à la corbeille" : {
       "localizations" : {
         "en" : {
@@ -22889,6 +22940,9 @@
           }
         }
       }
+    },
+    "Mettre au coffre-fort (Face ID)" : {
+
     },
     "Mettre des étoiles" : {
       "localizations" : {
@@ -23767,8 +23821,8 @@
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "machine_translated",
-            "value" : "Incorrect rclone password — the configuration could not be decrypted."
+            "state" : "translated",
+            "value" : "Incorrect rclone password — the configuration couldn’t be decrypted."
           }
         },
         "nl" : {
@@ -26875,7 +26929,7 @@
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "machine_translated",
+            "state" : "translated",
             "value" : "PhotoSync rclone"
           }
         }
@@ -28786,7 +28840,7 @@
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "machine_translated",
+            "state" : "translated",
             "value" : "remotes"
           }
         }
@@ -28802,7 +28856,7 @@
         },
         "en" : {
           "stringUnit" : {
-            "state" : "machine_translated",
+            "state" : "translated",
             "value" : "Remotes"
           }
         },
@@ -29364,8 +29418,8 @@
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "machine_translated",
-            "value" : "Only required if your rclone.conf is encrypted (“rclone config encryption set”). Used once to decrypt on import, never stored."
+            "state" : "translated",
+            "value" : "Only required if your rclone.conf is encrypted (\"rclone config encryption set\"). Used once to decrypt on import, never stored."
           }
         }
       }
@@ -29834,6 +29888,9 @@
           }
         }
       }
+    },
+    "Retirer du coffre-fort" : {
+
     },
     "Retour" : {
       "localizations" : {
@@ -31517,7 +31574,7 @@
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "machine_translated",
+            "state" : "translated",
             "value" : "Support"
           }
         },
@@ -31645,6 +31702,12 @@
         }
       }
     },
+    "Supprimer « %@ »" : {
+
+    },
+    "Supprimer ce remote ?" : {
+
+    },
     "Supprimer définitivement" : {
       "localizations" : {
         "en" : {
@@ -31734,6 +31797,9 @@
           }
         }
       }
+    },
+    "Supprimer le remote" : {
+
     },
     "Sur app.put.io → Settings → OAuth Apps." : {
       "localizations" : {
@@ -33614,7 +33680,7 @@
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "machine_translated",
+            "state" : "translated",
             "value" : "total"
           }
         },
@@ -33703,6 +33769,7 @@
       }
     },
     "Touche un remote pour ouvrir sa racine. Les favoris et récents restent locaux à cet appareil." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -33783,6 +33850,9 @@
           }
         }
       }
+    },
+    "Touche un remote pour ouvrir sa racine. Un remote au coffre-fort se déverrouille par Face ID et reste masqué dans l'app Fichiers d'iOS tant qu'il est verrouillé." : {
+
     },
     "Tous" : {
       "localizations" : {
@@ -35046,7 +35116,7 @@
         },
         "en" : {
           "stringUnit" : {
-            "state" : "machine_translated",
+            "state" : "translated",
             "value" : "lock"
           }
         },
@@ -35182,6 +35252,12 @@
           }
         }
       }
+    },
+    "Verrouillé · Face ID requis" : {
+
+    },
+    "Verrouiller maintenant" : {
+
     },
     "Version, licences et détails de l’app" : {
       "extractionState" : "manual",
@@ -35480,7 +35556,7 @@
         },
         "en" : {
           "stringUnit" : {
-            "state" : "machine_translated",
+            "state" : "translated",
             "value" : "View Plans"
           }
         },
