@@ -1070,11 +1070,15 @@ private struct FolderOverviewCard: View {
 
             HStack(spacing: 6) {
                 FolderCountChip(
-                    text: folderCount == 1 ? "1 dossier" : "\(folderCount) dossiers",
+                    text: folderCount == 1
+                        ? String(localized: "1 dossier")
+                        : String(localized: "\(folderCount) dossiers"),
                     tint: .blue
                 )
                 FolderCountChip(
-                    text: fileCount == 1 ? "1 fichier" : "\(fileCount) fichiers",
+                    text: fileCount == 1
+                        ? String(localized: "1 fichier")
+                        : String(localized: "\(fileCount) fichiers"),
                     tint: .teal
                 )
                 Spacer(minLength: 0)
@@ -1110,13 +1114,13 @@ private struct FolderOverviewCard: View {
         let total = folderCount + fileCount
         let nounSuffix = total > 1 ? "s" : ""
         let head = total == 0
-            ? "Dossier vide"
-            : "\(total) élément\(nounSuffix)"
-        return isInsideCrypt ? "\(head) · déchiffrés à la volée" : head
+            ? String(localized: "Dossier vide")
+            : String(localized: "\(total) élément\(nounSuffix)")
+        return isInsideCrypt ? String(localized: "\(head) · déchiffrés à la volée") : head
     }
 
     private var accessibilityText: String {
-        let cryptLabel = isInsideCrypt ? "chiffré" : ""
+        let cryptLabel = isInsideCrypt ? String(localized: "chiffré") : ""
         return "\(title) \(cryptLabel), \(breadcrumb), \(tagline)"
     }
 }
