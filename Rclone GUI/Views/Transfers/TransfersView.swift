@@ -736,8 +736,8 @@ private struct TransferOverviewCard: View {
 
     private var headlineText: String {
         let n = activeCount
-        if n == 0 { return "Transferts fichiers/rclone" }
-        return n == 1 ? "1 transfert individuel en cours" : "\(n) transferts individuels en cours"
+        if n == 0 { return String(localized: "Transferts fichiers/rclone") }
+        return n == 1 ? String(localized: "1 transfert individuel en cours") : String(localized: "\(n) transferts individuels en cours")
     }
 
     private var byteText: String {

@@ -233,9 +233,9 @@ struct FileDetailView: View {
     // MARK: - Derived display values
 
     private var kindLabel: String {
-        if entry.isDirectory { return "Dossier" }
+        if entry.isDirectory { return String(localized: "Dossier") }
         let ext = (entry.name as NSString).pathExtension.uppercased()
-        return ext.isEmpty ? "Fichier" : "Fichier \(ext)"
+        return ext.isEmpty ? String(localized: "Fichier") : String(localized: "Fichier \(ext)")
     }
 
     private var sizeLabel: String {

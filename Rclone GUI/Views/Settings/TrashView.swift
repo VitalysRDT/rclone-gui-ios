@@ -211,7 +211,7 @@ private struct TrashHeaderCard: View {
     }
 
     private var formattedBytes: String {
-        guard totalBytes > 0 else { return "taille inconnue" }
+        guard totalBytes > 0 else { return String(localized: "taille inconnue") }
         return ByteCountFormatter.string(fromByteCount: totalBytes, countStyle: .file)
     }
 }
