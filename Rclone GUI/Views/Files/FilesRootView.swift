@@ -45,7 +45,10 @@ struct FilesRootView: View {
 
     private var pinnedLocations: [SavedLocation] {
         savedLocations
-            .filter { $0.kind == .pinned }
+            // Un remote au coffre-fort verrouillé reste masqué ici tant qu'il
+            // n'est pas déverrouillé (Face ID) — sinon il serait navigable
+            // depuis les Favoris en contournant le coffre.
+            .filter { $0.kind == .pinned && vault.isAccessible($0.remote) }
             .sorted {
                 if $0.sortIndex == $1.sortIndex {
                     return $0.createdAt < $1.createdAt
@@ -56,7 +59,10 @@ struct FilesRootView: View {
 
     private var recentLocations: [SavedLocation] {
         savedLocations
-            .filter { $0.kind == .recent }
+            // Idem que les Favoris : un remote au coffre-fort verrouillé ne doit
+            // pas apparaître (ni être navigable) dans les Récents tant qu'il
+            // n'a pas été déverrouillé par Face ID.
+            .filter { $0.kind == .recent && vault.isAccessible($0.remote) }
             .prefix(5)
             .map { $0 }
     }
