@@ -1,1 +1,1 @@
-rclone,cloud,crypt,encryption,s3,backup,files,sync,dropbox,onedrive,gdrive,storj,wasabi,b2
+rclone,cloud,crypt,encryption,s3,backup,files,dropbox,onedrive,gdrive,storj,filen,internxt,drime

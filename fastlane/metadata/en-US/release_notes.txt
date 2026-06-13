@@ -1,7 +1,7 @@
-What's new in 1.3:
-- Important fix: importing a password-encrypted rclone configuration ("rclone config encryption set") no longer crashes the app. Enter your password at import time — it is used once for decryption and never stored.
-- New: "I have a code" button on the subscription screen to redeem promo codes.
-- New: "Contact the Developer" page in Settings → Support.
-- During the free trial, the subscription screen now shows the available plans and prices ("View Plans").
-- Completed English translation across the whole app.
-- The app's source code is now public: github.com/VitalysRDT/rclone-gui-ios
+What's new in 1.4:
+- New clouds: Drime, Internxt and Filen join the 70+ supported services (Internxt and Filen are end-to-end encrypted).
+- Easier connections: a new "where to get your credentials" panel guides setup for Pixeldrain, 1Fichier, ImageKit, Internet Archive, Gofile, Storj, NetStorage and more.
+- Simpler composite remotes: a picker lets you choose the underlying storage (and folder) for alias, union, combine, and more — no more typing "remote:path" by hand.
+- Reliability: fixed connecting to password-protected remotes (SFTP, FTP, WebDAV, SMB…).
+- Locked remotes are now hidden from Recents and Favorites.
+- Translation and folder-summary display improvements.

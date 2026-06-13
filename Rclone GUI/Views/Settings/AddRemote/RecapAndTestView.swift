@@ -279,10 +279,19 @@ struct RecapAndTestView: View {
             }
         }
 
-        // crypt stocke un mot de passe : rclone doit l'obscurcir à l'écriture
-        // (sinon crypt échoue à le décoder). obscure=true demande à rclone
-        // d'obscurcir les paramètres de type password.
+        // rclone stocke les champs « password » obscurcis (obscure.Obscure) et
+        // les révèle au runtime. Si on écrit un mot de passe EN CLAIR sans
+        // obscure=true, rclone échoue à le révéler à la connexion. On demande
+        // donc l'obscurcissement dès qu'un paramètre correspond à un champ que
+        // rclone marque isPassword : crypt (password/password2) mais aussi
+        // `pass` (sftp/ftp/webdav/smb/mailru/internxt), `password` + `api_key`
+        // (filen), etc. obscure=true n'agit QUE sur les champs IsPassword du
+        // backend — sans effet sur les autres paramètres.
+        let passwordFieldNames = Set(
+            backend.fields.filter { $0.isPassword }.map(\.name)
+        )
         let needsObscure = backend.name == "crypt"
+            || params.keys.contains { passwordFieldNames.contains($0) }
         let input = ConfigCreateInput(
             name: state.name,
             type: backend.name,
