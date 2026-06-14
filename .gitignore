@@ -22,6 +22,10 @@ xcuserdata/
 .swiftpm/
 .build/
 Package.resolved
+# Exception : le lockfile du projet DOIT être committé — Xcode Cloud a la
+# résolution automatique des packages désactivée et l'exige (sinon erreur
+# ResolvePackageDependenciesStep).
+!Rclone GUI.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
 
 # --- CocoaPods (not used, just in case) ---------------------------------
 Pods/
