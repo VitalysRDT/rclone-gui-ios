@@ -110,25 +110,24 @@ final class VLCPlayerModel: NSObject, ObservableObject {
 
     private func refreshTracks() {
         let subIDs = (player.videoSubTitlesIndexes as? [NSNumber])?.map { $0.int32Value } ?? []
-        // Noms de pistes : robuste à un éventuel type ObjC non bridgé en String.
-        let subNames = (player.videoSubTitlesNames as? [AnyObject])?.map { String(describing: $0) } ?? []
+        let subNames = player.videoSubTitlesNames.map { String(describing: $0) }
         subtitleTracks = zip(subIDs, subNames).map { Track(id: $0.0, name: $0.1) }
         currentSubtitleID = player.currentVideoSubTitleIndex
 
         let audIDs = (player.audioTrackIndexes as? [NSNumber])?.map { $0.int32Value } ?? []
-        let audNames = (player.audioTrackNames as? [AnyObject])?.map { String(describing: $0) } ?? []
+        let audNames = player.audioTrackNames.map { String(describing: $0) }
         audioTracks = zip(audIDs, audNames).map { Track(id: $0.0, name: $0.1) }
         currentAudioID = player.currentAudioTrackIndex
     }
 
     private func refreshTime() {
-        let ms = player.time?.intValue ?? 0
+        // Nullabilité confirmée sur le header VLCKit (NS_ASSUME_NONNULL) :
+        //   `time`  → VLCTime  (non-optionnel)
+        //   `media` → VLCMedia? (nullable)
+        //   `length`→ VLCTime  (non-optionnel)
+        let ms = player.time.intValue
         positionSeconds = Double(ms) / 1000.0
-        // `media` et `length` sont importés non-optionnels (annotations nonnull
-        // du header VLCKit) → accès direct sans optional-chaining. VLCKit
-        // renvoie toujours un VLCTime (intValue = 0 tant que la durée est
-        // indéterminée). `media` est garanti non-nil pendant la lecture.
-        let lengthMs = player.media.length.intValue
+        let lengthMs = player.media?.length.intValue ?? 0
         if lengthMs > 0 {
             durationSeconds = Double(lengthMs) / 1000.0
         } else if player.position > 0.0001 {
@@ -151,7 +150,7 @@ final class VLCPlayerModel: NSObject, ObservableObject {
 // MARK: VLCMediaPlayerDelegate
 
 extension VLCPlayerModel: VLCMediaPlayerDelegate {
-    func mediaPlayerStateChanged(_ aNotification: Notification!) {
+    func mediaPlayerStateChanged(_ aNotification: Notification) {
         let state = player.state
         switch state {
         case .buffering, .opening:
@@ -181,7 +180,7 @@ extension VLCPlayerModel: VLCMediaPlayerDelegate {
         rate = player.rate
     }
 
-    func mediaPlayerTimeChanged(_ aNotification: Notification!) {
+    func mediaPlayerTimeChanged(_ aNotification: Notification) {
         refreshTime()
     }
 }
