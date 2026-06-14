@@ -200,7 +200,9 @@ struct MediaPlayerView: View {
                             if p.currentItem?.status == .readyToPlay { break }
                             try? await Task.sleep(for: .milliseconds(100))
                         }
-                        p.seek(to: CMTime(seconds: resume, preferredTimescale: 600))
+                        // En contexte async (Task), seek(to:) résout vers la
+                        // surcharge asynchrone → await requis.
+                        _ = await p.seek(to: CMTime(seconds: resume, preferredTimescale: 600))
                     }
                 }
                 if let item = p.currentItem {
