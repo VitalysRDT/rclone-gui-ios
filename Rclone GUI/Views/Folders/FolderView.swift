@@ -236,7 +236,11 @@ struct FolderView: View {
             .rgFullScreenCover(item: $playTarget, onDismiss: {
                 openingEntryID = nil
             }) { entry in
-                MediaPlayerHost(remote: remote, entry: entry)
+                MediaPlayerHost(
+                    remote: remote,
+                    entry: entry,
+                    playlist: displayedEntries.filter { !$0.isDirectory && MediaFormat.isMedia($0.name) }
+                )
             }
             .sheet(item: $previewTarget, onDismiss: {
                 openingEntryID = nil

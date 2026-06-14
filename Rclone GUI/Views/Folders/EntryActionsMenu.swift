@@ -43,7 +43,8 @@ struct EntryActionsMenu: View {
                         previewTarget = entry
                     }
                 } label: {
-                    Label("Ouvrir dans l'app", systemImage: Self.isMediaFile(entry.name) ? "play.circle" : "doc.viewfinder")
+                    Label(Self.isMediaFile(entry.name) ? "Lire dans l'app" : "Ouvrir dans l'app",
+                          systemImage: Self.isMediaFile(entry.name) ? "play.circle" : "doc.viewfinder")
                 }
 
                 if Self.isVideoFile(entry.name) {
@@ -59,7 +60,7 @@ struct EntryActionsMenu: View {
                             Label("VLC", systemImage: "play.tv.fill")
                         }
                     } label: {
-                        Label("Streamer dans…", systemImage: "play.rectangle.on.rectangle")
+                        Label("Lire dans une app externe", systemImage: "play.rectangle.on.rectangle")
                     }
                 }
 
@@ -198,27 +199,10 @@ struct EntryActionsMenu: View {
         try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
     }
 
-    static func isMediaFile(_ name: String) -> Bool {
-        let ext = (name as NSString).pathExtension.lowercased()
-        if let type = UTType(filenameExtension: ext),
-           type.conforms(to: .movie) || type.conforms(to: .audio) {
-            return true
-        }
-        return [
-            // Video
-            "mp4", "mkv", "mov", "avi", "webm", "m4v", "ts", "mpg", "mpeg",
-            // Audio
-            "mp3", "m4a", "wav", "flac", "ogg", "aac", "alac", "opus"
-        ].contains(ext)
-    }
-
-    static func isVideoFile(_ name: String) -> Bool {
-        let ext = (name as NSString).pathExtension.lowercased()
-        if let type = UTType(filenameExtension: ext), type.conforms(to: .movie) {
-            return true
-        }
-        return ["mp4", "mkv", "mov", "avi", "webm", "m4v", "ts", "mpg", "mpeg"].contains(ext)
-    }
+    // Détection centralisée dans MediaFormat (source unique de vérité, voir
+    // aussi le routage AVPlayer ↔ VLC du lecteur embarqué).
+    static func isMediaFile(_ name: String) -> Bool { MediaFormat.isMedia(name) }
+    static func isVideoFile(_ name: String) -> Bool { MediaFormat.isVideo(name) }
 
     enum ExternalPlayerScheme {
         case infuse
