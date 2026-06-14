@@ -74,6 +74,10 @@ struct PaywallView: View {
                     .padding(.top, 20)
                     .padding(.horizontal, 24)
 
+                solidaritySection
+                    .padding(.top, 22)
+                    .padding(.horizontal, 24)
+
                 legalFooter
                     .padding(.top, 18)
                     .padding(.horizontal, 24)
@@ -120,12 +124,13 @@ struct PaywallView: View {
     /// pour le SKU mensuel ET que l'utilisateur est encore éligible.
     private var heroSubtitle: String {
         let trialAvailable = subs.isTrialAvailable(for: SubscriptionProductID.monthly)
-        let monthlyPrice = subs.product(for: SubscriptionProductID.monthly)?.displayPrice ?? "1,99 €"
-        let yearlyPrice  = subs.product(for: SubscriptionProductID.yearly)?.displayPrice  ?? "19,99 €"
+        let monthlyPrice = subs.product(for: SubscriptionProductID.monthly)?.displayPrice ?? "2,99 €"
+        let yearlyPrice  = subs.product(for: SubscriptionProductID.yearly)?.displayPrice  ?? "11,99 €"
+        let lifetimePrice = subs.product(for: SubscriptionProductID.lifetime)?.displayPrice ?? "29,99 €"
         if trialAvailable, let trial = subs.trialDescription(for: SubscriptionProductID.monthly) {
-            return String(localized: "\(trial), puis \(monthlyPrice)/mois ou \(yearlyPrice)/an")
+            return String(localized: "\(trial), puis \(monthlyPrice)/mois, \(yearlyPrice)/an ou \(lifetimePrice) à vie")
         }
-        return String(localized: "\(monthlyPrice)/mois ou \(yearlyPrice)/an")
+        return String(localized: "\(monthlyPrice)/mois, \(yearlyPrice)/an ou \(lifetimePrice) à vie")
     }
 
     // MARK: - Bullets
@@ -208,7 +213,10 @@ struct PaywallView: View {
                let trial = subs.trialDescription(for: product.id) {
                 return trial.uppercased()
             }
-            if product.id == SubscriptionProductID.yearly { return "-16 %" }
+            if product.id == SubscriptionProductID.lifetime {
+                return String(localized: "Meilleure offre").uppercased()
+            }
+            if product.id == SubscriptionProductID.yearly { return yearlySavingsBadge }
             return nil
         }()
 
@@ -264,18 +272,37 @@ struct PaywallView: View {
 
     private func defaultName(for product: Product) -> String {
         switch product.id {
-        case SubscriptionProductID.monthly: return String(localized: "Mensuel")
-        case SubscriptionProductID.yearly:  return String(localized: "Annuel")
+        case SubscriptionProductID.monthly:  return String(localized: "Mensuel")
+        case SubscriptionProductID.yearly:   return String(localized: "Annuel")
+        case SubscriptionProductID.lifetime: return String(localized: "À vie")
         default: return product.displayName.isEmpty ? product.id : product.displayName
         }
     }
 
     private func periodSubtitle(for product: Product) -> String {
         switch product.id {
-        case SubscriptionProductID.monthly: return String(localized: "Renouvellement chaque mois")
-        case SubscriptionProductID.yearly:  return String(localized: "Renouvellement chaque année")
+        case SubscriptionProductID.monthly:  return String(localized: "Renouvellement chaque mois")
+        case SubscriptionProductID.yearly:   return String(localized: "Renouvellement chaque année")
+        case SubscriptionProductID.lifetime: return String(localized: "Paiement unique · accès permanent")
         default: return ""
         }
+    }
+
+    /// Badge d'économie de l'annuel vs 12× le mensuel, calculé dynamiquement
+    /// à partir des prix StoreKit réels (les prix peuvent varier par storefront,
+    /// donc on ne code jamais le pourcentage en dur). Repli "-67 %" si les
+    /// produits ne sont pas encore chargés.
+    private var yearlySavingsBadge: String {
+        guard
+            let monthly = subs.product(for: SubscriptionProductID.monthly)?.price,
+            let yearly = subs.product(for: SubscriptionProductID.yearly)?.price,
+            monthly > 0
+        else { return "-67 %" }
+        let yearlyEquivalent = monthly * 12
+        guard yearlyEquivalent > yearly else { return "-67 %" }
+        let savings = (yearlyEquivalent - yearly) / yearlyEquivalent
+        let pct = Int((NSDecimalNumber(decimal: savings).doubleValue * 100).rounded())
+        return "-\(pct) %"
     }
 
     // MARK: - CTA
@@ -355,6 +382,11 @@ struct PaywallView: View {
     }
 
     private var primaryCTALabel: String {
+        // L'achat à vie n'est pas un abonnement : CTA dédié, jamais "S'abonner"
+        // ni "essai gratuit" (pas d'intro offer sur un non-consommable).
+        if SubscriptionProductID.isLifetime(selectedProductID) {
+            return String(localized: "Débloquer à vie")
+        }
         // Le libelle "Commencer l'essai gratuit" n'est valide que si Apple a
         // confirme un intro offer ET l'eligibilite de l'utilisateur. Sinon
         // on tombe sur "S'abonner" pour ne pas promettre un trial inexistant.
@@ -374,9 +406,20 @@ struct PaywallView: View {
 
     // MARK: - Legal footer
 
+    /// Mention légale contextuelle : un achat à vie (non-consommable) ne se
+    /// renouvelle pas, donc on n'affiche jamais la clause d'auto-renouvellement
+    /// quand le lifetime est sélectionné — sinon Apple peut rejeter pour
+    /// information trompeuse.
+    private var legalDisclaimer: LocalizedStringKey {
+        if SubscriptionProductID.isLifetime(selectedProductID) {
+            return "Paiement unique, sans abonnement. Accès permanent sur tous les appareils liés au même identifiant Apple."
+        }
+        return "L'abonnement se renouvelle automatiquement. Annule à tout moment dans Réglages → Identifiant Apple → Abonnements, au moins 24 h avant la fin de la période en cours."
+    }
+
     private var legalFooter: some View {
         VStack(spacing: 6) {
-            Text("L'abonnement se renouvelle automatiquement. Annule à tout moment dans Réglages → Identifiant Apple → Abonnements, au moins 24 h avant la fin de la période en cours.")
+            Text(legalDisclaimer)
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -398,11 +441,99 @@ struct PaywallView: View {
 
     private func openURL(_ string: String) {
         guard let url = URL(string: string) else { return }
+        openURL(url)
+    }
+
+    private func openURL(_ url: URL) {
         #if canImport(UIKit)
         UIApplication.shared.open(url)
         #elseif canImport(AppKit)
         NSWorkspace.shared.open(url)
         #endif
+    }
+
+    // MARK: - Solidarité / accès selon les moyens
+
+    /// Bloc « paie selon tes moyens ». L'app est libre et son auteur n'a pas non
+    /// plus de gros moyens : les personnes qui ne peuvent pas payer le plein
+    /// tarif (étudiant·e, chômage, emploi précaire…) peuvent demander un code de
+    /// réduction Apple par e-mail, qu'elles redeem ensuite via « J'ai un code »
+    /// ci-dessus. Tout reste dans le système IAP d'Apple (offer codes) → aucun
+    /// paiement hors App Store, donc conforme aux règles de l'App Review.
+    private var solidaritySection: some View {
+        VStack(spacing: 12) {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: "heart.circle.fill")
+                    .font(.system(size: 24))
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(RG.accent)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Budget serré ?")
+                        .font(.system(size: 15, weight: .semibold))
+                    Text("Étudiant·e, emploi précaire, chômage… pas de quoi soutenir le développeur en ce moment ? Demande une réduction selon tes moyens, sans justificatif.")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+            }
+
+            Button {
+                if let url = Self.discountRequestURL { openURL(url) }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "envelope.fill")
+                        .font(.system(size: 14, weight: .semibold))
+                    Text("Demander une réduction selon mes moyens")
+                        .font(.system(size: 14, weight: .semibold))
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(RG.accentSoft, in: RoundedRectangle(cornerRadius: RG.Radius.card, style: .continuous))
+                .foregroundStyle(RG.accent)
+            }
+            .buttonStyle(.plain)
+
+            Text("Cette app est faite par un développeur passionné qui n'a pas non plus les moyens. Elle est libre : tu peux la compiler gratuitement depuis le code source. Tes abonnements aident à faire naître de nouvelles apps et à rendre la technologie accessible au plus grand nombre. Merci 🙏")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Button("Voir le code source (libre)") {
+                openURL("https://github.com/VitalysRDT/rclone-gui-ios")
+            }
+            .font(.system(size: 11, weight: .medium))
+            .foregroundStyle(RG.accent)
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: RG.Radius.card, style: .continuous)
+                .fill(RG.accent.opacity(0.06))
+        )
+    }
+
+    /// mailto pré-rempli (vers l'adresse du développeur) pour demander un code
+    /// de réduction. L'utilisateur reçoit un offer code Apple qu'il redeem via
+    /// « J'ai un code » — on ne sort jamais du système de paiement d'Apple.
+    private static var discountRequestURL: URL? {
+        var components = URLComponents()
+        components.scheme = "mailto"
+        components.path = "vitalys@rougetet.com"
+        let subject = String(localized: "Rclone GUI — Demande de réduction (selon mes moyens)")
+        let body = String(localized: """
+        Bonjour,
+
+        J'aimerais utiliser Rclone GUI mais le plein tarif est au-dessus de mes moyens en ce moment (par ex. étudiant·e, emploi précaire ou chômage).
+        Serait-il possible d'obtenir un code de réduction ?
+
+        Merci beaucoup pour cette app,
+        """)
+        components.queryItems = [
+            URLQueryItem(name: "subject", value: subject),
+            URLQueryItem(name: "body", value: body)
+        ]
+        return components.url
     }
 }
 

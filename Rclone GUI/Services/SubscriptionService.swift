@@ -250,6 +250,10 @@ public final class SubscriptionService: ObservableObject {
         var bestEntitlement: SubscriptionEntitlement = .none
         var bestProductID: String?
         var bestExpiration: Date?
+        // L'achat « à vie » (non-consommable) déverrouille l'app de façon
+        // permanente et prime sur tout abonnement. On le repère pendant
+        // l'itération puis on l'applique après la boucle.
+        var hasLifetime = false
 
         for await verification in Transaction.currentEntitlements {
             guard case .verified(let transaction) = verification else { continue }
@@ -257,6 +261,13 @@ public final class SubscriptionService: ObservableObject {
 
             // Une transaction révoquée (refund Apple) ne compte pas.
             if transaction.revocationDate != nil { continue }
+
+            // Le lifetime non-consommable n'a ni expiration ni renouvellement :
+            // s'il est présent et non révoqué, il déverrouille définitivement.
+            if transaction.productID == SubscriptionProductID.lifetime {
+                hasLifetime = true
+                continue
+            }
 
             // Une transaction explicitement « upgraded » a été remplacée par une autre.
             if transaction.isUpgraded { continue }
@@ -291,6 +302,15 @@ public final class SubscriptionService: ObservableObject {
                 bestProductID = transaction.productID
                 bestExpiration = transaction.expirationDate
             }
+        }
+
+        // Achat « à vie » : prioritaire sur tout abonnement (accès permanent,
+        // sans date d'expiration). Appliqué après la boucle pour écraser un
+        // éventuel abonnement actif résolu en parallèle.
+        if hasLifetime {
+            bestEntitlement = .active
+            bestProductID = SubscriptionProductID.lifetime
+            bestExpiration = nil
         }
 
         // Essai gratuit app-managé : si StoreKit ne déverrouille pas (aucun
