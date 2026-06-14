@@ -2524,7 +2524,7 @@ const Hero = () => {
   }, /*#__PURE__*/React.createElement(Icon, {
     name: "bolt.fill",
     size: 14
-  }), t('1 MOIS OFFERT', '1 MONTH FREE'))), /*#__PURE__*/React.createElement("h1", {
+  }), t('v1.4 · ESSAI GRATUIT', 'v1.4 · FREE TRIAL'))), /*#__PURE__*/React.createElement("h1", {
     className: "title"
   }, ML(t('Tous vos clouds.\nChiffrés.', 'Every cloud.\nEncrypted.'))), /*#__PURE__*/React.createElement("p", {
     className: "sub"
@@ -2536,7 +2536,17 @@ const Hero = () => {
   }, /*#__PURE__*/React.createElement(Icon, {
     name: "bolt.fill",
     size: 18
-  }), t('Obtenir mon mois gratuit', 'Get my free month')), /*#__PURE__*/React.createElement(AppStoreBadge, null)), /*#__PURE__*/React.createElement("div", {
+  }), t('Essayer gratuitement', 'Try it free')), /*#__PURE__*/React.createElement(AppStoreBadge, null)), /*#__PURE__*/React.createElement("p", {
+    className: "priceline"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "free"
+  }, t('Essai gratuit', 'Free trial')), t(', puis ', ' · then '), /*#__PURE__*/React.createElement("b", null, t('29,99 € à vie', '€29.99 lifetime')), t(' ou dès ', ' or from '), /*#__PURE__*/React.createElement("b", null, t('2,99 €/mois', '€2.99/mo'))), /*#__PURE__*/React.createElement("p", {
+    className: "alt"
+  }, t('Ou ', 'Or '), /*#__PURE__*/React.createElement("a", {
+    href: GITHUB_URL,
+    target: "_blank",
+    rel: "noopener"
+  }, t('compilez-la gratuitement', 'build it for free')), t(' — c\'est open source', ' — it\'s open source')), /*#__PURE__*/React.createElement("div", {
     className: "trust"
   }, /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement(Icon, {
     name: "lock.fill",
@@ -2684,6 +2694,65 @@ const Features = () => {
     size: 24,
     weight: "semibold"
   })), /*#__PURE__*/React.createElement("h4", null, f.t), /*#__PURE__*/React.createElement("p", null, f.d))))));
+};
+const Pricing = () => {
+  const t = useT();
+  const plans = [{
+    id: 'lifetime',
+    featured: true,
+    name: t('À vie', 'Lifetime'),
+    price: '29,99 €',
+    per: t('paiement unique', 'one-time payment'),
+    badge: t('Meilleure offre', 'Best value'),
+    points: [t('Payé une fois, à vous pour toujours', 'Pay once, yours forever'), t('iPhone, iPad et Mac inclus', 'iPhone, iPad and Mac included'), t('Toutes les fonctionnalités, à vie', 'Every feature, forever')]
+  }, {
+    id: 'yearly',
+    name: t('Annuel', 'Yearly'),
+    price: '11,99 €',
+    per: t('par an', 'per year'),
+    points: [t('Environ 1 €/mois', 'About €1/month'), t('~67 % d\'économie vs mensuel', '~67% off vs monthly'), t('Renouvelable, annulable', 'Renews, cancel anytime')]
+  }, {
+    id: 'monthly',
+    name: t('Mensuel', 'Monthly'),
+    price: '2,99 €',
+    per: t('par mois', 'per month'),
+    points: [t('Sans engagement', 'No commitment'), t('Annulable à tout moment', 'Cancel anytime'), t('Idéal pour démarrer', 'Great to get started')]
+  }];
+  return /*#__PURE__*/React.createElement("section", {
+    id: "pricing"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "wrap"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "eyebrow"
+  }, t('Tarifs', 'Pricing')), /*#__PURE__*/React.createElement("h2", {
+    className: "sec"
+  }, t('Payez comme vous voulez', 'Pay your way')), /*#__PURE__*/React.createElement("p", {
+    className: "sec-sub"
+  }, t('Commencez par l\'essai gratuit. Ensuite, un achat unique à vie ou un abonnement — à vous de choisir.', 'Start with the free trial. Then a one-time lifetime purchase or a subscription — your call.')), /*#__PURE__*/React.createElement("div", {
+    className: "pricing-grid"
+  }, plans.map(p => /*#__PURE__*/React.createElement("div", {
+    key: p.id,
+    className: p.featured ? 'plan featured' : 'plan'
+  }, p.badge && /*#__PURE__*/React.createElement("div", {
+    className: "badge"
+  }, p.badge), /*#__PURE__*/React.createElement("div", {
+    className: "pname"
+  }, p.name), /*#__PURE__*/React.createElement("div", {
+    className: "pprice"
+  }, p.price), /*#__PURE__*/React.createElement("div", {
+    className: "pper"
+  }, p.per), /*#__PURE__*/React.createElement("ul", null, p.points.map(pt => /*#__PURE__*/React.createElement("li", {
+    key: pt
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "check.circle",
+    size: 18
+  }), pt)))))), /*#__PURE__*/React.createElement("p", {
+    className: "pricing-note"
+  }, t('Prix App Store, taxes incluses. L\'essai gratuit ne vous engage à rien.', 'App Store prices, taxes included. The free trial commits you to nothing.'), /*#__PURE__*/React.createElement("span", {
+    className: "solid"
+  }, t('Étudiant·e, emploi précaire, chômage ou budget serré ? ', 'Student, precarious job, unemployed or on a tight budget? '), /*#__PURE__*/React.createElement("a", {
+    href: "mailto:vitalys@rougetet.com?subject=Rclone%20GUI%20%E2%80%94%20Demande%20de%20r%C3%A9duction%20(selon%20mes%20moyens)"
+  }, t('Demandez une réduction selon vos moyens.', 'Ask for a discount based on your means.'))))));
 };
 const FreeMonth = () => {
   const t = useT();
@@ -2969,6 +3038,6 @@ const App = () => {
     setLang: setLang
   }), /*#__PURE__*/React.createElement(Hero, null), /*#__PURE__*/React.createElement(Gallery, {
     lang: lang
-  }), /*#__PURE__*/React.createElement(Features, null), /*#__PURE__*/React.createElement(FreeMonth, null), /*#__PURE__*/React.createElement(Footer, null));
+  }), /*#__PURE__*/React.createElement(Features, null), /*#__PURE__*/React.createElement(Pricing, null), /*#__PURE__*/React.createElement(FreeMonth, null), /*#__PURE__*/React.createElement(Footer, null));
 };
 ReactDOM.createRoot(document.getElementById('root')).render(/*#__PURE__*/React.createElement(App, null));
