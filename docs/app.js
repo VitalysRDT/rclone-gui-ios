@@ -3020,7 +3020,7 @@ const Footer = () => {
     target: "_blank",
     rel: "noopener"
   }, "GitHub"), /*#__PURE__*/React.createElement("a", {
-    href: "privacy"
+    href: "privacy.html"
   }, t('Confidentialité', 'Privacy')), /*#__PURE__*/React.createElement("a", {
     href: "https://rclone.org",
     target: "_blank",
