@@ -14,6 +14,7 @@
 		27C31F802FBDA917005F4083 /* RclonePhotoSyncActivityExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 27C31F6A2FBDA916005F4083 /* RclonePhotoSyncActivityExtension.appex */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		27DAEDA1000000000000A001 /* RcloneKit.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 27DAEDA0000000000000A001 /* RcloneKit.xcframework */; };
 		27DAEDA2000000000000A001 /* RcloneKit.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 27DAEDA0000000000000A001 /* RcloneKit.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		27FFEE0100000000000F0003 /* VLCKitSPM in Frameworks */ = {isa = PBXBuildFile; platformFilters = (ios, macos, ); productRef = 27FFEE0100000000000F0002 /* VLCKitSPM */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -189,6 +190,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				27DAEDA1000000000000A001 /* RcloneKit.xcframework in Frameworks */,
+				27FFEE0100000000000F0003 /* VLCKitSPM in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -331,6 +333,9 @@
 				2796AC742FAE017400640D86 /* Rclone GUI */,
 			);
 			name = "Rclone GUI";
+			packageProductDependencies = (
+				27FFEE0100000000000F0002 /* VLCKitSPM */,
+			);
 			productName = "Rclone GUI";
 			productReference = 2796AC722FAE017400640D86 /* RcloneGUI.app */;
 			productType = "com.apple.product-type.application";
@@ -452,6 +457,9 @@
 			);
 			mainGroup = 2796AC692FAE017400640D86;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				27FFEE0100000000000F0001 /* XCRemoteSwiftPackageReference "vlckit-spm" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 2796AC732FAE017400640D86 /* Products */;
 			projectDirPath = "";
@@ -1256,6 +1264,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		27FFEE0100000000000F0001 /* XCRemoteSwiftPackageReference "vlckit-spm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/tylerjonesio/vlckit-spm";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.6.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		27FFEE0100000000000F0002 /* VLCKitSPM */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 27FFEE0100000000000F0001 /* XCRemoteSwiftPackageReference "vlckit-spm" */;
+			productName = VLCKitSPM;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 2796AC6A2FAE017400640D86 /* Project object */;
 }
