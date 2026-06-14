@@ -80,7 +80,10 @@ struct MediaPlayerView: UIViewControllerRepresentable {
         private let title: String?
         private let onEnded: (() -> Void)?
 
-        private weak var player: AVPlayer?
+        // Référence forte : garantit que `removeTimeObserver` puisse être
+        // appelé sur le même player au teardown (AVFoundation l'exige avant
+        // la libération, sinon l'observer fuit / peut firer après dealloc).
+        private var player: AVPlayer?
         private var timeObserver: Any?
         private var endObserver: NSObjectProtocol?
         private var didResume = false
@@ -101,14 +104,20 @@ struct MediaPlayerView: UIViewControllerRepresentable {
                 self?.tick(time)
             }
 
-            endObserver = NotificationCenter.default.addObserver(
-                forName: .AVPlayerItemDidPlayToEndTime,
-                object: player.currentItem,
-                queue: .main
-            ) { [weak self] _ in
-                guard let self else { return }
-                PlaybackProgressStore.clear(remote: self.remote, path: self.path)
-                self.onEnded?()
+            // Observer de fin lié à CET item précis. Si currentItem était nil,
+            // s'enregistrer avec object:nil capterait la fin de TOUS les players
+            // de l'app → onEnded parasite. AVPlayer(url:) crée l'item de façon
+            // synchrone, mais on garde la garde par sûreté.
+            if let item = player.currentItem {
+                endObserver = NotificationCenter.default.addObserver(
+                    forName: .AVPlayerItemDidPlayToEndTime,
+                    object: item,
+                    queue: .main
+                ) { [weak self] _ in
+                    guard let self else { return }
+                    PlaybackProgressStore.clear(remote: self.remote, path: self.path)
+                    self.onEnded?()
+                }
             }
         }
 
@@ -159,6 +168,7 @@ struct MediaPlayerView: UIViewControllerRepresentable {
                     PlaybackProgressStore.save(remote: remote, path: path, position: elapsed, duration: duration)
                 }
             }
+            player = nil
         }
     }
 }
@@ -193,13 +203,15 @@ struct MediaPlayerView: View {
                         p.seek(to: CMTime(seconds: resume, preferredTimescale: 600))
                     }
                 }
-                endObserver = NotificationCenter.default.addObserver(
-                    forName: .AVPlayerItemDidPlayToEndTime,
-                    object: p.currentItem,
-                    queue: .main
-                ) { _ in
-                    PlaybackProgressStore.clear(remote: remote, path: path)
-                    onEnded?()
+                if let item = p.currentItem {
+                    endObserver = NotificationCenter.default.addObserver(
+                        forName: .AVPlayerItemDidPlayToEndTime,
+                        object: item,
+                        queue: .main
+                    ) { _ in
+                        PlaybackProgressStore.clear(remote: remote, path: path)
+                        onEnded?()
+                    }
                 }
                 p.play()
             }
@@ -319,6 +331,10 @@ struct MediaPlayerHost: View {
         preparing = true
         error = nil
         engine = MediaFormat.engine(for: entry.name)
+        // Purge les handlers de commandes distantes du lecteur précédent avant
+        // de changer éventuellement de moteur (évite des handlers VLC périmés
+        // qui survivraient à une bascule VLC → AVPlayer en playlist).
+        NowPlayingService.shared.resetRemoteCommands()
         NowPlayingService.shared.beginPlaybackSession()
         do {
             let s = try await RcloneStreamingService.shared.session(

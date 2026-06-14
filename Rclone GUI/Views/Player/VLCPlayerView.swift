@@ -13,6 +13,7 @@
 //
 
 import SwiftUI
+import Combine
 
 #if canImport(VLCKitSPM)
 import VLCKitSPM
@@ -58,13 +59,13 @@ final class VLCPlayerModel: NSObject, ObservableObject {
         player.media = media
         player.play()
         if let start = startAtSeconds, start > 1 {
-            // Le seek doit attendre que le média soit prêt : on le tente après
-            // le passage en lecture (cf. mediaPlayerStateChanged → .playing).
-            pendingSeekSeconds = start
+            // Appliqué quand la durée devient connue (= demuxer prêt), dans
+            // refreshTime — un seek trop tôt sur un flux live est ignoré par VLC.
+            resumeTargetSeconds = start
         }
     }
 
-    private var pendingSeekSeconds: Double?
+    private var resumeTargetSeconds: Double?
 
     func togglePlayPause() {
         if player.isPlaying { player.pause() } else { player.play() }
@@ -123,14 +124,26 @@ final class VLCPlayerModel: NSObject, ObservableObject {
     private func refreshTime() {
         let ms = player.time?.intValue ?? 0
         positionSeconds = Double(ms) / 1000.0
-        // `player.media` est optionnel ; `length` peut être importé optionnel
-        // ou IUO → passer par une variable pour rester robuste à la nullabilité.
-        let lengthTime = player.media?.length
-        if let lengthMs = lengthTime?.intValue, lengthMs > 0 {
+        // `media` et `length` sont importés non-optionnels (annotations nonnull
+        // du header VLCKit) → accès direct sans optional-chaining. VLCKit
+        // renvoie toujours un VLCTime (intValue = 0 tant que la durée est
+        // indéterminée). `media` est garanti non-nil pendant la lecture.
+        let lengthMs = player.media.length.intValue
+        if lengthMs > 0 {
             durationSeconds = Double(lengthMs) / 1000.0
         } else if player.position > 0.0001 {
             // Estimation si la durée n'est pas encore connue.
             durationSeconds = positionSeconds / Double(player.position)
+        }
+
+        // Reprise différée : on seek une fois la durée réelle connue et que la
+        // cible est bien avant la fin.
+        if let target = resumeTargetSeconds, durationSeconds > 0, target < durationSeconds - 15 {
+            resumeTargetSeconds = nil
+            seek(toSeconds: target)
+        } else if resumeTargetSeconds != nil, durationSeconds > 0 {
+            // Durée connue mais cible hors plage → on abandonne la reprise.
+            resumeTargetSeconds = nil
         }
     }
 }
@@ -148,10 +161,8 @@ extension VLCPlayerModel: VLCMediaPlayerDelegate {
             isPlaying = true
             failed = false
             refreshTracks()
-            if let pending = pendingSeekSeconds {
-                pendingSeekSeconds = nil
-                seek(toSeconds: pending)
-            }
+            // La reprise est appliquée dans refreshTime() une fois la durée
+            // connue (le demuxer est alors prêt à seek).
         case .paused:
             isPlaying = false
         case .stopped:
