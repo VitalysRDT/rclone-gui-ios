@@ -258,6 +258,30 @@ wrap_slice() {
         echo "ERROR: UUID mismatch — symbolication would fail."
         exit 1
     fi
+
+    # gomobile writes a bogus MinimumOSVersion (100.0) into the framework's
+    # Info.plist. An embedded framework that "requires iOS 100.0" makes the App
+    # Store treat the whole app as uninstallable on every device — App Review
+    # rejects it under Guideline 2.3 ("the app will not install on the device",
+    # blamed on UIRequiredDeviceCapabilities) even though the binary's real
+    # LC_BUILD_VERSION minos is correct. Force the framework's declared minimum
+    # OS to match the slice's actual deployment target.
+    local osver fw_plist
+    osver=$(printf '%s' "$target_triple" | sed -E 's/^.*-(ios|macos)//')
+    fw_plist=$(find "$framework_dir" -type f -name Info.plist | head -1)
+    if [ -n "$fw_plist" ] && [ -n "$osver" ]; then
+        if [ "$sdk" = "macosx" ]; then
+            /usr/libexec/PlistBuddy -c "Set :LSMinimumSystemVersion $osver" "$fw_plist" 2>/dev/null \
+              || /usr/libexec/PlistBuddy -c "Add :LSMinimumSystemVersion string $osver" "$fw_plist"
+            /usr/libexec/PlistBuddy -c "Delete :MinimumOSVersion" "$fw_plist" 2>/dev/null || true
+        else
+            /usr/libexec/PlistBuddy -c "Set :MinimumOSVersion $osver" "$fw_plist" 2>/dev/null \
+              || /usr/libexec/PlistBuddy -c "Add :MinimumOSVersion string $osver" "$fw_plist"
+        fi
+        echo "  framework min OS pinned → $osver ($fw_plist)"
+    else
+        echo "  WARNING: could not pin framework MinimumOSVersion (plist=$fw_plist osver=$osver)"
+    fi
 }
 
 # --- Build each slice via gomobile bind --------------------------------------
