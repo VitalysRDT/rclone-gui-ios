@@ -4,7 +4,7 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
 <title>Rclone GUI for iPhone, iPad &amp; Mac — rclone client iOS app</title>
-<meta name="description" content="Rclone GUI is the native iOS and Mac app for rclone — browse and sync 80+ cloud services (S3, Google Drive, Dropbox, SFTP, B2, R2) with rclone crypt encryption, directly in Files. Free 1-month trial."/>
+<meta name="description" content="Rclone GUI is the native iOS &amp; Mac app for rclone — browse and sync 80+ cloud services (S3, Google Drive, Dropbox, SFTP, B2, R2) with rclone crypt encryption, right inside Files. Free trial, then €29.99 lifetime or from €2.99/month. Open source."/>
 <meta name="keywords" content="rclone iOS, rclone iPhone, rclone app, rclone GUI, rclone Mac, rclone client, cloud storage iOS, S3 iOS, rclone crypt, FileProvider"/>
 <link rel="canonical" href="https://rclone.rougetet.com/"/>
 <meta property="og:type" content="website"/>
@@ -31,13 +31,20 @@
   "applicationCategory": "UtilitiesApplication",
   "operatingSystem": "iOS 17, iPadOS 17, macOS 14",
   "offers": {
-    "@type": "Offer",
-    "price": "0",
+    "@type": "AggregateOffer",
     "priceCurrency": "EUR",
-    "description": "1 month free trial"
+    "lowPrice": "2.99",
+    "highPrice": "29.99",
+    "offerCount": 3,
+    "description": "Free trial, then €29.99 lifetime (one-time) or subscription from €2.99/month. Open source — you can also build it for free.",
+    "offers": [
+      { "@type": "Offer", "name": "Lifetime", "price": "29.99", "priceCurrency": "EUR" },
+      { "@type": "Offer", "name": "Yearly", "price": "11.99", "priceCurrency": "EUR" },
+      { "@type": "Offer", "name": "Monthly", "price": "2.99", "priceCurrency": "EUR" }
+    ]
   },
   "downloadUrl": "https://apps.apple.com/app/id6770088773",
-  "softwareVersion": "1.3",
+  "softwareVersion": "1.4",
   "author": {
     "@type": "Person",
     "name": "Vitalys Rougetet"
@@ -52,6 +59,39 @@
     "No backend server, no data collection"
   ],
   "screenshot": "https://rclone.rougetet.com/icon.png"
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Is Rclone GUI free?",
+      "acceptedAnswer": { "@type": "Answer", "text": "There is a free trial. After that you can buy it once for €29.99 (lifetime, iPhone + iPad + Mac) or subscribe from €2.99/month (€11.99/year). It is also open source, so you can build it yourself for free." }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I get a discount?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. Students, unemployed people or anyone on a tight budget can ask the developer for a discount code based on what they can afford — no proof required." }
+    },
+    {
+      "@type": "Question",
+      "name": "Which cloud services does it support?",
+      "acceptedAnswer": { "@type": "Answer", "text": "80+ backends through the rclone engine, including Amazon S3, Cloudflare R2, Google Drive, Dropbox, OneDrive, Backblaze B2, SFTP, WebDAV, Storj and Wasabi." }
+    },
+    {
+      "@type": "Question",
+      "name": "Is it open source?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes, Rclone GUI is open source (MPL-2.0) and auditable on GitHub. There is no backend server and no analytics or trackers." }
+    },
+    {
+      "@type": "Question",
+      "name": "Does it support rclone crypt encryption?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. rclone crypt is supported natively with on-the-fly filename decryption (AES-256 + NaCl secretbox). Your encryption keys never leave the device." }
+    }
+  ]
 }
 </script>
 <style>
@@ -177,8 +217,38 @@
   .foot a{font-weight:600}
   .foot a:hover{color:var(--accent)}
   .legal{margin-top:18px;font-size:12.5px;opacity:.8;max-width:760px}
+  /* hero pricing line */
+  .hero .priceline{margin-top:14px;color:var(--muted);font-size:14.5px;font-weight:600}
+  .hero .priceline b{color:var(--ink)}
+  .hero .priceline .free{color:var(--accent)}
+  .hero .alt{margin-top:10px;font-size:13px;color:var(--muted);font-weight:600}
+  .hero .alt a{color:var(--accent);font-weight:700}
+  /* pricing */
+  .pricing-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:38px;align-items:stretch}
+  .plan{background:#fff;border:1px solid var(--line);border-radius:22px;padding:30px 24px 26px;position:relative;
+    display:flex;flex-direction:column;box-shadow:0 8px 26px rgba(11,8,32,.05)}
+  .plan.featured{border:2px solid var(--accent);box-shadow:0 18px 46px rgba(124,58,237,.20)}
+  .plan .badge{position:absolute;top:-13px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;
+    font-size:11px;font-weight:800;letter-spacing:.5px;padding:5px 13px;border-radius:999px;white-space:nowrap;
+    box-shadow:0 6px 16px rgba(124,58,237,.35)}
+  .plan .pname{font-size:14px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+  .plan .pprice{font-size:40px;font-weight:800;letter-spacing:-1.5px;margin:8px 0 0}
+  .plan .pper{font-size:13.5px;color:var(--muted);font-weight:600;margin-top:2px}
+  .plan ul{list-style:none;padding:0;margin:18px 0 0;display:flex;flex-direction:column;gap:10px;flex:1}
+  .plan li{display:flex;gap:9px;font-size:14.5px;font-weight:500;align-items:flex-start;line-height:1.35}
+  .plan li svg{flex:0 0 auto;margin-top:2px;color:#34C759}
+  .plan.featured li svg{color:var(--accent)}
+  .pricing-note{text-align:center;color:var(--muted);font-size:14px;margin:26px auto 0;font-weight:500;max-width:620px;line-height:1.5}
+  .pricing-note a{color:var(--accent);font-weight:700}
+  .pricing-note .solid{display:block;margin-top:10px}
+  /* a11y */
+  :focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:8px}
+  @media(prefers-reduced-motion:reduce){
+    *{animation-duration:.001ms!important;animation-iteration-count:1!important;transition:none!important}
+    html{scroll-behavior:auto}
+  }
   @media(max-width:760px){
-    .grid,.steps{grid-template-columns:1fr}
+    .grid,.steps,.pricing-grid{grid-template-columns:1fr}
     .hero{padding-top:44px}
   }
 </style>
