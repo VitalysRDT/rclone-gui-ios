@@ -2539,7 +2539,7 @@ const Hero = () => {
   }), t('Essayer gratuitement', 'Try it free')), /*#__PURE__*/React.createElement(AppStoreBadge, null)), /*#__PURE__*/React.createElement("p", {
     className: "priceline"
   }, /*#__PURE__*/React.createElement("span", {
-    className: "free"
+    className: "freetag"
   }, t('Essai gratuit', 'Free trial')), t(', puis ', ' · then '), /*#__PURE__*/React.createElement("b", null, t('29,99 € à vie', '€29.99 lifetime')), t(' ou dès ', ' or from '), /*#__PURE__*/React.createElement("b", null, t('2,99 €/mois', '€2.99/mo'))), /*#__PURE__*/React.createElement("p", {
     className: "alt"
   }, t('Ou ', 'Or '), /*#__PURE__*/React.createElement("a", {
