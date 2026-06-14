@@ -70,5 +70,15 @@ public enum SubscriptionProductID {
     // utilise un tiret mais on bascule sur underscore ici.
     public static let monthly = "com.rougetet.rclone_gui.premium.monthly"
     public static let yearly = "com.rougetet.rclone_gui.premium.yearly"
-    public static let all: [String] = [monthly, yearly]
+    /// Achat unique « à vie » (non-consommable). Déverrouille l'app de façon
+    /// permanente : pas d'expiration, pas de renouvellement. Résolu comme
+    /// `.active` par refreshEntitlements et prioritaire sur tout abonnement.
+    public static let lifetime = "com.rougetet.rclone_gui.premium.lifetime"
+    public static let all: [String] = [monthly, yearly, lifetime]
+
+    /// Vrai pour le produit non-consommable « à vie ». Utilisé pour adapter
+    /// l'UI (libellés, CTA, mention légale) qui diffère d'un abonnement.
+    public static func isLifetime(_ productID: String?) -> Bool {
+        productID == lifetime
+    }
 }
