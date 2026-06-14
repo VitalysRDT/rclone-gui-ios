@@ -37,10 +37,16 @@ struct AboutView: View {
                 Link(destination: URL(string: "https://github.com/rclone/rclone")!) {
                     Label("Code source rclone", systemImage: "chevron.left.forwardslash.chevron.right")
                 }
+                Link(destination: URL(string: "https://code.videolan.org/videolan/VLCKit")!) {
+                    Label("Code source VLCKit (libVLC)", systemImage: "chevron.left.forwardslash.chevron.right")
+                }
             }
 
             Section("Crédits") {
                 Text("Construit avec rclone et SwiftUI.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text("Lecture multi-format propulsée par VLCKit / libVLC (VideoLAN), sous licence LGPL v2.1. Le code source de VLCKit est disponible via le lien ci-dessus.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

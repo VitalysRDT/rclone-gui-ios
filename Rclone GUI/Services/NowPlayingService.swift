@@ -45,6 +45,14 @@ final class NowPlayingService {
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 
+    /// Comme `removeRemoteCommands` mais sans désactiver la session audio :
+    /// à appeler au changement de lecteur/moteur (ex. piste VLC → piste
+    /// AVPlayer dans une playlist) pour purger les handlers VLC périmés avant
+    /// que le nouveau moteur ne s'installe.
+    func resetRemoteCommands() {
+        removeRemoteCommands()
+    }
+
     /// Retire nos cibles de commandes distantes. Indispensable entre deux
     /// lecteurs : sinon un handler VLC périmé resterait branché et entrerait
     /// en conflit avec le lecteur système (AVPlayerViewController) qui gère
@@ -140,6 +148,7 @@ final class NowPlayingService {
 
     func beginPlaybackSession() {}
     func endPlaybackSession() {}
+    func resetRemoteCommands() {}
     func configureRemoteCommands(
         onPlay: @escaping () -> Void,
         onPause: @escaping () -> Void,
