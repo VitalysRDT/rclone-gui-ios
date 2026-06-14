@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>Rclone GUI — Privacy Policy</title>
+<meta name="description" content="Rclone GUI privacy policy — no analytics, no trackers, no backend server. Your data and keys stay on your device."/>
+<link rel="canonical" href="https://rclone.rougetet.com/privacy.html"/>
+<meta name="robots" content="index,follow"/>
+<meta name="theme-color" content="#7C3AED"/>
+<link rel="icon" href="icon.png"/>
+<style>
+  :root{--accent:#7C3AED;--accent-deep:#5B21B6;--ink:#0B0820;--muted:#6B6580;--line:rgba(11,8,32,.10);--bg:#FBFAFF}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);line-height:1.6;
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  a{color:var(--accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:760px;margin:0 auto;padding:0 22px}
+  header.nav{position:sticky;top:0;z-index:10;backdrop-filter:saturate(180%) blur(20px);
+    background:rgba(251,250,255,.82);border-bottom:1px solid var(--line)}
+  .nav-in{display:flex;align-items:center;gap:10px;height:58px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px;color:var(--ink)}
+  .brand img{width:28px;height:28px;border-radius:7px}
+  .nav-sp{flex:1}
+  h1{font-size:clamp(28px,5vw,40px);font-weight:800;letter-spacing:-1px;margin:36px 0 4px}
+  h2{font-size:24px;font-weight:800;letter-spacing:-.4px;margin:40px 0 0;padding-top:18px;border-top:1px solid var(--line)}
+  h3{font-size:18px;font-weight:700;margin:26px 0 0}
+  p,li{font-size:15.5px;color:#221c3a}
+  .muted{color:var(--muted)}
+  ul{padding-left:20px}
+  li{margin:5px 0}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px}
+  th,td{text-align:left;padding:9px 10px;border:1px solid var(--line);vertical-align:top}
+  th{background:rgba(124,58,237,.06);font-weight:700}
+  code{font-family:ui-monospace,"SF Mono",Menlo,monospace;background:rgba(11,8,32,.06);padding:1px 5px;border-radius:5px;font-size:13.5px}
+  hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+  footer{border-top:1px solid var(--line);margin-top:40px;padding:26px 0;color:var(--muted);font-size:13.5px}
+</style>
+</head>
+<body>
+<header class="nav"><div class="wrap nav-in">
+  <a class="brand" href="/"><img src="icon.png" alt="Rclone GUI"/>Rclone GUI</a>
+  <div class="nav-sp"></div>
+  <a href="/">&larr; Home</a>
+</div></header>
+
+<main class="wrap">
+  <h1>Privacy Policy</h1>
+  <p class="muted"><strong>Dernière mise à jour : 16 mai 2026</strong><br/><em>Last updated: May 16, 2026</em></p>
+
+  <hr/>
+  <h2>Français</h2>
+  <p>Rclone GUI (« l'application ») est un client iOS pour rclone permettant de connecter, naviguer et synchroniser vos fichiers entre votre appareil et vos services de stockage cloud personnels (Amazon S3, Backblaze B2, Cloudflare R2, Dropbox, Google Drive, Microsoft OneDrive, Storj, Wasabi, et plus de 60 autres backends compatibles rclone).</p>
+
+  <h3>1. Données que nous ne collectons pas</h3>
+  <p>L'application <strong>ne collecte, ne transmet et ne stocke aucune donnée personnelle sur un serveur que nous contrôlons</strong>. Nous ne possédons aucun serveur dorsal.</p>
+  <p>Concrètement :</p>
+  <ul>
+    <li>Aucune analytics, aucun SDK de tracking, aucun outil tiers de mesure d'audience.</li>
+    <li>Aucune télémétrie d'usage.</li>
+    <li>Aucun rapport de crash transmis à un tiers autre qu'Apple (TestFlight / App Store Connect, conformément à vos réglages iOS « Partager l'analyse iPhone »).</li>
+    <li>Aucun identifiant publicitaire (IDFA) n'est lu.</li>
+    <li>Aucun compte ni inscription n'est requis pour utiliser l'application.</li>
+  </ul>
+
+  <h3>2. Données stockées localement sur votre appareil</h3>
+  <p>Pour fonctionner, l'application stocke les éléments suivants <strong>uniquement sur votre appareil</strong>, jamais sur un serveur distant que nous contrôlons :</p>
+  <table>
+    <tr><th>Donnée</th><th>Emplacement</th><th>Chiffrement</th></tr>
+    <tr><td>Configuration rclone (URLs des remotes, identifiants)</td><td>Conteneur sandbox de l'app + App Group</td><td>Chiffrée au repos avec ChaCha20-Poly1305 ; clé maître dans le Trousseau iOS</td></tr>
+    <tr><td>Jetons OAuth des fournisseurs cloud que vous configurez</td><td>Trousseau iOS partagé du groupe d'app</td><td>Chiffrement matériel du Trousseau iOS</td></tr>
+    <tr><td>Préférences d'interface</td><td>UserDefaults</td><td>Aucun (préférences non sensibles)</td></tr>
+    <tr><td>Fichiers téléchargés ou pré-cachés</td><td>Dossier Caches / FileProvider du sandbox</td><td>Protection iOS <code>.completeFileProtection</code></td></tr>
+    <tr><td>Diagnostics IPC FileProvider (logs techniques)</td><td>Conteneur App Group</td><td>Identifiants remote/chemin <strong>hachés SHA-256</strong> avant écriture</td></tr>
+  </table>
+  <p>Vous pouvez à tout moment effacer ces données en désinstallant l'application.</p>
+
+  <h3>3. Communications réseau</h3>
+  <p>L'application communique directement avec :</p>
+  <ul>
+    <li><strong>Les services cloud que vous configurez vous-même</strong> (S3, Google Drive, etc.) via leur API officielle, en HTTPS. Vos identifiants et tokens transitent uniquement entre votre appareil et ces services. Apple App Transport Security (ATS) est activé sans exception.</li>
+    <li><strong>Un serveur HTTP localhost (<code>127.0.0.1</code>)</strong> lancé par l'application pour permettre à AVPlayer de lire vos vidéos déchiffrées à la volée. Ce trafic ne quitte jamais l'appareil.</li>
+    <li><strong>Aucun autre serveur.</strong> Pas de domaine sous notre contrôle, pas de webhook, pas de service tiers de notification.</li>
+  </ul>
+
+  <h3>4. Authentification biométrique (Face ID / Touch ID)</h3>
+  <p>Si vous activez la protection biométrique, l'application utilise <code>LocalAuthentication</code> pour vérifier votre identité au lancement. <strong>La biométrie ne quitte jamais le Secure Enclave de votre iPhone</strong> et n'est jamais transmise à l'application ni à nous. Apple n'expose qu'un résultat booléen.</p>
+
+  <h3>5. Photos et bibliothèque média</h3>
+  <p>Si vous activez la synchronisation photo, l'application accède à votre photothèque uniquement pour uploader les éléments que vous lui désignez, vers le service cloud que vous avez configuré. Aucune photo n'est envoyée à un autre destinataire.</p>
+
+  <h3>6. Extension Fichiers (File Provider)</h3>
+  <p>L'extension intégrée à l'app Fichiers d'Apple opère dans un sandbox iOS distinct. Elle ne dispose que des permissions nécessaires pour énumérer et matérialiser les fichiers que vous demandez à ouvrir.</p>
+
+  <h3>7. Vos droits (RGPD)</h3>
+  <p>Étant donné qu'aucune donnée personnelle ne nous est transmise, il n'existe rien à supprimer, exporter ou rectifier de notre côté. Pour révoquer un accès cloud, retirez l'autorisation dans le tableau de bord du service concerné (par exemple : <code>myaccount.google.com/permissions</code>).</p>
+
+  <h3>8. Logiciel libre</h3>
+  <p>L'application embarque <a href="https://rclone.org">rclone</a> (MIT) et plusieurs bibliothèques open source. Le code source de Rclone GUI est disponible sur GitHub : <a href="https://github.com/VitalysRDT/rclone-gui-ios">github.com/VitalysRDT/rclone-gui-ios</a>.</p>
+
+  <h3>9. Contact</h3>
+  <p><strong>Vitalys Rougetet — De Troyane</strong><br/>Email : <a href="mailto:vitalys@rougetet.com">vitalys@rougetet.com</a></p>
+
+  <hr/>
+  <h2>English</h2>
+  <p>Rclone GUI (the "App") is an iOS client for rclone that lets you connect, browse, and sync files between your device and your own cloud storage services (Amazon S3, Backblaze B2, Cloudflare R2, Dropbox, Google Drive, Microsoft OneDrive, Storj, Wasabi, and 60+ other rclone-compatible backends).</p>
+
+  <h3>1. Data we do not collect</h3>
+  <p>The App <strong>does not collect, transmit, or store any personal data on any server we control</strong>. We operate no backend infrastructure.</p>
+  <p>Specifically:</p>
+  <ul>
+    <li>No analytics, no tracking SDK, no third-party audience measurement.</li>
+    <li>No usage telemetry.</li>
+    <li>No crash reporting to any party other than Apple (TestFlight / App Store Connect, subject to your "Share iPhone Analytics" iOS setting).</li>
+    <li>No reading of the advertising identifier (IDFA).</li>
+    <li>No account or sign-up required.</li>
+  </ul>
+
+  <h3>2. Data stored locally on your device</h3>
+  <p>To function, the App stores the following items <strong>only on your device</strong>, never on a remote server we control:</p>
+  <table>
+    <tr><th>Data</th><th>Location</th><th>Encryption</th></tr>
+    <tr><td>Rclone configuration (remote URLs, credentials)</td><td>App sandbox + App Group container</td><td>At-rest ChaCha20-Poly1305; master key in iOS Keychain</td></tr>
+    <tr><td>OAuth tokens for the cloud providers you configure</td><td>Shared iOS Keychain (app group)</td><td>iOS Keychain hardware encryption</td></tr>
+    <tr><td>UI preferences</td><td>UserDefaults</td><td>None (non-sensitive)</td></tr>
+    <tr><td>Downloaded / pre-cached files</td><td>Caches / FileProvider sandbox folder</td><td>iOS <code>.completeFileProtection</code></td></tr>
+    <tr><td>FileProvider IPC diagnostics (technical logs)</td><td>App Group container</td><td>Remote names and paths <strong>SHA-256 hashed</strong> before writing</td></tr>
+  </table>
+  <p>You can erase all of this at any time by uninstalling the App.</p>
+
+  <h3>3. Network communications</h3>
+  <p>The App talks directly to:</p>
+  <ul>
+    <li><strong>The cloud services you configure yourself</strong> (S3, Google Drive, etc.) via their official APIs over HTTPS. Your credentials and tokens travel only between your device and those services. Apple App Transport Security (ATS) is enabled with no exception.</li>
+    <li><strong>A localhost HTTP server (<code>127.0.0.1</code>)</strong> spawned by the App to let AVPlayer stream your decrypted media on the fly. This traffic never leaves the device.</li>
+    <li><strong>No other servers.</strong> No domain under our control, no webhook, no third-party notification service.</li>
+  </ul>
+
+  <h3>4. Biometric authentication (Face ID / Touch ID)</h3>
+  <p>If you enable biometric protection, the App uses <code>LocalAuthentication</code> to verify you at launch. <strong>Biometric data never leaves the Secure Enclave of your iPhone</strong> and is never transmitted to the App or to us. Apple exposes only a pass/fail boolean.</p>
+
+  <h3>5. Photos and media library</h3>
+  <p>If you enable photo sync, the App accesses your photo library only to upload the items you explicitly select, to the cloud service you configured. No photo is sent to any other recipient.</p>
+
+  <h3>6. Files extension (File Provider)</h3>
+  <p>The Apple Files extension shipped with the App operates in its own iOS sandbox. It holds only the permissions required to enumerate and materialize the files you ask to open.</p>
+
+  <h3>7. Your rights (GDPR / CCPA)</h3>
+  <p>Because no personal data is ever transmitted to us, there is nothing to delete, export, or rectify on our side. To revoke a cloud access, remove the authorization in that service's dashboard (e.g. <code>myaccount.google.com/permissions</code>).</p>
+
+  <h3>8. Open source</h3>
+  <p>The App embeds <a href="https://rclone.org">rclone</a> (MIT) and several open-source libraries. The Rclone GUI source code is available on GitHub: <a href="https://github.com/VitalysRDT/rclone-gui-ios">github.com/VitalysRDT/rclone-gui-ios</a>.</p>
+
+  <h3>9. Contact</h3>
+  <p><strong>Vitalys Rougetet — De Troyane</strong><br/>Email: <a href="mailto:vitalys@rougetet.com">vitalys@rougetet.com</a></p>
+</main>
+
+<footer><div class="wrap">© Rclone GUI — <a href="/">rclone.rougetet.com</a> · <a href="https://github.com/VitalysRDT/rclone-gui-ios">GitHub</a></div></footer>
+</body>
+</html>
