@@ -610,7 +610,7 @@ const Hero = () => {
           <a className="btn btn-violet" href="#free"><Icon name="bolt.fill" size={18}/>{t('Essayer gratuitement','Try it free')}</a>
           <AppStoreBadge/>
         </div>
-        <p className="priceline"><span className="free">{t('Essai gratuit','Free trial')}</span>{t(', puis ',' · then ')}<b>{t('29,99 € à vie','€29.99 lifetime')}</b>{t(' ou dès ',' or from ')}<b>{t('2,99 €/mois','€2.99/mo')}</b></p>
+        <p className="priceline"><span className="freetag">{t('Essai gratuit','Free trial')}</span>{t(', puis ',' · then ')}<b>{t('29,99 € à vie','€29.99 lifetime')}</b>{t(' ou dès ',' or from ')}<b>{t('2,99 €/mois','€2.99/mo')}</b></p>
         <p className="alt">{t('Ou ','Or ')}<a href={GITHUB_URL} target="_blank" rel="noopener">{t('compilez-la gratuitement','build it for free')}</a>{t(' — c\'est open source',' — it\'s open source')}</p>
         <div className="trust">
           <span><Icon name="lock.fill" size={15} style={{ color:ACCENT }}/>{t('Chiffrement de bout en bout','End-to-end crypt')}</span>
