@@ -603,13 +603,15 @@ const Hero = () => {
     <section className="hero" id="top">
       <div className="wrap">
         <img className="icon" src="icon.png" alt="Rclone GUI"/>
-        <div><span className="pill"><Icon name="bolt.fill" size={14}/>{t('1 MOIS OFFERT','1 MONTH FREE')}</span></div>
+        <div><span className="pill"><Icon name="bolt.fill" size={14}/>{t('v1.4 · ESSAI GRATUIT','v1.4 · FREE TRIAL')}</span></div>
         <h1 className="title">{ML(t('Tous vos clouds.\nChiffrés.','Every cloud.\nEncrypted.'))}</h1>
         <p className="sub">{t('Parcourez 80+ services cloud — y compris vos remotes rclone chiffrés — directement dans Fichiers. iPhone, iPad & Mac.','Browse 80+ cloud services — including your encrypted rclone crypt remotes — right inside Files. iPhone, iPad & Mac.')}</p>
         <div className="cta-row">
-          <a className="btn btn-violet" href="#free"><Icon name="bolt.fill" size={18}/>{t('Obtenir mon mois gratuit','Get my free month')}</a>
+          <a className="btn btn-violet" href="#free"><Icon name="bolt.fill" size={18}/>{t('Essayer gratuitement','Try it free')}</a>
           <AppStoreBadge/>
         </div>
+        <p className="priceline"><span className="free">{t('Essai gratuit','Free trial')}</span>{t(', puis ',' · then ')}<b>{t('29,99 € à vie','€29.99 lifetime')}</b>{t(' ou dès ',' or from ')}<b>{t('2,99 €/mois','€2.99/mo')}</b></p>
+        <p className="alt">{t('Ou ','Or ')}<a href={GITHUB_URL} target="_blank" rel="noopener">{t('compilez-la gratuitement','build it for free')}</a>{t(' — c\'est open source',' — it\'s open source')}</p>
         <div className="trust">
           <span><Icon name="lock.fill" size={15} style={{ color:ACCENT }}/>{t('Chiffrement de bout en bout','End-to-end crypt')}</span>
           <span><Icon name="shield.fill" size={15} style={{ color:ACCENT }}/>{t('Zéro tracker','Zero trackers')}</span>
@@ -684,6 +686,60 @@ const Features = () => {
             </div>
           ))}
         </div>
+      </div>
+    </section>
+  );
+};
+
+const Pricing = () => {
+  const t = useT();
+  const plans = [
+    { id:'lifetime', featured:true, name:t('À vie','Lifetime'), price:'29,99 €', per:t('paiement unique','one-time payment'),
+      badge:t('Meilleure offre','Best value'),
+      points:[
+        t('Payé une fois, à vous pour toujours','Pay once, yours forever'),
+        t('iPhone, iPad et Mac inclus','iPhone, iPad and Mac included'),
+        t('Toutes les fonctionnalités, à vie','Every feature, forever'),
+      ] },
+    { id:'yearly', name:t('Annuel','Yearly'), price:'11,99 €', per:t('par an','per year'),
+      points:[
+        t('Environ 1 €/mois','About €1/month'),
+        t('~67 % d\'économie vs mensuel','~67% off vs monthly'),
+        t('Renouvelable, annulable','Renews, cancel anytime'),
+      ] },
+    { id:'monthly', name:t('Mensuel','Monthly'), price:'2,99 €', per:t('par mois','per month'),
+      points:[
+        t('Sans engagement','No commitment'),
+        t('Annulable à tout moment','Cancel anytime'),
+        t('Idéal pour démarrer','Great to get started'),
+      ] },
+  ];
+  return (
+    <section id="pricing">
+      <div className="wrap">
+        <div className="eyebrow">{t('Tarifs','Pricing')}</div>
+        <h2 className="sec">{t('Payez comme vous voulez','Pay your way')}</h2>
+        <p className="sec-sub">{t('Commencez par l\'essai gratuit. Ensuite, un achat unique à vie ou un abonnement — à vous de choisir.','Start with the free trial. Then a one-time lifetime purchase or a subscription — your call.')}</p>
+        <div className="pricing-grid">
+          {plans.map(p => (
+            <div key={p.id} className={p.featured ? 'plan featured' : 'plan'}>
+              {p.badge && <div className="badge">{p.badge}</div>}
+              <div className="pname">{p.name}</div>
+              <div className="pprice">{p.price}</div>
+              <div className="pper">{p.per}</div>
+              <ul>
+                {p.points.map(pt => <li key={pt}><Icon name="check.circle" size={18}/>{pt}</li>)}
+              </ul>
+            </div>
+          ))}
+        </div>
+        <p className="pricing-note">
+          {t('Prix App Store, taxes incluses. L\'essai gratuit ne vous engage à rien.','App Store prices, taxes included. The free trial commits you to nothing.')}
+          <span className="solid">
+            {t('Étudiant·e, emploi précaire, chômage ou budget serré ? ','Student, precarious job, unemployed or on a tight budget? ')}
+            <a href="mailto:vitalys@rougetet.com?subject=Rclone%20GUI%20%E2%80%94%20Demande%20de%20r%C3%A9duction%20(selon%20mes%20moyens)">{t('Demandez une réduction selon vos moyens.','Ask for a discount based on your means.')}</a>
+          </span>
+        </p>
       </div>
     </section>
   );
@@ -850,6 +906,7 @@ const App = () => {
       <Hero/>
       <Gallery lang={lang}/>
       <Features/>
+      <Pricing/>
       <FreeMonth/>
       <Footer/>
     </LangContext.Provider>
