@@ -1,7 +1,28 @@
 {
   "identifier" : "F1B5A8E2-0001-4001-8000-RCLONEGUI001",
   "nonRenewingSubscriptions" : [],
-  "products" : [],
+  "products" : [
+    {
+      "displayPrice" : "29.99",
+      "familyShareable" : false,
+      "internalID" : "21F7A201",
+      "localizations" : [
+        {
+          "description" : "Déverrouille Rclone GUI à vie — paiement unique, sans abonnement",
+          "displayName" : "À vie",
+          "locale" : "fr_FR"
+        },
+        {
+          "description" : "Unlock Rclone GUI forever — one-time purchase, no subscription",
+          "displayName" : "Lifetime",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.rougetet.rclone_gui.premium.lifetime",
+      "referenceName" : "Premium Lifetime",
+      "type" : "NonConsumable"
+    }
+  ],
   "settings" : {
     "_applicationInternalID" : "0000000000",
     "_developerTeamID" : "B897YNXQ77",
@@ -31,7 +52,7 @@
         {
           "adHocOffers" : [],
           "codeOffers" : [],
-          "displayPrice" : "1.99",
+          "displayPrice" : "2.99",
           "familyShareable" : false,
           "groupNumber" : 1,
           "internalID" : "21F7A101",
@@ -61,19 +82,19 @@
         {
           "adHocOffers" : [],
           "codeOffers" : [],
-          "displayPrice" : "19.99",
+          "displayPrice" : "11.99",
           "familyShareable" : false,
           "groupNumber" : 1,
           "internalID" : "21F7A102",
           "introductoryOffer" : null,
           "localizations" : [
             {
-              "description" : "Abonnement annuel — économise 16 %",
+              "description" : "Abonnement annuel — économise ~67 % vs mensuel",
               "displayName" : "Annuel",
               "locale" : "fr_FR"
             },
             {
-              "description" : "Yearly subscription — save 16%",
+              "description" : "Yearly subscription — save ~67% vs monthly",
               "displayName" : "Yearly",
               "locale" : "en_US"
             }

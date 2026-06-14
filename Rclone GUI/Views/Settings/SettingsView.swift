@@ -384,8 +384,8 @@ private struct SubscriptionStatusRow: View {
         case .trial:
             // Affiche aussi ce qui suit l'essai : sans ça, l'utilisateur en
             // période d'essai ne voyait nulle part les plans ni les prix.
-            let monthly = subs.product(for: SubscriptionProductID.monthly)?.displayPrice ?? "1,99 €"
-            let yearly = subs.product(for: SubscriptionProductID.yearly)?.displayPrice ?? "19,99 €"
+            let monthly = subs.product(for: SubscriptionProductID.monthly)?.displayPrice ?? "2,99 €"
+            let yearly = subs.product(for: SubscriptionProductID.yearly)?.displayPrice ?? "11,99 €"
             if let expiration = subs.snapshot.expirationDate {
                 return String(localized: "Fin de l'essai : \(formatter.string(from: expiration)) · ensuite \(monthly)/mois ou \(yearly)/an")
             }
@@ -405,9 +405,19 @@ private struct SubscriptionStatusRow: View {
 
     private func planLabel(for productID: String?) -> String {
         switch productID {
-        case SubscriptionProductID.monthly: return String(localized: "Mensuel — 1,99 €")
-        case SubscriptionProductID.yearly:  return String(localized: "Annuel — 19,99 €")
-        default: return String(localized: "Premium")
+        case SubscriptionProductID.lifetime:
+            return String(localized: "À vie")
+        case SubscriptionProductID.monthly:
+            // Le prix réel vient de StoreKit (varie par storefront) ; on ne le
+            // code pas dans la clé de traduction pour éviter de tout retraduire
+            // à chaque changement de prix.
+            let price = subs.product(for: SubscriptionProductID.monthly)?.displayPrice ?? "2,99 €"
+            return String(localized: "Mensuel — \(price)")
+        case SubscriptionProductID.yearly:
+            let price = subs.product(for: SubscriptionProductID.yearly)?.displayPrice ?? "11,99 €"
+            return String(localized: "Annuel — \(price)")
+        default:
+            return String(localized: "Premium")
         }
     }
 }
