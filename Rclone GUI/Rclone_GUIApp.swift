@@ -93,6 +93,12 @@ struct Rclone_GUIApp: App {
                     }
                 }
                 .task {
+                    #if DEBUG
+                    // Demo seeding for App Store screenshots (no-op unless the
+                    // app was launched with `--seed-demo`). Runs first so the
+                    // engine and the tabs read the freshly-seeded config.
+                    await DemoSeeder.seedIfRequested(container: sharedModelContainer)
+                    #endif
                     await MainActor.run {
                         TransferQueue.shared.attach(modelContext: sharedModelContainer.mainContext)
                         PhotoSyncService.shared.attach(modelContext: sharedModelContainer.mainContext)
