@@ -1,5 +1,5 @@
 Nowości w wersji 1.5:
-- Wbudowany odtwarzacz wideo: odtwarzaj filmy bezpośrednio w aplikacji – także MKV, AVI, WebM i TS – dzięki wieloformatowemu silnikowi. Napisy (wbudowane i z plików obok), ścieżki audio, wznawianie od momentu przerwania oraz dźwięk w tle. Do wyboru: odtwarzanie w aplikacji lub w aplikacji zewnętrznej (Infuse, VLC).
+- Wbudowany odtwarzacz wideo: odtwarzaj filmy bezpośrednio w aplikacji – także MKV, AVI, WebM i TS – dzięki wieloformatowemu silnikowi. Napisy (wbudowane i z plików obok), ścieżki audio oraz wznawianie od momentu przerwania. Do wyboru: odtwarzanie w aplikacji lub w aplikacji zewnętrznej (Infuse, VLC).
 - Galeria: nowy widok siatki z miniaturami zdjęć i filmów. Przełączaj między listą a siatką w każdym folderze lub włącz „Tylko multimedia”, aby uzyskać prawdziwy tryb galerii. Ustawienie generowania miniatur (domyślnie tylko Wi-Fi) daje kontrolę nad transferem danych.
 - Prywatność: nowa opcja wykluczania danych aplikacji z kopii zapasowych iCloud.
 - Poprawki stabilności i wydajności.
