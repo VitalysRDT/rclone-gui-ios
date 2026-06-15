@@ -188,6 +188,10 @@ struct Rclone_GUIApp: App {
 private func prepareRuntime() {
     do {
         try AppGroup.prepareSharedContainerLayout()
+        // Ré-affirme l'exclusion de sauvegarde iCloud si l'utilisateur l'a
+        // activée (no-op sinon). Après prepareSharedContainerLayout pour que
+        // le conteneur et ses sous-dossiers existent.
+        BackupExclusionManager.applyPersistedState()
         let workingDirectory = AppGroup.runtimeWorkingDirectoryURL
         _ = workingDirectory.path.withCString { chdir($0) }
         setenv("PWD", workingDirectory.path, 1)
