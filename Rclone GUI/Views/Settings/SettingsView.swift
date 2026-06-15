@@ -92,6 +92,17 @@ struct SettingsView: View {
                 }
 
                 NavigationLink {
+                    ThumbnailSettingsView()
+                } label: {
+                    SettingsNavigationRow(
+                        icon: "rectangle.grid.3x2",
+                        title: "Vignettes",
+                        subtitle: "Galerie : politique de génération et cache",
+                        tint: .teal
+                    )
+                }
+
+                NavigationLink {
                     BackupSettingsView()
                 } label: {
                     SettingsNavigationRow(

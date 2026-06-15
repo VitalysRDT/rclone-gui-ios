@@ -73,6 +73,12 @@ struct FolderView: View {
     /// via .onChange(of: runningTransfers).
     @State private var activeTransferByPath: [String: Transfer] = [:]
 
+    // Mode d'affichage du navigateur : liste (défaut) ou grille. En grille,
+    // « médias uniquement » filtre dossiers/autres fichiers (mode galerie).
+    @AppStorage("browser.viewMode") private var viewModeRaw = "list"
+    @AppStorage("browser.gridMediaOnly") private var gridMediaOnly = false
+    private var viewMode: BrowserViewMode { BrowserViewMode(rawValue: viewModeRaw) ?? .list }
+
     private func computeActiveTransferByPath() -> [String: Transfer] {
         var dict: [String: Transfer] = [:]
         for t in runningTransfers {
@@ -190,6 +196,23 @@ struct FolderView: View {
                             hapticImpactTrigger &+= 1
                         }
                     }
+                }
+                ToolbarItem(placement: .primaryAction) {
+                    Menu {
+                        Picker("Affichage", selection: $viewModeRaw) {
+                            Label("Liste", systemImage: "list.bullet").tag("list")
+                            Label("Grille", systemImage: "square.grid.2x2").tag("grid")
+                        }
+                        if viewMode == .grid {
+                            Divider()
+                            Toggle(isOn: $gridMediaOnly) {
+                                Label("Médias uniquement", systemImage: "photo.on.rectangle.angled")
+                            }
+                        }
+                    } label: {
+                        Image(systemName: viewMode == .grid ? "square.grid.2x2" : "list.bullet")
+                    }
+                    .accessibilityLabel("Mode d'affichage")
                 }
                 ToolbarItem(placement: .primaryAction) {
                     Button {
@@ -448,7 +471,10 @@ struct FolderView: View {
             ContentUnavailableView.search(text: query)
 
         case .loading, .loaded:
-            let list = List {
+            if viewMode == .grid {
+                gridContent
+            } else {
+              let list = List {
                 Section {
                     FolderOverviewCard(
                         remote: remote,
@@ -469,11 +495,78 @@ struct FolderView: View {
                     Text(displayedSectionTitle)
                 }
             }
-            #if os(iOS)
-            list.rgInsetGroupedList()
-            #else
-            list
-            #endif
+              #if os(iOS)
+              list.rgInsetGroupedList()
+              #else
+              list
+              #endif
+            }
+        }
+    }
+
+    private var gridRows: [DisplayedEntry] {
+        if gridMediaOnly {
+            return displayedRows.filter {
+                !$0.entry.isDirectory && MediaFormat.isVisualMedia($0.entry.name)
+            }
+        }
+        return displayedRows
+    }
+
+    @ViewBuilder
+    private var gridContent: some View {
+        if gridRows.isEmpty {
+            ContentUnavailableView(
+                "Aucun média",
+                systemImage: "photo.on.rectangle.angled",
+                description: Text("Ce dossier ne contient pas d'images ni de vidéos.")
+            )
+        } else {
+            ScrollView {
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 100, maximum: 160), spacing: 10)],
+                    spacing: 12
+                ) {
+                    ForEach(gridRows) { row in
+                        gridCell(for: row)
+                    }
+                }
+                .padding(12)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func gridCell(for row: DisplayedEntry) -> some View {
+        let entry = row.entry
+        if entry.isDirectory {
+            NavigationLink(value: NavigationDestination.folder(
+                remote: remote,
+                path: entry.pathInRemote
+            )) {
+                MediaGridCell(entry: entry, remote: remote)
+            }
+            .buttonStyle(.plain)
+        } else {
+            Button {
+                handleTap(on: row)
+            } label: {
+                MediaGridCell(entry: entry, remote: remote)
+            }
+            .buttonStyle(.plain)
+            .contextMenu {
+                EntryActionsMenu(
+                    entry: entry,
+                    remote: remote,
+                    renameTarget: $renameTarget,
+                    deleteTarget: $deleteTarget,
+                    playTarget: $playTarget,
+                    previewTarget: $previewTarget,
+                    moveTarget: $moveTarget,
+                    downloadTarget: $downloadTarget,
+                    externalOpenTarget: $externalOpenTarget
+                )
+            }
         }
     }
 
@@ -1033,6 +1126,12 @@ private struct RemoteBatchTransferRequest: Identifiable {
 private struct DisplayedEntry: Identifiable {
     let id: String
     let entry: RemoteEntryDTO
+}
+
+/// Mode d'affichage du navigateur de dossiers.
+enum BrowserViewMode: String {
+    case list
+    case grid
 }
 
 /// Header card displayed at the top of each folder. Mirrors the walkthrough
