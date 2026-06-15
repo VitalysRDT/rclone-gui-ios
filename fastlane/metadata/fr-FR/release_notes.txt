@@ -1,7 +1,7 @@
-Nouveautés de la version 1.4 :
-- Nouveaux clouds : Drime, Internxt et Filen rejoignent les 70+ services supportés (Internxt et Filen sont chiffrés de bout en bout).
-- Connexion simplifiée : un nouvel encart « où obtenir tes identifiants » guide la configuration de Pixeldrain, 1Fichier, ImageKit, Internet Archive, Gofile, Storj, NetStorage et d'autres.
-- Remotes composites plus faciles : un sélecteur permet de choisir le stockage sous-jacent (et le dossier) pour alias, union, combine, etc. — fini la saisie manuelle de « remote:chemin ».
-- Fiabilité : correction de la connexion aux remotes protégés par mot de passe (SFTP, FTP, WebDAV, SMB…).
-- Les remotes verrouillés sont désormais masqués dans Récents et Favoris.
-- Améliorations de traduction et de l'affichage des résumés de dossier.
+Nouveautés de la version 1.5 :
+- Lecteur vidéo embarqué : lisez vos vidéos directement dans l'app, même MKV, AVI, WebM ou TS, grâce à un moteur multi-format. Sous-titres (intégrés et fichiers à côté), pistes audio, reprise là où vous vous étiez arrêté et lecture audio en arrière-plan. Au choix : lecture dans l'app ou dans une app externe (Infuse, VLC).
+- Galerie : nouvelle vue en grille avec vignettes pour vos images et vidéos. Basculez entre liste et grille dans chaque dossier, ou activez « Médias uniquement » pour une vraie expérience galerie. Le réglage de génération des vignettes (Wi-Fi seulement par défaut) garde le contrôle sur vos données.
+- Confidentialité : nouvelle option pour exclure les données de l'app des sauvegardes iCloud.
+- Améliorations de stabilité et de performance.
+
+Merci d'utiliser Rclone GUI ! Vos retours sont les bienvenus.

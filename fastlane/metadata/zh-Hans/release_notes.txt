@@ -1,7 +1,7 @@
-1.4 版本新功能：
-- 新增云服务：Drime、Internxt 和 Filen 加入 70 多项受支持的服务（Internxt 和 Filen 为端到端加密）。
-- 连接更简单：全新的"在哪里获取凭据"提示，引导你完成 Pixeldrain、1Fichier、ImageKit、Internet Archive、Gofile、Storj、NetStorage 等的设置。
-- 组合远程更轻松：通过选择器即可为 alias、union、combine 等选择底层存储（及文件夹），无需再手动输入"remote:路径"。
-- 可靠性：修复了连接受密码保护的远程（SFTP、FTP、WebDAV、SMB…）的问题。
-- 锁定的远程现在会在"最近"和"收藏"中隐藏。
-- 改进了翻译和文件夹摘要的显示。
+1.5 版本新功能：
+- 内置视频播放器：借助多格式引擎，直接在 App 内播放视频，包括 MKV、AVI、WebM 和 TS。支持字幕（内嵌及外挂文件）、音轨、断点续播和后台音频播放，并可选择在 App 内播放或在外部 App（Infuse、VLC）中播放。
+- 图库：全新的图片与视频缩略图网格视图。可在任意文件夹中切换列表与网格，或开启“仅媒体”以获得真正的图库体验。缩略图生成设置（默认仅 Wi-Fi）让你掌控流量。
+- 隐私：新增可将 App 数据排除在 iCloud 备份之外的选项。
+- 稳定性与性能改进。
+
+感谢使用 Rclone GUI！
