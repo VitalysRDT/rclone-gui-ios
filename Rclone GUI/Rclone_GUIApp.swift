@@ -198,6 +198,8 @@ private func prepareRuntime() {
         // activée (no-op sinon). Après prepareSharedContainerLayout pour que
         // le conteneur et ses sous-dossiers existent.
         BackupExclusionManager.applyPersistedState()
+        // Démarre le monitoring réseau tôt (politique de vignettes Wi-Fi/cellulaire).
+        NetworkReachability.shared.activate()
         let workingDirectory = AppGroup.runtimeWorkingDirectoryURL
         _ = workingDirectory.path.withCString { chdir($0) }
         setenv("PWD", workingDirectory.path, 1)
