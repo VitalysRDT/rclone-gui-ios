@@ -92,6 +92,17 @@ struct SettingsView: View {
                 }
 
                 NavigationLink {
+                    BackupSettingsView()
+                } label: {
+                    SettingsNavigationRow(
+                        icon: "icloud.slash",
+                        title: "Sauvegarde iCloud",
+                        subtitle: "Exclure les données de l'app de la sauvegarde iCloud",
+                        tint: .blue
+                    )
+                }
+
+                NavigationLink {
                     TrashView()
                 } label: {
                     SettingsNavigationRow(
