@@ -78,6 +78,28 @@ public enum MediaFormat {
         isVideo(name) || isAudio(name)
     }
 
+    // Formats image reconnus (vignettes de la galerie).
+    static let imageExtensions: Set<String> = [
+        "jpg", "jpeg", "png", "heic", "heif", "gif", "webp", "bmp",
+        "tiff", "tif", "jp2", "avif", "ico",
+        // RAW courants (ImageIO sait en extraire une vignette)
+        "dng", "cr2", "cr3", "nef", "arw", "orf", "rw2", "raf", "srw"
+    ]
+
+    public static func isImage(_ name: String) -> Bool {
+        let e = ext(name)
+        if imageExtensions.contains(e) { return true }
+        if let type = UTType(filenameExtension: e), type.conforms(to: .image) {
+            return true
+        }
+        return false
+    }
+
+    /// Médias visuels = ce qui mérite une vignette dans la galerie.
+    public static func isVisualMedia(_ name: String) -> Bool {
+        isImage(name) || isVideo(name)
+    }
+
     /// Extensions de sous-titres « sidecar » qu'on cherche à côté du média.
     static let subtitleExtensions: Set<String> = [
         "srt", "ass", "ssa", "vtt", "sub", "idx"

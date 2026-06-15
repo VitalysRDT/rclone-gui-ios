@@ -23,6 +23,23 @@ public actor RcloneStreamingService {
     private init() {}
 
     public func session(remote: String, path: String, sizeHint: Int64?) async throws -> StreamingSession {
+        if let live = await liveSession(remote: remote, path: path) {
+            return live
+        }
+        let localURL = try await MediaCacheService.shared.localPlayableURL(
+            remote: remote,
+            path: path,
+            sizeHint: sizeHint,
+            policy: .reuseIfCached
+        )
+        return StreamingSession(id: UUID().uuidString, url: localURL, isLiveStream: false)
+    }
+
+    /// Session de streaming « live » via le bridge loopback **uniquement**
+    /// (pas de fallback téléchargement). Renvoie nil si le bridge est
+    /// indisponible. Utilisé par les vignettes pour ne jamais déclencher le
+    /// download complet d'un fichier juste pour une miniature.
+    public func liveSession(remote: String, path: String) async -> StreamingSession? {
         #if canImport(RcloneKit)
         do {
             _ = try await RcloneCore.shared.version()
@@ -33,25 +50,20 @@ public actor RcloneStreamingService {
                   let urlString = object?["url"] as? String,
                   let url = URL(string: urlString),
                   !id.isEmpty else {
-                throw RcloneError.invalidJSON(method: "StartFileHTTP", raw: raw, underlying: URLError(.badURL))
+                return nil
             }
             return StreamingSession(id: id, url: url, isLiveStream: true)
         } catch {
             await LogService.shared.log(
                 .info,
                 category: "streaming",
-                message: "Bridge streaming indisponible pour \(remote):\(path), fallback cache : \(error.localizedDescription)"
+                message: "Bridge streaming indisponible pour \(remote):\(path) : \(error.localizedDescription)"
             )
+            return nil
         }
+        #else
+        return nil
         #endif
-
-        let localURL = try await MediaCacheService.shared.localPlayableURL(
-            remote: remote,
-            path: path,
-            sizeHint: sizeHint,
-            policy: .reuseIfCached
-        )
-        return StreamingSession(id: UUID().uuidString, url: localURL, isLiveStream: false)
     }
 
     public func stop(_ session: StreamingSession) async {
