@@ -34,6 +34,8 @@ Pods/
 fastlane/report.xml
 fastlane/Preview.html
 fastlane/screenshots/**/*.png
+fastlane/screenshots/**/*.jpg
+fastlane/screenshots/**/*.jpeg
 fastlane/test_output
 
 # --- Rclone build artifacts ---------------------------------------------
@@ -54,3 +56,8 @@ Frameworks/RcloneKit.xcframework/
 .smoke-test-cache
 
 RcloneFileProviderUI/RcloneKit.xcframework/
+
+# App Store Connect API key (secret, never commit)
+fastlane/.appstore-key.p8
+fastlane/*.p8
+*.p8
