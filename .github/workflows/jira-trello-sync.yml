@@ -1,0 +1,46 @@
+name: Jira → Trello sync
+
+# Synchronise les tickets Jira (source de vérité) vers un board Trello.
+# Tous les credentials sont des GitHub Secrets — rien en clair dans le dépôt.
+# Désactivé tant que les secrets ne sont pas configurés (le job sort en no-op).
+
+on:
+  schedule:
+    - cron: "17,47 * * * *"   # toutes les 30 min (minutes off-pic)
+  workflow_dispatch: {}        # déclenchement manuel depuis l'onglet Actions
+
+concurrency:
+  group: jira-trello-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Guard — skip if not configured
+        id: guard
+        env:
+          JIRA_SITE: ${{ secrets.JIRA_SITE }}
+        run: |
+          if [ -z "$JIRA_SITE" ]; then
+            echo "JIRA_SITE secret absent — sync non configurée, on saute."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Run Jira → Trello sync
+        if: steps.guard.outputs.configured == 'true'
+        env:
+          JIRA_SITE: ${{ secrets.JIRA_SITE }}
+          JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+          JIRA_TOKEN: ${{ secrets.JIRA_TOKEN }}
+          JIRA_PROJECT: ${{ secrets.JIRA_PROJECT }}
+          JIRA_JQL: ${{ secrets.JIRA_JQL }}
+          TRELLO_KEY: ${{ secrets.TRELLO_KEY }}
+          TRELLO_TOKEN: ${{ secrets.TRELLO_TOKEN }}
+          TRELLO_BOARD: ${{ secrets.TRELLO_BOARD }}
+        run: python3 scripts/jira-trello-sync/sync.py
