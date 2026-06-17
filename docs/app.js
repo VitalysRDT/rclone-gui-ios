@@ -3623,13 +3623,17 @@ const ROADMAP = [{
     en: 'Short term'
   },
   tag: {
-    fr: 'EN PRÉPARATION',
-    en: 'IN PROGRESS'
+    fr: 'Juil.–sept. 2026',
+    en: 'Jul–Sep 2026'
   },
   items: [{
     n: {
       fr: 'Transferts Pro',
       en: 'Pro Transfers'
+    },
+    when: {
+      fr: 'Juil. 2026',
+      en: 'Jul 2026'
     },
     d: {
       fr: 'File d\'attente, priorités, reprise robuste, limites Wi-Fi/cellulaire, logs exportables.',
@@ -3640,6 +3644,10 @@ const ROADMAP = [{
       fr: 'Flows',
       en: 'Flows'
     },
+    when: {
+      fr: 'Juil. 2026',
+      en: 'Jul 2026'
+    },
     d: {
       fr: 'Automatisations 100 % locales (Raccourcis + App Intents) et Live Activity « santé du backup ».',
       en: '100% local automations (Shortcuts + App Intents) and a "backup health" Live Activity.'
@@ -3648,6 +3656,10 @@ const ROADMAP = [{
     n: {
       fr: 'Ghost Vault',
       en: 'Ghost Vault'
+    },
+    when: {
+      fr: 'Août 2026',
+      en: 'Aug 2026'
     },
     d: {
       fr: 'Sauvegarde chiffrée de toute ta config dans ton propre remote, scellée par Face ID. Sans compte.',
@@ -3658,6 +3670,10 @@ const ROADMAP = [{
       fr: 'Handoff P2P',
       en: 'P2P Handoff'
     },
+    when: {
+      fr: 'Août 2026',
+      en: 'Aug 2026'
+    },
     d: {
       fr: 'Transférer une config chiffrée entre tes appareils via QR / AirDrop, sans serveur.',
       en: 'Move an encrypted config between your devices via QR / AirDrop, with no server.'
@@ -3666,6 +3682,10 @@ const ROADMAP = [{
     n: {
       fr: 'Glass Engine',
       en: 'Glass Engine'
+    },
+    when: {
+      fr: 'Sept. 2026',
+      en: 'Sep 2026'
     },
     d: {
       fr: 'Moniteur « 0 appel maison » + build reproductible : prouver le privacy, pas le promettre.',
@@ -3679,13 +3699,17 @@ const ROADMAP = [{
     en: 'Mid term'
   },
   tag: {
-    fr: 'PRÉVU',
-    en: 'PLANNED'
+    fr: 'Oct.–déc. 2026',
+    en: 'Oct–Dec 2026'
   },
   items: [{
     n: {
       fr: 'Remote Lens',
       en: 'Remote Lens'
+    },
+    when: {
+      fr: 'Oct. 2026',
+      en: 'Oct 2026'
     },
     d: {
       fr: 'Aperçus (vignettes, EXIF, 1re page PDF) par range requests, sans tout télécharger ni déchiffrer.',
@@ -3693,17 +3717,12 @@ const ROADMAP = [{
     }
   }, {
     n: {
-      fr: 'Recherche sémantique on-device',
-      en: 'On-device semantic search'
-    },
-    d: {
-      fr: 'Médiathèque locale chiffrée + recherche en langage naturel (Apple Intelligence), jamais côté serveur.',
-      en: 'Local encrypted media library + natural-language search (Apple Intelligence), never server-side.'
-    }
-  }, {
-    n: {
       fr: 'Sealed Share',
       en: 'Sealed Share'
+    },
+    when: {
+      fr: 'Oct. 2026',
+      en: 'Oct 2026'
     },
     d: {
       fr: 'Partage hors-bande : lien backend natif + capsule-clé via AirDrop/QR, déchiffrement on-device.',
@@ -3711,8 +3730,25 @@ const ROADMAP = [{
     }
   }, {
     n: {
+      fr: 'Recherche sémantique on-device',
+      en: 'On-device semantic search'
+    },
+    when: {
+      fr: 'Nov. 2026',
+      en: 'Nov 2026'
+    },
+    d: {
+      fr: 'Médiathèque locale chiffrée + recherche en langage naturel (Apple Intelligence), jamais côté serveur.',
+      en: 'Local encrypted media library + natural-language search (Apple Intelligence), never server-side.'
+    }
+  }, {
+    n: {
       fr: 'Règles de sync',
       en: 'Sync rules'
+    },
+    when: {
+      fr: 'Nov. 2026',
+      en: 'Nov 2026'
     },
     d: {
       fr: 'Règles locales par type/dossier + « toujours disponible hors-ligne » depuis Fichiers.',
@@ -3722,6 +3758,10 @@ const ROADMAP = [{
     n: {
       fr: 'Mode Voyage',
       en: 'Travel Mode'
+    },
+    when: {
+      fr: 'Déc. 2026',
+      en: 'Dec 2026'
     },
     d: {
       fr: 'Coffre éphémère (déchiffrement en RAM), auto-démontage et Face ID par remote.',
@@ -3735,13 +3775,17 @@ const ROADMAP = [{
     en: 'Long term'
   },
   tag: {
-    fr: 'VISION',
-    en: 'VISION'
+    fr: '2027',
+    en: '2027'
   },
   items: [{
     n: {
       fr: 'ChronoDrive',
       en: 'ChronoDrive'
+    },
+    when: {
+      fr: 'T1 2027',
+      en: 'Q1 2027'
     },
     d: {
       fr: 'N\'importe quel backend comme destination de sauvegarde versionnée façon Time Machine (macOS), chiffrée.',
@@ -3752,6 +3796,10 @@ const ROADMAP = [{
       fr: 'Ghost Sync',
       en: 'Ghost Sync'
     },
+    when: {
+      fr: 'T1 2027',
+      en: 'Q1 2027'
+    },
     d: {
       fr: 'Mesh P2P : réconciliation de deltas chiffrés entre tes appareils en réseau local, offline-first.',
       en: 'P2P mesh: encrypted delta reconciliation between your devices over the local network, offline-first.'
@@ -3761,27 +3809,39 @@ const ROADMAP = [{
       fr: 'Quantum Vault',
       en: 'Quantum Vault'
     },
+    when: {
+      fr: 'T2 2027',
+      en: 'Q2 2027'
+    },
     d: {
       fr: 'Chiffrement post-quantique hybride (Kyber + AES) pour des archives « 2035-proof ».',
       en: 'Hybrid post-quantum encryption (Kyber + AES) for "2035-proof" archives.'
     }
   }, {
     n: {
-      fr: 'CipherSpace',
-      en: 'CipherSpace'
-    },
-    d: {
-      fr: 'Explorer ses archives chiffrées dans l\'espace, sur visionOS.',
-      en: 'Explore your encrypted archives in space, on visionOS.'
-    }
-  }, {
-    n: {
       fr: 'Héritage numérique',
       en: 'Digital legacy'
+    },
+    when: {
+      fr: 'T2 2027',
+      en: 'Q2 2027'
     },
     d: {
       fr: 'Récupération sociale (partage de secret de Shamir) entre contacts de confiance + preuve de vie.',
       en: 'Social recovery (Shamir secret sharing) among trusted contacts + proof of life.'
+    }
+  }, {
+    n: {
+      fr: 'CipherSpace',
+      en: 'CipherSpace'
+    },
+    when: {
+      fr: 'T3 2027',
+      en: 'Q3 2027'
+    },
+    d: {
+      fr: 'Explorer ses archives chiffrées dans l\'espace, sur visionOS.',
+      en: 'Explore your encrypted archives in space, on visionOS.'
     }
   }]
 }];
@@ -3815,14 +3875,18 @@ const Roadmap = ({
   }, col.items.map(it => /*#__PURE__*/React.createElement("div", {
     key: it.n.en,
     className: "rm-item"
-  }, /*#__PURE__*/React.createElement("h5", null, it.n[lang] || it.n.en), /*#__PURE__*/React.createElement("p", null, it.d[lang] || it.d.en))))))), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "rm-item-head"
+  }, /*#__PURE__*/React.createElement("h5", null, it.n[lang] || it.n.en), /*#__PURE__*/React.createElement("span", {
+    className: "rm-when"
+  }, it.when && (it.when[lang] || it.when.en) || '')), /*#__PURE__*/React.createElement("p", null, it.d[lang] || it.d.en))))))), /*#__PURE__*/React.createElement("div", {
     className: "rm-bet"
   }, /*#__PURE__*/React.createElement(Icon, {
     name: "bolt.fill",
     size: 16
   }), /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, t('Pari produit', 'Product bet'), " : "), t('« Capability, pas compte » — le partage et le multi-appareils deviennent des objets cryptographiques que tu possèdes et révoques, jamais une ligne dans une base (puisqu\'il n\'y en a pas).', '"Capability, not account" — sharing and multi-device become cryptographic objects you own and revoke, never a row in a database (because there isn\'t one).'))), /*#__PURE__*/React.createElement("p", {
     className: "rm-note"
-  }, t('Roadmap indicative, sans engagement de date — priorisée avec vos retours. Open source : suivez ou contribuez sur GitHub.', 'Indicative roadmap, no committed dates — prioritized with your feedback. Open source: follow or contribute on GitHub.'))));
+  }, t('Dates cibles, susceptibles d\'évoluer — priorisées avec vos retours. Open source : suivez l\'avancement sur GitHub.', 'Target dates, subject to change — prioritized with your feedback. Open source: follow progress on GitHub.'))));
 };
 const FAQ = () => {
   const t = useT();
