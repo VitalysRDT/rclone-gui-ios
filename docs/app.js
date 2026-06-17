@@ -2988,7 +2988,7 @@ const Hero = () => {
   }, /*#__PURE__*/React.createElement(Icon, {
     name: "bolt.fill",
     size: 14
-  }), t('v1.5 · ESSAI GRATUIT', 'v1.5 · FREE TRIAL'))), /*#__PURE__*/React.createElement("h1", {
+  }), t('v1.6 · ESSAI GRATUIT', 'v1.6 · FREE TRIAL'))), /*#__PURE__*/React.createElement("h1", {
     className: "title"
   }, ML(t('Tous vos clouds.\nChiffrés.', 'Every cloud.\nEncrypted.'))), /*#__PURE__*/React.createElement("p", {
     className: "sub"
@@ -3459,8 +3459,24 @@ const FreeMonth = () => {
   }, s.n), /*#__PURE__*/React.createElement("h5", null, s.h), /*#__PURE__*/React.createElement("p", null, s.p)))))));
 };
 const VERSIONS = [{
-  v: '1.5',
+  v: '1.6',
   current: true,
+  date: {
+    fr: 'Juin 2026',
+    en: 'June 2026'
+  },
+  items: [{
+    fr: 'Connexion par fichier : quand un backend exige un fichier pour s\'authentifier (clé privée SSH, known_hosts, JSON de compte de service Google, certificat TLS…), importez-le directement depuis Fichiers — fini les chemins impossibles à saisir.',
+    en: 'Connect with a file: when a backend needs a file to sign in (SSH private key, known_hosts, Google service-account JSON, TLS certificate…), import it straight from Files — no more impossible-to-type paths.'
+  }, {
+    fr: 'Les identifiants importés sont copiés en sécurité sur l\'appareil et ne sont jamais transmis ailleurs.',
+    en: 'Imported credentials are copied securely on-device and never sent anywhere else.'
+  }, {
+    fr: 'Améliorations de stabilité et de performance.',
+    en: 'Stability and performance improvements.'
+  }]
+}, {
+  v: '1.5',
   date: {
     fr: 'Juin 2026',
     en: 'June 2026'
@@ -3608,6 +3624,9 @@ const FAQ = () => {
   }, {
     q: t('Quels formats vidéo puis-je lire ? (v1.5)', 'Which video formats can I play? (v1.5)'),
     a: t('Le lecteur intégré est multi-format : MP4, MOV, M4V, mais aussi MKV, AVI, WebM, TS et plus, grâce à un moteur hybride. Sous-titres (intégrés et fichiers externes) et pistes audio inclus. Vous pouvez aussi ouvrir la vidéo dans une app externe (Infuse, VLC).', 'The built-in player is multi-format: MP4, MOV, M4V, plus MKV, AVI, WebM, TS and more, thanks to a hybrid engine. Subtitles (embedded and sidecar files) and audio tracks included. You can also open videos in an external app (Infuse, VLC).')
+  }, {
+    q: t('Un backend me demande un fichier (clé SSH, certificat…) : comment faire ? (v1.6)', 'A backend asks for a file (SSH key, certificate…): how do I do that? (v1.6)'),
+    a: t('Depuis la v1.6, quand un backend exige un fichier pour se connecter (clé privée SSH, known_hosts, JSON de compte de service Google, certificat TLS, key.pem…), un bouton « Importer un fichier » ouvre l\'app Fichiers : sélectionnez le fichier, c\'est tout. Il est copié en sécurité dans l\'app (jamais transmis ailleurs) ; impossible de saisir un chemin de fichier à la main sur iOS.', 'Since v1.6, when a backend needs a file to connect (SSH private key, known_hosts, Google service-account JSON, TLS certificate, key.pem…), an "Import a file" button opens the Files app: pick the file, done. It is copied securely into the app (never sent anywhere else); typing a filesystem path by hand isn\'t possible on iOS.')
   }, {
     q: t('Mes données sont-elles privées et chiffrées ?', 'Is my data private and encrypted?'),
     a: t('Oui. Le chiffrement rclone « crypt » est natif, avec déchiffrement des noms à la volée ; vos clés ne quittent jamais l\'appareil. Aucun tracker, aucun serveur backend. Vous pouvez aussi exclure les données de l\'app des sauvegardes iCloud (v1.5).', 'Yes. rclone "crypt" encryption is native, with on-the-fly filename decryption; your keys never leave the device. No trackers, no backend server. You can also exclude the app\'s data from iCloud backups (v1.5).')

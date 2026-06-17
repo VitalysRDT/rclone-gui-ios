@@ -141,6 +141,16 @@ public enum AppGroup {
         containerURL.appending(path: "streaming-urls", directoryHint: .isDirectory)
     }
 
+    /// Répertoire des fichiers d'identifiants importés (clés SSH PEM,
+    /// service-account JSON, certificats, known_hosts…) que certains backends
+    /// rclone exigent sous forme de chemin de fichier. Stocké dans l'App Group
+    /// pour être lisible par le moteur rclone in-process ET par l'extension
+    /// FileProvider pendant les transferts. La protection fichier est appliquée
+    /// à l'écriture (cf. CredentialFileStore).
+    public nonisolated static var credentialsURL: URL {
+        containerURL.appending(path: "credentials", directoryHint: .isDirectory)
+    }
+
     public nonisolated static func streamingURLFile(remote: String, path: String) -> URL {
         let key = "\(remote):\(path)"
         let safe = key.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? UUID().uuidString
@@ -178,6 +188,7 @@ public enum AppGroup {
         try fm.createDirectory(at: runtimeWorkingDirectoryURL, withIntermediateDirectories: true)
         try fm.createDirectory(at: pendingFetchesDir, withIntermediateDirectories: true)
         try fm.createDirectory(at: streamingURLsDir, withIntermediateDirectories: true)
+        try fm.createDirectory(at: credentialsURL, withIntermediateDirectories: true)
         try fm.createDirectory(at: vaultDir, withIntermediateDirectories: true)
         try fm.createDirectory(
             at: fileProviderDiagnosticsURL.deletingLastPathComponent(),
