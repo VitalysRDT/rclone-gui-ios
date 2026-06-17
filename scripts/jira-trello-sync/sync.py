@@ -153,7 +153,9 @@ def main():
             if line.startswith("[jira:") and line.endswith("]"):
                 by_key[line[6:-1]] = c
 
-    LABEL_COLORS = {"Story": "green", "Bug": "red", "Task": "blue", "Epic": "purple",
+    # Couleurs Trello valides uniquement (pas de "light-gray"). Défaut = sky.
+    LABEL_COLORS = {"Story": "green", "Bug": "red", "Task": "blue", "Tâche": "blue",
+                    "Epic": "purple", "Fonctionnalité": "lime", "Feature": "lime",
                     "Sous-tâche": "sky", "Subtask": "sky"}
 
     def ensure_list(name):
@@ -166,8 +168,10 @@ def main():
         if not name:
             return None
         if name not in labels:
-            _, l = trello("POST", f"/boards/{bid}/labels", name=name,
-                          color=LABEL_COLORS.get(name, "light-gray"))
+            code, l = trello("POST", f"/boards/{bid}/labels", name=name,
+                             color=LABEL_COLORS.get(name, "sky"))
+            if code != 200 or not isinstance(l, dict) or "id" not in l:
+                return None  # création échouée → on continue sans étiquette
             labels[name] = l["id"]
         return labels[name]
 
