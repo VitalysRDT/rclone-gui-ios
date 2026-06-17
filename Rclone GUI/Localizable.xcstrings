@@ -1,6 +1,170 @@
 {
   "sourceLanguage" : "fr",
   "strings" : {
+    "Effacer le cache au verrouillage" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cache beim Sperren löschen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wipe cache on lock"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Borrar la caché al bloquear"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Effacer le cache au verrouillage"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancella la cache al blocco"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ロック時にキャッシュを消去"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "잠금 시 캐시 지우기"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cache wissen bij vergrendelen"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wyczyść pamięć podręczną przy blokadzie"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apagar o cache ao bloquear"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Стирать кэш при блокировке"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "锁定时清除缓存"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "鎖定時清除快取"
+          }
+        }
+      }
+    },
+    "Au-delà de cette durée d'inactivité, l'app redemande Face ID / Touch ID. Avec « Effacer le cache au verrouillage », le cache média local (fichiers déchiffrés pour la lecture) est purgé à ce moment-là — rien en clair ne survit à l'inactivité." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nach dieser Inaktivitätsdauer fragt die App erneut nach Face ID / Touch ID. Mit „Cache beim Sperren löschen“ wird der lokale Medien-Cache (für die Wiedergabe entschlüsselte Dateien) dann geleert – kein Klartext überdauert die Inaktivität."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "After this period of inactivity, the app asks for Face ID / Touch ID again. With “Wipe cache on lock”, the local media cache (files decrypted for playback) is purged at that point — no cleartext survives the inactivity."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tras este periodo de inactividad, la app vuelve a pedir Face ID / Touch ID. Con «Borrar la caché al bloquear», la caché de medios local (archivos descifrados para la reproducción) se purga en ese momento: nada queda en claro tras la inactividad."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Au-delà de cette durée d'inactivité, l'app redemande Face ID / Touch ID. Avec « Effacer le cache au verrouillage », le cache média local (fichiers déchiffrés pour la lecture) est purgé à ce moment-là — rien en clair ne survit à l'inactivité."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dopo questo periodo di inattività, l'app richiede di nuovo Face ID / Touch ID. Con «Cancella la cache al blocco», la cache multimediale locale (file decifrati per la riproduzione) viene svuotata in quel momento — nulla in chiaro sopravvive all'inattività."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "この非アクティブ時間を過ぎると、アプリは再び Face ID / Touch ID を要求します。「ロック時にキャッシュを消去」が有効な場合、ローカルのメディアキャッシュ（再生用に復号されたファイル）もその時に削除され、平文は非アクティブ後に残りません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 비활성 시간이 지나면 앱이 Face ID / Touch ID를 다시 요청합니다. ‘잠금 시 캐시 지우기’가 켜져 있으면 로컬 미디어 캐시(재생을 위해 복호화된 파일)도 이때 삭제되어 비활성 후 평문이 남지 않습니다."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Na deze periode van inactiviteit vraagt de app opnieuw om Face ID / Touch ID. Met “Cache wissen bij vergrendelen” wordt de lokale mediacache (bestanden die voor weergave zijn ontsleuteld) op dat moment gewist — er blijft geen leesbare data achter na inactiviteit."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Po tym czasie bezczynności aplikacja ponownie prosi o Face ID / Touch ID. Przy włączonej opcji „Wyczyść pamięć podręczną przy blokadzie” lokalna pamięć multimediów (pliki odszyfrowane do odtwarzania) jest wtedy czyszczona — żadne dane jawne nie przetrwają bezczynności."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Após esse período de inatividade, o app pede Face ID / Touch ID novamente. Com “Apagar o cache ao bloquear”, o cache de mídia local (arquivos descriptografados para reprodução) é apagado nesse momento — nada em texto claro sobrevive à inatividade."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "По истечении этого времени бездействия приложение снова запрашивает Face ID / Touch ID. Если включено «Стирать кэш при блокировке», локальный медиа-кэш (файлы, расшифрованные для воспроизведения) очищается в этот момент — открытые данные не переживают бездействие."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "超过此闲置时长后，应用会再次要求 Face ID / Touch ID。启用“锁定时清除缓存”后，本地媒体缓存（为播放而解密的文件）也会在此时清除——闲置后不会残留明文。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "超過此閒置時長後，App 會再次要求 Face ID / Touch ID。啟用「鎖定時清除快取」後，本機媒體快取（為播放而解密的檔案）也會在此時清除——閒置後不會殘留明文。"
+          }
+        }
+      }
+    },
     "Ce qui arrive dans Rclone GUI. Tout reste privacy-first, open source et sans serveur." : {
       "localizations" : {
         "de" : {
