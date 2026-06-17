@@ -128,20 +128,20 @@ struct EntryActionsMenu: View {
 
     @MainActor
     private func download() async {
-        let dst = Self.downloadDestination(remote: remote, entry: entry)
+        let dir = Self.downloadParentDirectory(remote: remote)
         do {
-            try Self.ensureParentExists(dst)
-            // Phase D v1 : single-file download via copyfile. Folder recursive
-            // download will be added in Phase E2 via sync/copy + manifest walking.
+            // Route via la surcharge dossier-aware : un dossier passe par
+            // sync/copy (copyDirAsync), un fichier par copyfile. Le récursif
+            // est ainsi géré nativement (fini la limitation mono-fichier).
             try await TransferQueue.shared.enqueueDownload(
                 remote: remote,
-                path: entry.pathInRemote,
-                to: dst
+                entry: entry,
+                to: dir
             )
             await LogService.shared.log(
                 .info,
                 category: "transfer",
-                message: "Téléchargement enqueued : \(remote):\(entry.pathInRemote) → \(dst.path)"
+                message: "Téléchargement enqueued : \(remote):\(entry.pathInRemote)\(entry.isDirectory ? " (dossier)" : "")"
             )
         } catch {
             // The queue persists Transfer.lastError when a job fails mid-run,
@@ -160,13 +160,12 @@ struct EntryActionsMenu: View {
     /// a media file. Triggers the same enqueue flow as the menu button.
     @MainActor
     static func tapDownload(remote: String, entry: RemoteEntryDTO) async {
-        let dst = downloadDestination(remote: remote, entry: entry)
+        let dir = downloadParentDirectory(remote: remote)
         do {
-            try ensureParentExists(dst)
             try await TransferQueue.shared.enqueueDownload(
                 remote: remote,
-                path: entry.pathInRemote,
-                to: dst
+                entry: entry,
+                to: dir
             )
             await LogService.shared.log(
                 .info,
@@ -184,19 +183,16 @@ struct EntryActionsMenu: View {
 
     // MARK: - Helpers
 
-    private static func downloadDestination(remote: String, entry: RemoteEntryDTO) -> URL {
+    /// Dossier local parent des téléchargements pour ce remote
+    /// (`Documents/Downloads/<remote>/`). La surcharge dossier-aware de
+    /// `enqueueDownload(entry:to:)` y crée le fichier ou le sous-dossier.
+    private static func downloadParentDirectory(remote: String) -> URL {
         let docs = FileManager.default
             .urls(for: .documentDirectory, in: .userDomainMask)
             .first ?? URL(fileURLWithPath: NSTemporaryDirectory())
         return docs
             .appending(path: "Downloads", directoryHint: .isDirectory)
             .appending(path: remote, directoryHint: .isDirectory)
-            .appending(path: entry.name)
-    }
-
-    private static func ensureParentExists(_ url: URL) throws {
-        let parent = url.deletingLastPathComponent()
-        try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
     }
 
     // Détection centralisée dans MediaFormat (source unique de vérité, voir
