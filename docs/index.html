@@ -316,6 +316,39 @@
   .rm-bet svg{flex:0 0 auto;margin-top:2px}
   .rm-note{text-align:center;color:var(--muted);font-size:13px;font-weight:500;margin:18px auto 0;max-width:620px}
   @media(max-width:760px){.roadmap{grid-template-columns:1fr}}
+  /* live Trello board */
+  .tb{margin:30px auto 0;max-width:1040px}
+  .tb-head{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  .tb-live{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:800;
+    letter-spacing:.3px;color:var(--accent-deep);text-transform:uppercase}
+  .tb-dot{width:8px;height:8px;border-radius:50%;background:#34C759;box-shadow:0 0 0 0 rgba(52,199,89,.6);
+    animation:tbpulse 2s infinite}
+  @keyframes tbpulse{0%{box-shadow:0 0 0 0 rgba(52,199,89,.5)}70%{box-shadow:0 0 0 7px rgba(52,199,89,0)}100%{box-shadow:0 0 0 0 rgba(52,199,89,0)}}
+  .tb-sub{margin:6px 0 0;font-size:13.5px;color:var(--muted);font-weight:500;max-width:560px}
+  .tb-open{font-size:14px;padding:11px 18px;flex:0 0 auto}
+  .tb-msg{margin:16px 0 0;color:var(--muted);font-size:13.5px;font-weight:500}
+  .tb-msg a{color:var(--accent-deep);font-weight:700}
+  .tb-board{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:18px;align-items:start}
+  .tb-col{background:#F3F1FA;border:1px solid var(--line);border-radius:16px;padding:14px 12px}
+  .tb-col-head{display:flex;align-items:center;justify-content:space-between;gap:8px;
+    font-size:13px;font-weight:800;letter-spacing:-.1px;color:var(--ink);padding:2px 4px 12px}
+  .tb-count{flex:0 0 auto;font-size:11px;font-weight:800;color:var(--accent-deep);
+    background:var(--accent-soft);padding:2px 8px;border-radius:999px}
+  .tb-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:11px 12px;
+    margin-bottom:9px;box-shadow:0 2px 8px rgba(11,8,32,.04)}
+  .tb-card:last-child{margin-bottom:0}
+  .tb-labels{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:7px}
+  .tb-lab{font-size:10px;font-weight:800;letter-spacing:.2px;color:#fff;padding:2px 8px;
+    border-radius:999px;line-height:1.5}
+  .tb-name{font-size:14px;font-weight:700;letter-spacing:-.2px;color:var(--ink);line-height:1.35}
+  .tb-due{display:inline-flex;align-items:center;gap:4px;margin-top:7px;font-size:11.5px;
+    font-weight:700;color:var(--muted)}
+  @media(max-width:760px){
+    .tb-board{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:82%;
+      overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;
+      margin-left:-20px;margin-right:-20px;padding:0 20px 6px}
+    .tb-col{scroll-snap-align:start}
+  }
   /* new badge on gallery panels */
   .panel .newtag{position:absolute;top:16px;right:16px;background:var(--accent);color:#fff;font-size:10px;
     font-weight:800;letter-spacing:.5px;padding:4px 9px;border-radius:999px;z-index:3;

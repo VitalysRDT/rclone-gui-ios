@@ -379,6 +379,26 @@ const Icon = ({
       return /*#__PURE__*/React.createElement("svg", common, /*#__PURE__*/React.createElement("path", {
         d: "M3 12a9 9 0 0 1 15.4-6.4L21 8M21 4v4h-4M21 12a9 9 0 0 1-15.4 6.4L3 16M3 20v-4h4"
       }));
+    case 'columns':
+      return /*#__PURE__*/React.createElement("svg", common, /*#__PURE__*/React.createElement("rect", {
+        x: "3.5",
+        y: "4.5",
+        width: "5",
+        height: "15",
+        rx: "1.4"
+      }), /*#__PURE__*/React.createElement("rect", {
+        x: "9.5",
+        y: "4.5",
+        width: "5",
+        height: "11",
+        rx: "1.4"
+      }), /*#__PURE__*/React.createElement("rect", {
+        x: "15.5",
+        y: "4.5",
+        width: "5",
+        height: "8",
+        rx: "1.4"
+      }));
     default:
       return /*#__PURE__*/React.createElement("svg", common, /*#__PURE__*/React.createElement("rect", {
         x: "4",
@@ -3845,6 +3865,107 @@ const ROADMAP = [{
     }
   }]
 }];
+const TRELLO_BOARD_ID = 'QjhP4sDK';
+const TRELLO_BOARD_URL = 'https://trello.com/b/QjhP4sDK';
+const TRELLO_LABEL_HEX = {
+  green: '#4bce97',
+  yellow: '#e2b203',
+  orange: '#fea362',
+  red: '#f87168',
+  purple: '#9f8fef',
+  blue: '#579dff',
+  sky: '#6cc3e0',
+  lime: '#94c748',
+  pink: '#e774bb',
+  black: '#8c9bab'
+};
+const TrelloBoard = ({
+  lang
+}) => {
+  const t = useT();
+  const [cols, setCols] = React.useState(null);
+  const [err, setErr] = React.useState(false);
+  React.useEffect(() => {
+    const base = 'https://api.trello.com/1/boards/' + TRELLO_BOARD_ID;
+    Promise.all([fetch(base + '/lists?fields=name').then(r => r.json()), fetch(base + '/cards?fields=name,due,idList,labels').then(r => r.json())]).then(([lists, cards]) => {
+      if (!Array.isArray(lists) || !Array.isArray(cards)) throw new Error('bad payload');
+      const byList = {};
+      cards.forEach(c => {
+        (byList[c.idList] = byList[c.idList] || []).push(c);
+      });
+      setCols(lists.map(l => ({
+        id: l.id,
+        name: l.name,
+        cards: byList[l.id] || []
+      })));
+    }).catch(() => setErr(true));
+  }, []);
+  const fmtDue = iso => {
+    if (!iso) return null;
+    try {
+      return new Date(iso).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', {
+        month: 'short',
+        year: 'numeric'
+      });
+    } catch (e) {
+      return null;
+    }
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    className: "tb"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "tb-head"
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("span", {
+    className: "tb-live"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "tb-dot"
+  }), t('Suivi en direct', 'Live tracking')), /*#__PURE__*/React.createElement("p", {
+    className: "tb-sub"
+  }, t('Notre board public, synchronisé automatiquement avec notre suivi interne (Jira ↔ Trello).', 'Our public board, automatically kept in sync with our internal tracker (Jira ↔ Trello).'))), /*#__PURE__*/React.createElement("a", {
+    className: "btn btn-violet tb-open",
+    href: TRELLO_BOARD_URL,
+    target: "_blank",
+    rel: "noopener"
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "columns",
+    size: 16
+  }), t('Ouvrir sur Trello', 'Open in Trello'))), err && /*#__PURE__*/React.createElement("p", {
+    className: "tb-msg"
+  }, t('Board momentanément indisponible — ', 'Board temporarily unavailable — '), /*#__PURE__*/React.createElement("a", {
+    href: TRELLO_BOARD_URL,
+    target: "_blank",
+    rel: "noopener"
+  }, t('ouvrir sur Trello', 'open in Trello')), "."), !err && !cols && /*#__PURE__*/React.createElement("p", {
+    className: "tb-msg"
+  }, t('Chargement du board…', 'Loading board…')), !err && cols && /*#__PURE__*/React.createElement("div", {
+    className: "tb-board"
+  }, cols.map(col => /*#__PURE__*/React.createElement("div", {
+    className: "tb-col",
+    key: col.id
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "tb-col-head"
+  }, /*#__PURE__*/React.createElement("span", null, col.name), /*#__PURE__*/React.createElement("span", {
+    className: "tb-count"
+  }, col.cards.length)), col.cards.map(c => /*#__PURE__*/React.createElement("div", {
+    className: "tb-card",
+    key: c.id
+  }, c.labels && c.labels.length > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "tb-labels"
+  }, c.labels.map(l => /*#__PURE__*/React.createElement("span", {
+    className: "tb-lab",
+    key: l.id,
+    style: {
+      background: TRELLO_LABEL_HEX[l.color] || '#8c9bab'
+    }
+  }, l.name || ''))), /*#__PURE__*/React.createElement("div", {
+    className: "tb-name"
+  }, c.name), c.due && /*#__PURE__*/React.createElement("div", {
+    className: "tb-due"
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "clock",
+    size: 12
+  }), fmtDue(c.due))))))));
+};
 const Roadmap = ({
   lang
 }) => {
@@ -3884,7 +4005,9 @@ const Roadmap = ({
   }, /*#__PURE__*/React.createElement(Icon, {
     name: "bolt.fill",
     size: 16
-  }), /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, t('Pari produit', 'Product bet'), " : "), t('« Capability, pas compte » — le partage et le multi-appareils deviennent des objets cryptographiques que tu possèdes et révoques, jamais une ligne dans une base (puisqu\'il n\'y en a pas).', '"Capability, not account" — sharing and multi-device become cryptographic objects you own and revoke, never a row in a database (because there isn\'t one).'))), /*#__PURE__*/React.createElement("p", {
+  }), /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, t('Pari produit', 'Product bet'), " : "), t('« Capability, pas compte » — le partage et le multi-appareils deviennent des objets cryptographiques que tu possèdes et révoques, jamais une ligne dans une base (puisqu\'il n\'y en a pas).', '"Capability, not account" — sharing and multi-device become cryptographic objects you own and revoke, never a row in a database (because there isn\'t one).'))), /*#__PURE__*/React.createElement(TrelloBoard, {
+    lang: lang
+  }), /*#__PURE__*/React.createElement("p", {
     className: "rm-note"
   }, t('Dates cibles, susceptibles d\'évoluer — priorisées avec vos retours. Open source : suivez l\'avancement sur GitHub.', 'Target dates, subject to change — prioritized with your feedback. Open source: follow progress on GitHub.'))));
 };
