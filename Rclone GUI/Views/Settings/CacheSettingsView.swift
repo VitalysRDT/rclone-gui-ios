@@ -36,7 +36,7 @@ struct CacheSettingsView: View {
                     }
                 }
             } footer: {
-                Text("Quand le cache atteint cette taille, les fichiers les plus anciens sont effacés en premier (LRU — Phase E2).")
+                Text("Quand le cache dépasse cette taille, les fichiers les moins récemment lus sont effacés automatiquement en premier (LRU).")
             }
 
             Section {
@@ -62,7 +62,25 @@ struct CacheSettingsView: View {
         #if os(iOS)
         .rgInlineNavTitle()
         #endif
-        .task { await refreshSize() }
+        .task {
+            // Synchronise la limite LRU du service avec le réglage de l'UI
+            // (sources de vérité distinctes) puis affiche la taille courante.
+            await MediaCacheService.shared.setMaxSizeBytes(bytes(forGB: maxSizeGB))
+            await refreshSize()
+        }
+        .onChange(of: maxSizeGB) { _, newValue in
+            // L'utilisateur ajuste la limite : on l'applique au service et on
+            // évince immédiatement si le cache dépasse déjà la nouvelle taille.
+            Task {
+                await MediaCacheService.shared.setMaxSizeBytes(bytes(forGB: newValue))
+                try? await MediaCacheService.shared.evictIfNeeded()
+                await refreshSize()
+            }
+        }
+    }
+
+    private func bytes(forGB gb: Double) -> Int64 {
+        Int64(gb) * 1_073_741_824
     }
 
     private func refreshSize() async {
