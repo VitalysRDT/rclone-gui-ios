@@ -41,6 +41,9 @@ public struct LibrcloneEngine: RcloneEngine {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             DispatchQueue.global(qos: .userInitiated).async {
                 RclonebridgeInitialize()
+                // Phase E2 — démarre la capture des logs internes rclone (slog)
+                // pour que Réglages → Logs montre l'activité réelle du moteur.
+                RclonebridgeStartLogCapture()
                 continuation.resume()
             }
         }

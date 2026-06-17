@@ -8,6 +8,9 @@
 //
 
 import Foundation
+#if canImport(RcloneKit)
+import RcloneKit
+#endif
 
 public enum LogLevel: String, Sendable, Codable {
     case info = "INFO"
@@ -108,6 +111,52 @@ public actor LogService {
         }
         print("\(icon) [\(category)] \(message)")
         #endif
+    }
+
+    private static let bridgeDateParser: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime]
+        return f
+    }()
+
+    /// Phase E2 — récupère les lignes de log internes de rclone capturées par
+    /// le bridge Go (slog) et les fond dans le ring sous la catégorie « rclone ».
+    /// Polled par LogsView tant que l'écran est visible. No-op si le moteur réel
+    /// (RcloneKit) n'est pas embarqué.
+    public func ingestBridgeLogs() {
+        #if canImport(RcloneKit)
+        let raw = RclonebridgeDrainLogs()
+        guard let data = raw.data(using: .utf8),
+              let lines = try? JSONDecoder().decode([String].self, from: data),
+              !lines.isEmpty else { return }
+        for line in lines {
+            let parts = line.split(separator: "\t", maxSplits: 2, omittingEmptySubsequences: false)
+            let timestamp = parts.count > 0 ? (Self.bridgeDateParser.date(from: String(parts[0])) ?? .now) : .now
+            let levelStr = parts.count > 1 ? String(parts[1]) : "INFO"
+            let message = parts.count > 2 ? String(parts[2]) : line
+            let level: LogLevel
+            switch levelStr {
+            case "ERROR":  level = .error
+            case "DEBUG":  level = .debug
+            default:       level = .info   // INFO / NOTICE / WARNING
+            }
+            appendEntry(LogEntry(timestamp: timestamp, level: level, category: "rclone", message: message))
+        }
+        #endif
+    }
+
+    /// Append sans miroir console (utilisé pour l'ingestion bridge — rclone a
+    /// déjà écrit ces lignes sur stderr via son handler d'origine).
+    private func appendEntry(_ entry: LogEntry) {
+        if !didReserveCapacity {
+            ring.reserveCapacity(maxEntries)
+            didReserveCapacity = true
+        }
+        ring.append(entry)
+        if ring.count > maxEntries {
+            let overflow = ring.count - maxEntries
+            ring.removeFirst(max(overflow, 100))
+        }
     }
 
     public func entries(filter: LogLevel? = nil, category: String? = nil) -> [LogEntry] {

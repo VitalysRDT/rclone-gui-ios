@@ -115,6 +115,12 @@ struct LogsView: View {
             await reload()
             crashReport = CrashReporter.pendingReportText()
             crashReportURL = CrashReporter.pendingReportFileURL()
+            // Logs live : tant que l'écran est ouvert, on draine périodiquement
+            // les logs internes rclone capturés par le bridge.
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(3))
+                await reload()
+            }
         }
         #if canImport(UIKit)
         .sheet(isPresented: $showCrashReport) {
@@ -236,6 +242,8 @@ struct LogsView: View {
     }
 
     private func reload() async {
+        // Fond les logs internes rclone (capturés par le bridge) avant lecture.
+        await LogService.shared.ingestBridgeLogs()
         let appEntries = await LogService.shared.entries(filter: levelFilter)
         let providerEntries = await MainActor.run {
             FileProviderManager.shared.diagnosticEntries()
