@@ -16,6 +16,7 @@ struct OnboardingView: View {
 
     @State private var step: Step = .welcome
     @State private var showImportPicker = false
+    @State private var showAddRemote = false
 
     enum Step: Hashable {
         case welcome
@@ -35,6 +36,15 @@ struct OnboardingView: View {
             ImportConfigView(onImported: {
                 showImportPicker = false
                 step = .photoSync   // D5 : pivote vers le step PhotoSync au lieu de done
+            })
+        }
+        .sheet(isPresented: $showAddRemote) {
+            // Passeport Crypt (Phase E2) : on lance l'assistant d'ajout complet
+            // — il contient le flux crypt guidé (choix du stockage sous-jacent,
+            // dossier, mot de passe). À la création, on enchaîne sur PhotoSync.
+            AddRemoteWizard(onSaved: {
+                showAddRemote = false
+                step = .photoSync
             })
         }
     }
@@ -118,10 +128,10 @@ struct OnboardingView: View {
                 .buttonStyle(.plain)
 
                 Button {
-                    // Crypt passport flow lives in Phase E2 ; on enchaîne
-                    // directement sur l'écran final. L'essai gratuit 7 jours
+                    // Phase E2 : lance l'assistant d'ajout (flux crypt guidé)
+                    // directement depuis l'onboarding. L'essai gratuit 7 jours
                     // tourne déjà en fond — aucun paywall à ce stade.
-                    step = .done
+                    showAddRemote = true
                 } label: {
                     Text("Créer un Passeport Crypt")
                         .font(.system(size: 17, weight: .medium))
