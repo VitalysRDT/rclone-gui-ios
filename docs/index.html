@@ -289,6 +289,30 @@
   .faq-item[open] summary::after{content:"\2212"}
   .faq-item p{margin:0 0 18px;color:var(--muted);font-size:15px;font-weight:500;line-height:1.55}
   .faq-item p a{color:var(--accent);font-weight:700}
+  /* roadmap */
+  .roadmap{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:38px;align-items:start}
+  .rm-col{background:#fff;border:1px solid var(--line);border-radius:20px;padding:22px 22px 8px;
+    box-shadow:0 8px 26px rgba(11,8,32,.05);border-top:4px solid var(--accent)}
+  .rm-short{border-top-color:#34C759}
+  .rm-mid{border-top-color:#1A73E8}
+  .rm-long{border-top-color:var(--accent)}
+  .rm-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
+  .rm-label{font-size:18px;font-weight:800;letter-spacing:-.3px}
+  .rm-tag{font-size:10px;font-weight:800;letter-spacing:.5px;padding:4px 9px;border-radius:999px;
+    background:var(--accent-soft);color:var(--accent-deep);white-space:nowrap}
+  .rm-short .rm-tag{background:rgba(52,199,89,.16);color:#1f8f4a}
+  .rm-mid .rm-tag{background:rgba(26,115,232,.14);color:#0e5fae}
+  .rm-items{display:flex;flex-direction:column}
+  .rm-item{padding:12px 0;border-bottom:1px solid var(--line)}
+  .rm-item:last-child{border-bottom:none}
+  .rm-item h5{margin:0;font-size:15px;font-weight:700;letter-spacing:-.2px}
+  .rm-item p{margin:4px 0 0;font-size:13.5px;color:var(--muted);font-weight:500;line-height:1.45}
+  .rm-bet{display:flex;gap:12px;align-items:flex-start;margin:26px auto 0;max-width:820px;
+    background:linear-gradient(135deg,var(--accent),var(--accent-deep));color:#fff;border-radius:18px;
+    padding:18px 22px;font-size:15px;line-height:1.5;box-shadow:0 16px 40px rgba(124,58,237,.30)}
+  .rm-bet svg{flex:0 0 auto;margin-top:2px}
+  .rm-note{text-align:center;color:var(--muted);font-size:13px;font-weight:500;margin:18px auto 0;max-width:620px}
+  @media(max-width:760px){.roadmap{grid-template-columns:1fr}}
   /* new badge on gallery panels */
   .panel .newtag{position:absolute;top:16px;right:16px;background:var(--accent);color:#fff;font-size:10px;
     font-weight:800;letter-spacing:.5px;padding:4px 9px;border-radius:999px;z-index:3;

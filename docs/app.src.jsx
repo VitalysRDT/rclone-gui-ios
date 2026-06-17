@@ -700,6 +700,7 @@ const Header = ({ lang, setLang }) => {
       <a className="brand" href="#top"><img src="icon.png" alt="Rclone GUI"/>Rclone GUI</a>
       <div className="nav-sp"/>
       <a className="ghost navlink" href="#versions">{t('Nouveautés','What\'s new')}</a>
+      <a className="ghost navlink" href="#roadmap">Roadmap</a>
       <a className="ghost navlink" href="#faq">FAQ</a>
       <a className="ghost" href={GITHUB_URL} target="_blank" rel="noopener" style={{ marginRight:6 }}>GitHub</a>
       <div className="lang">
@@ -1063,6 +1064,65 @@ const Versions = () => {
   );
 };
 
+const ROADMAP = [
+  { key:'short', label:{ fr:'Court terme', en:'Short term' }, tag:{ fr:'EN PRÉPARATION', en:'IN PROGRESS' }, items:[
+    { n:{ fr:'Transferts Pro', en:'Pro Transfers' }, d:{ fr:'File d\'attente, priorités, reprise robuste, limites Wi-Fi/cellulaire, logs exportables.', en:'Queue, priorities, robust resume, Wi-Fi/cellular limits, exportable logs.' } },
+    { n:{ fr:'Flows', en:'Flows' }, d:{ fr:'Automatisations 100 % locales (Raccourcis + App Intents) et Live Activity « santé du backup ».', en:'100% local automations (Shortcuts + App Intents) and a "backup health" Live Activity.' } },
+    { n:{ fr:'Ghost Vault', en:'Ghost Vault' }, d:{ fr:'Sauvegarde chiffrée de toute ta config dans ton propre remote, scellée par Face ID. Sans compte.', en:'Encrypted backup of your whole config into your own remote, sealed with Face ID. No account.' } },
+    { n:{ fr:'Handoff P2P', en:'P2P Handoff' }, d:{ fr:'Transférer une config chiffrée entre tes appareils via QR / AirDrop, sans serveur.', en:'Move an encrypted config between your devices via QR / AirDrop, with no server.' } },
+    { n:{ fr:'Glass Engine', en:'Glass Engine' }, d:{ fr:'Moniteur « 0 appel maison » + build reproductible : prouver le privacy, pas le promettre.', en:'A "zero phone-home" monitor + reproducible build: prove privacy, don\'t just promise it.' } },
+  ] },
+  { key:'mid', label:{ fr:'Moyen terme', en:'Mid term' }, tag:{ fr:'PRÉVU', en:'PLANNED' }, items:[
+    { n:{ fr:'Remote Lens', en:'Remote Lens' }, d:{ fr:'Aperçus (vignettes, EXIF, 1re page PDF) par range requests, sans tout télécharger ni déchiffrer.', en:'Previews (thumbnails, EXIF, first PDF page) via range requests, without downloading or fully decrypting.' } },
+    { n:{ fr:'Recherche sémantique on-device', en:'On-device semantic search' }, d:{ fr:'Médiathèque locale chiffrée + recherche en langage naturel (Apple Intelligence), jamais côté serveur.', en:'Local encrypted media library + natural-language search (Apple Intelligence), never server-side.' } },
+    { n:{ fr:'Sealed Share', en:'Sealed Share' }, d:{ fr:'Partage hors-bande : lien backend natif + capsule-clé via AirDrop/QR, déchiffrement on-device.', en:'Out-of-band sharing: native backend link + key capsule via AirDrop/QR, decrypted on-device.' } },
+    { n:{ fr:'Règles de sync', en:'Sync rules' }, d:{ fr:'Règles locales par type/dossier + « toujours disponible hors-ligne » depuis Fichiers.', en:'Local rules by type/folder + "always available offline" from Files.' } },
+    { n:{ fr:'Mode Voyage', en:'Travel Mode' }, d:{ fr:'Coffre éphémère (déchiffrement en RAM), auto-démontage et Face ID par remote.', en:'Ephemeral vault (in-RAM decryption), auto-unmount and per-remote Face ID.' } },
+  ] },
+  { key:'long', label:{ fr:'Long terme', en:'Long term' }, tag:{ fr:'VISION', en:'VISION' }, items:[
+    { n:{ fr:'ChronoDrive', en:'ChronoDrive' }, d:{ fr:'N\'importe quel backend comme destination de sauvegarde versionnée façon Time Machine (macOS), chiffrée.', en:'Any backend as a versioned, encrypted Time Machine-style backup destination (macOS).' } },
+    { n:{ fr:'Ghost Sync', en:'Ghost Sync' }, d:{ fr:'Mesh P2P : réconciliation de deltas chiffrés entre tes appareils en réseau local, offline-first.', en:'P2P mesh: encrypted delta reconciliation between your devices over the local network, offline-first.' } },
+    { n:{ fr:'Quantum Vault', en:'Quantum Vault' }, d:{ fr:'Chiffrement post-quantique hybride (Kyber + AES) pour des archives « 2035-proof ».', en:'Hybrid post-quantum encryption (Kyber + AES) for "2035-proof" archives.' } },
+    { n:{ fr:'CipherSpace', en:'CipherSpace' }, d:{ fr:'Explorer ses archives chiffrées dans l\'espace, sur visionOS.', en:'Explore your encrypted archives in space, on visionOS.' } },
+    { n:{ fr:'Héritage numérique', en:'Digital legacy' }, d:{ fr:'Récupération sociale (partage de secret de Shamir) entre contacts de confiance + preuve de vie.', en:'Social recovery (Shamir secret sharing) among trusted contacts + proof of life.' } },
+  ] },
+];
+const Roadmap = ({ lang }) => {
+  const t = useT();
+  return (
+    <section id="roadmap">
+      <div className="wrap">
+        <div className="eyebrow">Roadmap</div>
+        <h2 className="sec">{t('Et après ?','What\'s next?')}</h2>
+        <p className="sec-sub">{t('Notre cap : ton cloud, sans intermédiaire. Tout reste privacy-first, open source et sans serveur backend.','Our heading: your cloud, no middleman. Everything stays privacy-first, open source and backend-free.')}</p>
+        <div className="roadmap">
+          {ROADMAP.map(col => (
+            <div key={col.key} className={'rm-col rm-' + col.key}>
+              <div className="rm-head">
+                <span className="rm-label">{col.label[lang] || col.label.en}</span>
+                <span className="rm-tag">{col.tag[lang] || col.tag.en}</span>
+              </div>
+              <div className="rm-items">
+                {col.items.map(it => (
+                  <div key={it.n.en} className="rm-item">
+                    <h5>{it.n[lang] || it.n.en}</h5>
+                    <p>{it.d[lang] || it.d.en}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="rm-bet">
+          <Icon name="bolt.fill" size={16}/>
+          <span><b>{t('Pari produit','Product bet')} : </b>{t('« Capability, pas compte » — le partage et le multi-appareils deviennent des objets cryptographiques que tu possèdes et révoques, jamais une ligne dans une base (puisqu\'il n\'y en a pas).','"Capability, not account" — sharing and multi-device become cryptographic objects you own and revoke, never a row in a database (because there isn\'t one).')}</span>
+        </div>
+        <p className="rm-note">{t('Roadmap indicative, sans engagement de date — priorisée avec vos retours. Open source : suivez ou contribuez sur GitHub.','Indicative roadmap, no committed dates — prioritized with your feedback. Open source: follow or contribute on GitHub.')}</p>
+      </div>
+    </section>
+  );
+};
+
 const FAQ = () => {
   const t = useT();
   const items = [
@@ -1111,6 +1171,7 @@ const Footer = () => {
           <a className="brand" href="#top"><img src="icon.png" alt="" style={{ width:26, height:26, borderRadius:7 }}/>Rclone GUI</a>
           <div className="nav-sp"/>
           <a href="#versions">{t('Nouveautés','What\'s new')}</a>
+          <a href="#roadmap">Roadmap</a>
           <a href="#faq">FAQ</a>
           <a href={APP_STORE_URL} target="_blank" rel="noopener">App Store</a>
           <a href={GITHUB_URL} target="_blank" rel="noopener">GitHub</a>
@@ -1132,6 +1193,7 @@ const App = () => {
       <Gallery lang={lang}/>
       <Features/>
       <Versions/>
+      <Roadmap lang={lang}/>
       <Pricing/>
       <FreeMonth/>
       <FAQ/>
