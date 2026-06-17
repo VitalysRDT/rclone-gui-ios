@@ -14,6 +14,7 @@ struct SecuritySettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @AppStorage("security.requireBiometricsAtLaunch") private var requireBiometrics = true
     @AppStorage("security.inactivityWipeMinutes") private var inactivityWipeMinutes: Int = 30
+    @AppStorage("security.wipeCacheOnLock") private var wipeCacheOnLock = true
     @AppStorage(VaultManager.unlockMinutesKey) private var vaultUnlockMinutes: Int = 15
     @State private var biometricsAvailable: Bool = true
     @State private var wipeError: String?
@@ -60,8 +61,10 @@ struct SecuritySettingsView: View {
                     Text("4 h").tag(240)
                     Text("24 h").tag(1440)
                 }
+                Toggle("Effacer le cache au verrouillage", isOn: $wipeCacheOnLock)
+                    .disabled(!requireBiometrics || inactivityWipeMinutes == 0)
             } footer: {
-                Text("Au-delà de cette durée sans utilisation, l'app re-demande la biométrie. Phase E2 ajoutera le wipe automatique du cache.")
+                Text("Au-delà de cette durée d'inactivité, l'app redemande Face ID / Touch ID. Avec « Effacer le cache au verrouillage », le cache média local (fichiers déchiffrés pour la lecture) est purgé à ce moment-là — rien en clair ne survit à l'inactivité.")
             }
 
             Section {
