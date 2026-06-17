@@ -16,6 +16,7 @@ import SwiftUI
 struct RootGateView<Content: View>: View {
     @AppStorage("security.requireBiometricsAtLaunch") private var requireBiometrics: Bool = true
     @AppStorage("security.inactivityWipeMinutes") private var inactivityWipeMinutes: Int = 30
+    @AppStorage("security.wipeCacheOnLock") private var wipeCacheOnLock: Bool = true
 
     @Environment(\.scenePhase) private var scenePhase
 
@@ -88,6 +89,12 @@ struct RootGateView<Content: View>: View {
                 let elapsed = Date().timeIntervalSince(last)
                 if threshold > 0, elapsed >= TimeInterval(threshold) {
                     unlocked = false
+                    // Phase E2 — sécurité locale : purge le cache média (fichiers
+                    // déchiffrés sur l'appareil) en même temps que le re-verrouillage,
+                    // pour qu'aucun contenu en clair ne survive à la période d'inactivité.
+                    if wipeCacheOnLock {
+                        Task { try? await MediaCacheService.shared.purge() }
+                    }
                 }
                 lastBackgroundedAt = nil
             }
