@@ -7,12 +7,18 @@
 //    - DownloadFileIntent   : "Télécharger <path> depuis <remote>"
 //    - ListRemotesIntent    : "Liste mes remotes rclone"
 //
-//  Phase E2 will add UploadFileIntent + parameter resolvers (interactive
-//  remote/path picker via AppEntity).
+//  Phase E2 : OpenRemoteIntent deep-links directly into the remote's folder,
+//  and UploadFileIntent uploads a file from Shortcuts/Share Sheet.
 //
 
 import AppIntents
 import Foundation
+
+extension Notification.Name {
+    /// Posté par OpenRemoteIntent ; observé par MainTabView pour naviguer
+    /// directement vers le dossier racine du remote demandé.
+    static let rgOpenRemote = Notification.Name("com.rougetet.rclone-gui.openRemote")
+}
 
 @available(iOS 17.0, *)
 public struct RcloneGUIShortcuts: AppShortcutsProvider {
@@ -76,10 +82,15 @@ public struct OpenRemoteIntent: AppIntent {
 
     @MainActor
     public func perform() async throws -> some IntentResult & ProvidesDialog {
-        // Phase E1 minimum : the app is foregrounded and the user is told
-        // which remote to navigate to. Phase E2 will deep-link directly
-        // to FolderView via NavigationStack programmatic push.
-        return .result(dialog: "Ouvre l'onglet Remotes pour aller dans \(remoteName).")
+        // Phase E2 : deep-link réel — on poste une notification que MainTabView
+        // intercepte pour basculer sur l'onglet Fichiers et pousser le dossier
+        // racine du remote dans la pile de navigation.
+        NotificationCenter.default.post(
+            name: .rgOpenRemote,
+            object: nil,
+            userInfo: ["remote": remoteName]
+        )
+        return .result(dialog: "Ouverture de \(remoteName)…")
     }
 }
 
@@ -123,5 +134,48 @@ public struct DownloadFileIntent: AppIntent {
             to: dst
         )
         return .result(dialog: "Téléchargement de \(basename) lancé.")
+    }
+}
+
+// MARK: - Upload file
+
+@available(iOS 17.0, *)
+public struct UploadFileIntent: AppIntent {
+    public static let title: LocalizedStringResource = "Téléverser un fichier"
+    public static let description = IntentDescription(
+        "Téléverse un fichier vers un remote rclone (depuis Raccourcis ou la feuille de partage)."
+    )
+
+    @Parameter(title: "Fichier")
+    public var file: IntentFile
+
+    @Parameter(title: "Remote")
+    public var remoteName: String
+
+    @Parameter(title: "Dossier de destination", default: "")
+    public var destinationFolder: String
+
+    public init() {}
+
+    @MainActor
+    public func perform() async throws -> some IntentResult & ProvidesDialog {
+        // Matérialise le fichier fourni par Raccourcis dans un emplacement
+        // local temporaire avant de l'enquêter pour upload.
+        let tmpDir = FileManager.default.temporaryDirectory
+            .appending(path: "intent-uploads", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
+        let filename = file.filename
+        let localURL = tmpDir.appending(path: filename)
+        try? FileManager.default.removeItem(at: localURL)
+        try file.data.write(to: localURL)
+
+        let folder = destinationFolder.trimmingCharacters(in: CharacterSet(charactersIn: "/ "))
+        let destPath = folder.isEmpty ? filename : "\(folder)/\(filename)"
+        try await TransferQueue.shared.enqueueUpload(
+            local: localURL,
+            remote: remoteName,
+            path: destPath
+        )
+        return .result(dialog: "Téléversement de \(filename) vers \(remoteName) lancé.")
     }
 }
