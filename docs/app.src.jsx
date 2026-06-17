@@ -717,7 +717,7 @@ const Hero = () => {
     <section className="hero" id="top">
       <div className="wrap">
         <img className="icon" src="icon.png" alt="Rclone GUI"/>
-        <div><span className="pill"><Icon name="bolt.fill" size={14}/>{t('v1.5 · ESSAI GRATUIT','v1.5 · FREE TRIAL')}</span></div>
+        <div><span className="pill"><Icon name="bolt.fill" size={14}/>{t('v1.6 · ESSAI GRATUIT','v1.6 · FREE TRIAL')}</span></div>
         <h1 className="title">{ML(t('Tous vos clouds.\nChiffrés.','Every cloud.\nEncrypted.'))}</h1>
         <p className="sub">{t('Parcourez 80+ services cloud — y compris vos remotes rclone chiffrés — directement dans Fichiers. iPhone, iPad & Mac.','Browse 80+ cloud services — including your encrypted rclone crypt remotes — right inside Files. iPhone, iPad & Mac.')}</p>
         <div className="cta-row">
@@ -995,7 +995,12 @@ const FreeMonth = () => {
 };
 
 const VERSIONS = [
-  { v:'1.5', current:true, date:{ fr:'Juin 2026', en:'June 2026' }, items:[
+  { v:'1.6', current:true, date:{ fr:'Juin 2026', en:'June 2026' }, items:[
+    { fr:'Connexion par fichier : quand un backend exige un fichier pour s\'authentifier (clé privée SSH, known_hosts, JSON de compte de service Google, certificat TLS…), importez-le directement depuis Fichiers — fini les chemins impossibles à saisir.', en:'Connect with a file: when a backend needs a file to sign in (SSH private key, known_hosts, Google service-account JSON, TLS certificate…), import it straight from Files — no more impossible-to-type paths.' },
+    { fr:'Les identifiants importés sont copiés en sécurité sur l\'appareil et ne sont jamais transmis ailleurs.', en:'Imported credentials are copied securely on-device and never sent anywhere else.' },
+    { fr:'Améliorations de stabilité et de performance.', en:'Stability and performance improvements.' },
+  ] },
+  { v:'1.5', date:{ fr:'Juin 2026', en:'June 2026' }, items:[
     { fr:'Lecteur vidéo intégré multi-format (MKV, AVI, WebM, TS…) : sous-titres intégrés et fichiers externes, pistes audio, reprise là où vous étiez.', en:'Built-in multi-format video player (MKV, AVI, WebM, TS…): embedded and sidecar subtitles, audio tracks, resume where you left off.' },
     { fr:'Au choix : lecture dans l\'app ou dans une app externe (Infuse, VLC).', en:'Your choice: play in-app or in an external app (Infuse, VLC).' },
     { fr:'Galerie en grille avec vignettes pour photos et vidéos : bascule liste/grille, mode « Médias uniquement », génération des vignettes en Wi-Fi par défaut.', en:'Grid gallery with thumbnails for photos and videos: list/grid toggle, "Media only" mode, Wi-Fi-only thumbnail generation by default.' },
@@ -1067,6 +1072,8 @@ const FAQ = () => {
       a:t('Plus de 80 backends via le moteur rclone : Amazon S3, Cloudflare R2, Google Drive, Dropbox, OneDrive, Backblaze B2, SFTP, WebDAV, Storj, Wasabi, Drime, Internxt, Filen, et bien d\'autres.','80+ backends through the rclone engine: Amazon S3, Cloudflare R2, Google Drive, Dropbox, OneDrive, Backblaze B2, SFTP, WebDAV, Storj, Wasabi, Drime, Internxt, Filen and many more.') },
     { q:t('Quels formats vidéo puis-je lire ? (v1.5)','Which video formats can I play? (v1.5)'),
       a:t('Le lecteur intégré est multi-format : MP4, MOV, M4V, mais aussi MKV, AVI, WebM, TS et plus, grâce à un moteur hybride. Sous-titres (intégrés et fichiers externes) et pistes audio inclus. Vous pouvez aussi ouvrir la vidéo dans une app externe (Infuse, VLC).','The built-in player is multi-format: MP4, MOV, M4V, plus MKV, AVI, WebM, TS and more, thanks to a hybrid engine. Subtitles (embedded and sidecar files) and audio tracks included. You can also open videos in an external app (Infuse, VLC).') },
+    { q:t('Un backend me demande un fichier (clé SSH, certificat…) : comment faire ? (v1.6)','A backend asks for a file (SSH key, certificate…): how do I do that? (v1.6)'),
+      a:t('Depuis la v1.6, quand un backend exige un fichier pour se connecter (clé privée SSH, known_hosts, JSON de compte de service Google, certificat TLS, key.pem…), un bouton « Importer un fichier » ouvre l\'app Fichiers : sélectionnez le fichier, c\'est tout. Il est copié en sécurité dans l\'app (jamais transmis ailleurs) ; impossible de saisir un chemin de fichier à la main sur iOS.','Since v1.6, when a backend needs a file to connect (SSH private key, known_hosts, Google service-account JSON, TLS certificate, key.pem…), an "Import a file" button opens the Files app: pick the file, done. It is copied securely into the app (never sent anywhere else); typing a filesystem path by hand isn\'t possible on iOS.') },
     { q:t('Mes données sont-elles privées et chiffrées ?','Is my data private and encrypted?'),
       a:t('Oui. Le chiffrement rclone « crypt » est natif, avec déchiffrement des noms à la volée ; vos clés ne quittent jamais l\'appareil. Aucun tracker, aucun serveur backend. Vous pouvez aussi exclure les données de l\'app des sauvegardes iCloud (v1.5).','Yes. rclone "crypt" encryption is native, with on-the-fly filename decryption; your keys never leave the device. No trackers, no backend server. You can also exclude the app\'s data from iCloud backups (v1.5).') },
     { q:t('Fonctionne-t-il sur Mac et iPad ?','Does it work on Mac and iPad?'),

@@ -208,7 +208,9 @@ private struct DemoWizardCatalog: View {
     var body: some View {
         NameAndBackendView(state: state, onNext: {})
             .navigationTitle("Nouveau remote")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .onAppear {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                     #if canImport(UIKit)

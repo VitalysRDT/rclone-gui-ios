@@ -111,9 +111,55 @@ struct FieldSpec: Identifiable, Hashable, Sendable {
         }
     }
 
+    // MARK: - File-backed options
+
+    /// How a file-backed rclone option should be collected on iOS.
+    enum FileFieldKind: Sendable, Hashable {
+        /// The option value IS the file content (e.g. SFTP `key_pem`,
+        /// `service_account_credentials`): import the file and store its text.
+        case inlineContent
+        /// The option value is a filesystem PATH (e.g. `key_file`,
+        /// `service_account_file`, `ca_cert`): copy the imported file into the
+        /// app's secure container and store the resulting path.
+        case path
+    }
+
+    /// rclone options whose value is the raw file *content* pasted inline.
+    private static let inlineContentFileFields: Set<String> = [
+        "key_pem",
+        "service_account_credentials",
+    ]
+
+    /// rclone options whose value is a *path* to a file on disk. On iOS the
+    /// user can't type a meaningful path, so we import the file into the app's
+    /// container and store that path instead.
+    private static let pathFileFields: Set<String> = [
+        "key_file",            // sftp — SSH private key
+        "pubkey_file",         // sftp — SSH public key
+        "known_hosts_file",    // sftp — known_hosts
+        "service_account_file",// drive / google cloud storage
+        "client_cert",         // http / webdav / s3 — TLS client cert
+        "client_key",          // http / webdav / s3 — TLS client key
+        "ca_cert",             // TLS CA bundle
+        "private_key_file",    // various (e.g. jottacloud, oracle)
+        "credentials_file",    // various
+    ]
+
+    /// Non-nil when this field is collected by importing a file.
+    var fileFieldKind: FileFieldKind? {
+        if Self.inlineContentFileFields.contains(name) { return .inlineContent }
+        if Self.pathFileFields.contains(name) { return .path }
+        return nil
+    }
+
+    // MARK: - UI control selection
+
     /// What kind of UI control to render.
     var uiKind: FieldUIKind {
         if name == "token" { return .oauth }
+        // File-backed options take priority over the sensitive/secure styling:
+        // `key_pem` is sensitive but must still be importable as a file.
+        if fileFieldKind != nil { return .fileImport }
         if sensitive || isPassword { return .secureInput }
 
         if !examples.isEmpty {

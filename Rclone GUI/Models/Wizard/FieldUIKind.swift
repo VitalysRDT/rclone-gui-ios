@@ -34,6 +34,13 @@ enum FieldUIKind: Sendable, Hashable {
     /// DatePicker for the rare Time-typed options.
     case datePicker
 
+    /// File-backed option: the backend wants a file on disk (SSH private key,
+    /// service-account JSON, certificate, known_hosts…) or inline file content
+    /// (`key_pem`). Rendered as an "Import a file…" control that reads the file
+    /// via the iOS document picker — a filesystem path is meaningless to type
+    /// on iOS. See `FieldSpec.fileFieldKind`.
+    case fileImport
+
     /// OAuth field (token / auth_url / token_url) — handled outside the
     /// dynamic form, in the dedicated OAuth step.
     case oauth

@@ -11,6 +11,7 @@
 //
 
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct FieldRow: View {
 
@@ -151,6 +152,9 @@ struct FieldRow: View {
                 .rgNoAutocap()
                 .autocorrectionDisabled()
 
+        case .fileImport:
+            FileImportControl(spec: spec, value: $value)
+
         case .oauth:
             // OAuth-related fields are managed by the dedicated OAuth
             // step; we shouldn't be rendering this case in the form.
@@ -201,5 +205,132 @@ struct FieldRow: View {
         if spec.required { components.append("requis") }
         if spec.sensitive { components.append("sécurisé") }
         return components.joined(separator: ", ")
+    }
+}
+
+// MARK: - File import control
+
+/// Renders a `.fileImport` field: a button that opens the iOS/macOS document
+/// picker. For `.path` options the picked file is copied into the app's secure
+/// container and the field stores that path; for `.inlineContent` options the
+/// field stores the file's text directly. Manual entry stays available for
+/// path options (power users pasting an existing in-container path).
+private struct FileImportControl: View {
+
+    let spec: FieldSpec
+    @Binding var value: String
+
+    @State private var presentingPicker = false
+    @State private var importedName: String?
+    @State private var importError: String?
+
+    private var kind: FieldSpec.FileFieldKind {
+        spec.fileFieldKind ?? .path
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if !value.isEmpty {
+                HStack(spacing: 8) {
+                    Image(systemName: "checkmark.seal.fill")
+                        .foregroundStyle(.green)
+                    Text(summary)
+                        .font(.callout)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Spacer()
+                    Button(role: .destructive) {
+                        clear()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Retirer le fichier")
+                }
+            }
+
+            Button {
+                presentingPicker = true
+            } label: {
+                Label(
+                    value.isEmpty ? "Importer un fichier…" : "Remplacer le fichier…",
+                    systemImage: "doc.badge.arrow.up"
+                )
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+
+            if let importError {
+                Label(importError, systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption2)
+                    .foregroundStyle(.red)
+            } else {
+                Text(hint)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+
+            // Manual path entry stays possible for path-typed options.
+            if kind == .path {
+                TextField("ou saisir un chemin", text: $value)
+                    .rgNoAutocap()
+                    .autocorrectionDisabled()
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .fileImporter(
+            isPresented: $presentingPicker,
+            allowedContentTypes: [.data, .text, .json],
+            allowsMultipleSelection: false
+        ) { result in
+            handle(result)
+        }
+    }
+
+    private var summary: String {
+        if let importedName { return importedName }
+        switch kind {
+        case .inlineContent:
+            return String(localized: "Contenu importé")
+        case .path:
+            return URL(fileURLWithPath: value).lastPathComponent
+        }
+    }
+
+    private var hint: String {
+        switch kind {
+        case .inlineContent:
+            return String(localized: "Importez le fichier (clé PEM, JSON…) — son contenu est enregistré directement.")
+        case .path:
+            return String(localized: "Importez le fichier requis — il est copié en sécurité dans l'app, jamais transmis ailleurs.")
+        }
+    }
+
+    private func handle(_ result: Result<[URL], Error>) {
+        do {
+            guard let url = try result.get().first else { return }
+            switch kind {
+            case .inlineContent:
+                value = try CredentialFileStore.readText(from: url)
+            case .path:
+                let dest = try CredentialFileStore.importFile(from: url, fieldName: spec.name)
+                value = dest.path
+            }
+            importedName = url.lastPathComponent
+            importError = nil
+        } catch {
+            importError = error.localizedDescription
+        }
+    }
+
+    private func clear() {
+        if kind == .path {
+            CredentialFileStore.removeFileIfManaged(atPath: value)
+        }
+        value = ""
+        importedName = nil
+        importError = nil
     }
 }
