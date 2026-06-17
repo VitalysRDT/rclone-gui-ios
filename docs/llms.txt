@@ -15,12 +15,15 @@ The app is privacy-first: no backend server, no analytics, no data transmitted. 
 - **Files.app integration**: every remote exposed as a FileProvider domain in the native iOS/macOS file browser
 - **PhotoSync**: automatic photo library backup to any configured remote
 - **Streaming**: audio and video playback from remote files via a local loopback HTTP server, including from crypt remotes
+- **Built-in video player (v1.5)**: multi-format playback (MP4, MOV, M4V, MKV, AVI, WebM, TS…) with embedded and sidecar subtitles, audio tracks and resume; play in-app or in an external app (Infuse, VLC)
+- **Media gallery (v1.5)**: grid view with photo and video thumbnails, list/grid toggle, "Media only" mode, Wi-Fi-only thumbnail generation
+- **iCloud backup control (v1.5)**: option to exclude the app's data from iCloud backups
 - **Encrypted config import**: import rclone.conf files encrypted with `rclone config encryption set`
 - **No backend**: credentials and files never leave the device
 
 ## Pricing
 
-Subscription (monthly or annual). A free 1-month trial code is available at https://rclone.rougetet.com — one per person, delivered by email.
+Free 1-month trial, then a one-time lifetime purchase (€29.99, covers iPhone + iPad + Mac) or a subscription from €2.99/month (€11.99/year). A personal trial code is available at https://rclone.rougetet.com — one per person, delivered by email. The app is also open source, so it can be built for free.
 
 ## Download
 
