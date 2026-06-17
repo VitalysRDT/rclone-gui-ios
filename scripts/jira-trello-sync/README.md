@@ -15,7 +15,9 @@ n'écrit que si la valeur diffère (pas de ping-pong).
 | échéance (`duedate` ↔ `due`) | bidirectionnel |
 | **statut ↔ liste** (nom de liste = nom de statut, transition Jira) | bidirectionnel |
 | description (ADF aplati + lien) | Jira → Trello (autorité Jira) |
-| type, étiquettes | Jira → Trello |
+| type, étiquettes, **composants** (→ étiquette) | Jira → Trello |
+| **assigné ↔ membre** (via `ASSIGNEE_MAP`) | bidirectionnel |
+| **commentaires** (marqueurs anti-boucle `↪ Jira #` / `↪ Trello #`) | bidirectionnel |
 
 **Création** : un ticket Jira sans carte → carte créée ; une **carte Trello sans
 marqueur** → ticket Jira créé puis carte re-liée. Cartes dont le ticket sort du
@@ -42,6 +44,7 @@ récupère son shortlink (l'identifiant dans l'URL `trello.com/b/XXXXXXXX`).
 | `TRELLO_BOARD` | shortlink/id du board mirror (étape 1) |
 | `SYNC_DIRECTION` | *(optionnel)* `bidirectional` (défaut), `jira-to-trello` ou `trello-to-jira` |
 | `JIRA_ISSUETYPE_ID` | *(optionnel)* type des tickets créés depuis une carte Trello (défaut `10042`) |
+| `ASSIGNEE_MAP` | *(optionnel)* JSON `{"<jiraAccountId>":"<trelloMemberId>", …}` pour synchroniser les assignés. `accountId` Jira via `GET /rest/api/3/myself` ; `memberId` Trello via `GET /1/members/me`. Sans cette map, les assignés ne sont pas touchés. |
 
 > Le **token API Atlassian** sert à la fois pour Jira (`JIRA_TOKEN`) et Trello
 > (`TRELLO_TOKEN`) si tu utilises le même compte Atlassian.
@@ -73,5 +76,10 @@ python3 scripts/jira-trello-sync/sync.py
   une transition est jouée vers le statut homonyme de la liste (si disponible
   dans le workflow).
 - La **description** reste pilotée par Jira (autorité) : édite-la côté Jira.
+- Les **composants** Jira deviennent des **étiquettes Trello** (sens Jira → Trello).
+- Les **assignés** ne sont synchronisés que pour les comptes présents dans
+  `ASSIGNEE_MAP` (mapping explicite Jira ↔ Trello). Les autres membres restent intacts.
+- Les **commentaires** sont bidirectionnels avec marqueurs anti-boucle
+  (`↪ Jira #<id>` / `↪ Trello #<id>`) : un miroir n'est jamais renvoyé à sa source.
 - ⚠️ Cible un **board dédié** : déplacer/éditer une carte y est propagé à Jira.
 - Aucune dépendance tierce : `sync.py` n'utilise que la bibliothèque standard.
