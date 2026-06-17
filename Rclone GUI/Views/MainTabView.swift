@@ -97,6 +97,7 @@ struct MainTabView: View {
             // pushed under Files doesn't bleed into Home/Transfers/Settings.
             .id(selection)
         }
+        .onReceive(NotificationCenter.default.publisher(for: .rgOpenRemote)) { handleOpenRemote($0) }
         #else
         TabView(selection: $selection) {
             ForEach(Tab.allCases) { tab in
@@ -107,6 +108,7 @@ struct MainTabView: View {
                     .tag(tab)
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .rgOpenRemote)) { handleOpenRemote($0) }
         #if DEBUG
         // Debug-only deep link used by the App Store screenshot pipeline to land
         // directly on a given surface. Inert unless launched with `--demo-screen`.
@@ -148,6 +150,16 @@ struct MainTabView: View {
         case .folder(let remote, let path):
             FolderView(remote: remote, path: path)
         }
+    }
+
+    /// Deep-link déclenché par OpenRemoteIntent (App Intents / Raccourcis) :
+    /// bascule sur l'onglet Fichiers et pousse le dossier racine du remote.
+    private func handleOpenRemote(_ note: Notification) {
+        guard let remote = note.userInfo?["remote"] as? String, !remote.isEmpty else { return }
+        selection = .files
+        #if !os(macOS)
+        filesPath = [.folder(remote: remote, path: "")]
+        #endif
     }
 }
 
