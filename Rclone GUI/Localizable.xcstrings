@@ -1,6 +1,88 @@
 {
   "sourceLanguage" : "fr",
   "strings" : {
+    "Quand le cache dépasse cette taille, les fichiers les moins récemment lus sont effacés automatiquement en premier (LRU)." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wenn der Cache diese Größe überschreitet, werden zuerst die am längsten nicht abgespielten Dateien automatisch gelöscht (LRU)."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "When the cache exceeds this size, the least recently played files are deleted automatically first (LRU)."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cuando la caché supera este tamaño, los archivos reproducidos menos recientemente se eliminan automáticamente primero (LRU)."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quand le cache dépasse cette taille, les fichiers les moins récemment lus sont effacés automatiquement en premier (LRU)."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quando la cache supera questa dimensione, i file riprodotti meno di recente vengono eliminati automaticamente per primi (LRU)."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "キャッシュがこのサイズを超えると、最も長く再生されていないファイルから自動的に削除されます（LRU）。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "캐시가 이 크기를 초과하면 가장 오래전에 재생한 파일부터 자동으로 삭제됩니다(LRU)."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wanneer de cache deze grootte overschrijdt, worden eerst de minst recent afgespeelde bestanden automatisch verwijderd (LRU)."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gdy pamięć podręczna przekroczy ten rozmiar, najdawniej odtwarzane pliki są usuwane automatycznie w pierwszej kolejności (LRU)."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quando o cache excede este tamanho, os arquivos reproduzidos menos recentemente são apagados automaticamente primeiro (LRU)."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Когда кэш превышает этот размер, файлы, которые дольше всего не воспроизводились, удаляются автоматически в первую очередь (LRU)."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当缓存超过此大小时，最久未播放的文件会被自动优先删除（LRU）。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "當快取超過此大小時，最久未播放的檔案會被自動優先刪除（LRU）。"
+          }
+        }
+      }
+    },
     "Effacer le cache au verrouillage" : {
       "localizations" : {
         "de" : {
