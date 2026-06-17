@@ -44,7 +44,7 @@
     ]
   },
   "downloadUrl": "https://apps.apple.com/app/id6770088773",
-  "softwareVersion": "1.4",
+  "softwareVersion": "1.5",
   "author": {
     "@type": "Person",
     "name": "Vitalys Rougetet"
@@ -56,6 +56,9 @@
     "Encrypted rclone config (ChaChaPoly, Keychain)",
     "Photo library backup (PhotoSync)",
     "Audio and video streaming from remote files",
+    "Built-in multi-format video player (MP4, MKV, AVI, WebM, TS) with subtitles and audio tracks",
+    "Media gallery with grid view and photo/video thumbnails",
+    "Option to exclude app data from iCloud backups",
     "No backend server, no data collection"
   ],
   "screenshot": "https://rclone.rougetet.com/icon.png"
@@ -90,6 +93,21 @@
       "@type": "Question",
       "name": "Does it support rclone crypt encryption?",
       "acceptedAnswer": { "@type": "Answer", "text": "Yes. rclone crypt is supported natively with on-the-fly filename decryption (AES-256 + NaCl secretbox). Your encryption keys never leave the device." }
+    },
+    {
+      "@type": "Question",
+      "name": "Which video formats can I play?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Since version 1.5 there is a built-in multi-format video player. It plays MP4, MOV and M4V plus MKV, AVI, WebM, TS and more through a hybrid engine, with embedded and sidecar subtitles and multiple audio tracks. You can also open videos in an external app such as Infuse or VLC." }
+    },
+    {
+      "@type": "Question",
+      "name": "Is there a media gallery for photos and videos?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. Version 1.5 adds a grid gallery with thumbnails for your photos and videos. You can switch between list and grid in any folder or turn on a media-only view, with Wi-Fi-only thumbnail generation by default." }
+    },
+    {
+      "@type": "Question",
+      "name": "Does it work on Mac and iPad?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. Rclone GUI runs on iPhone, iPad and Mac (native Apple Silicon app since version 1.2). The one-time lifetime purchase covers all three platforms." }
     }
   ]
 }
@@ -241,6 +259,37 @@
   .pricing-note{text-align:center;color:var(--muted);font-size:14px;margin:26px auto 0;font-weight:500;max-width:620px;line-height:1.5}
   .pricing-note a{color:var(--accent);font-weight:700}
   .pricing-note .solid{display:block;margin-top:10px}
+  /* versions / changelog */
+  .versions{max-width:760px;margin:38px auto 0;display:flex;flex-direction:column;gap:16px}
+  .ver{background:#fff;border:1px solid var(--line);border-radius:20px;padding:22px 24px;
+    box-shadow:0 8px 26px rgba(11,8,32,.05);position:relative}
+  .ver.current{border:2px solid var(--accent);box-shadow:0 18px 46px rgba(124,58,237,.18)}
+  .ver-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .ver-num{font-size:22px;font-weight:800;letter-spacing:-.5px}
+  .ver-date{font-size:13px;color:var(--muted);font-weight:600}
+  .ver-tag{margin-left:auto;background:var(--accent);color:#fff;font-size:11px;font-weight:800;
+    letter-spacing:.5px;padding:4px 10px;border-radius:999px}
+  .ver-list{list-style:none;padding:0;margin:14px 0 0;display:flex;flex-direction:column;gap:9px}
+  .ver-list li{display:flex;gap:10px;font-size:14.5px;font-weight:500;line-height:1.4;align-items:flex-start}
+  .ver-list li svg{flex:0 0 auto;margin-top:2px;color:var(--accent)}
+  /* faq */
+  .faq{max-width:760px;margin:38px auto 0;display:flex;flex-direction:column;gap:12px}
+  .faq-item{background:#fff;border:1px solid var(--line);border-radius:16px;padding:2px 20px;
+    box-shadow:0 8px 26px rgba(11,8,32,.05)}
+  .faq-item summary{cursor:pointer;list-style:none;padding:16px 0;font-size:16.5px;font-weight:700;
+    display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .faq-item summary::-webkit-details-marker{display:none}
+  .faq-item summary::after{content:"+";font-size:24px;font-weight:300;color:var(--accent);line-height:1}
+  .faq-item[open] summary::after{content:"\2212"}
+  .faq-item p{margin:0 0 18px;color:var(--muted);font-size:15px;font-weight:500;line-height:1.55}
+  .faq-item p a{color:var(--accent);font-weight:700}
+  /* new badge on gallery panels */
+  .panel .newtag{position:absolute;top:16px;right:16px;background:var(--accent);color:#fff;font-size:10px;
+    font-weight:800;letter-spacing:.5px;padding:4px 9px;border-radius:999px;z-index:3;
+    box-shadow:0 6px 16px rgba(124,58,237,.4)}
+  /* nav links */
+  .navlink{margin-right:4px}
+  @media(max-width:680px){.navlink{display:none}}
   /* a11y */
   :focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:8px}
   @media(prefers-reduced-motion:reduce){

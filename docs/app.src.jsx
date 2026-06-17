@@ -542,6 +542,113 @@ const ScreenSecurity = () => {
   </ScreenFrame>);
 };
 
+/* ─── v1.5 : Galerie en grille ─────────────────────────────────────── */
+const GALLERY_TILES = [
+  { v:false, g:'linear-gradient(135deg,#FFB088,#C44569)' },
+  { v:true,  g:'linear-gradient(135deg,#6C7BFF,#241452)', d:'1:24' },
+  { v:false, g:'linear-gradient(135deg,#34C759,#0E7A3A)' },
+  { v:false, g:'linear-gradient(135deg,#0E5FAE,#093E70)' },
+  { v:true,  g:'linear-gradient(135deg,#FF2D55,#7A0E2A)', d:'0:42' },
+  { v:false, g:'linear-gradient(135deg,#FF9500,#A85E00)' },
+  { v:false, g:'linear-gradient(135deg,#AF52DE,#5B21B6)' },
+  { v:true,  g:'linear-gradient(135deg,#16A085,#0B5345)', d:'3:08' },
+  { v:false, g:'linear-gradient(135deg,#FFD16B,#C98A00)' },
+  { v:false, g:'linear-gradient(135deg,#FF6B6B,#8A2842)' },
+  { v:true,  g:'linear-gradient(135deg,#5AC8FA,#0E5FAE)', d:'0:18' },
+  { v:false, g:'linear-gradient(135deg,#BF5AF2,#6B1FB0)' },
+];
+const Segmented = ({ active }) => {
+  const items = [{ id:'list', icon:'tray' }, { id:'grid', icon:'photo.stack' }];
+  return (
+    <div style={{ display:'inline-flex', background:'rgba(118,118,128,0.16)', borderRadius:9, padding:2 }}>
+      {items.map(it => (
+        <div key={it.id} style={{ width:38, height:30, borderRadius:7, display:'flex', alignItems:'center', justifyContent:'center',
+          background:it.id===active ? '#fff' : 'transparent', color:it.id===active ? ACCENT : '#8E8E93',
+          boxShadow:it.id===active ? '0 1px 3px rgba(0,0,0,0.18)' : 'none' }}>
+          <Icon name={it.icon} size={17} weight="semibold"/>
+        </div>
+      ))}
+    </div>
+  );
+};
+const ScreenGallery = () => {
+  const t = useT();
+  return (
+  <ScreenFrame bg="#F2F2F7">
+    <StatusBar/>
+    <div style={{ padding:'6px 16px 8px', display:'flex', alignItems:'center', gap:6, color:ACCENT, fontSize:16, fontWeight:500 }}><Icon name="chevron.right" size={16} weight="semibold" style={{ transform:'rotate(180deg)' }}/><span>Remotes</span></div>
+    <div style={{ padding:'2px 20px 0', display:'flex', alignItems:'flex-end', justifyContent:'space-between' }}>
+      <div style={{ display:'flex', alignItems:'center', gap:8 }}><BackendChip kind="b2" cryptOverlay={true} size={34}/><h1 style={{ fontSize:26, fontWeight:700, letterSpacing:-0.5, margin:0 }}>{t('Galerie','Gallery')}</h1></div>
+      <div style={{ paddingBottom:4 }}><Segmented active="grid"/></div>
+    </div>
+    <div style={{ padding:'10px 16px 0', display:'flex', alignItems:'center', gap:8 }}>
+      <div style={{ display:'inline-flex', alignItems:'center', gap:6, background:ACCENT, color:'#fff', padding:'6px 12px', borderRadius:999, fontSize:13, fontWeight:700 }}><Icon name="photo.stack" size={14} weight="bold"/>{t('Médias uniquement','Media only')}</div>
+      <div style={{ fontSize:13, color:'#8E8E93', fontWeight:500 }}>{t('86 photos · 12 vidéos','86 photos · 12 videos')}</div>
+    </div>
+    <div style={{ padding:'12px 16px 0', display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:6 }}>
+      {GALLERY_TILES.map((tile, i) => (
+        <div key={i} style={{ position:'relative', aspectRatio:'1/1', borderRadius:10, overflow:'hidden', background:tile.g }}>
+          <div style={{ position:'absolute', inset:0, background:'radial-gradient(ellipse at 30% 20%, rgba(255,255,255,0.25), transparent 55%)' }}/>
+          {tile.v && (
+            <>
+              <div style={{ position:'absolute', top:6, left:6, width:22, height:22, borderRadius:'50%', background:'rgba(0,0,0,0.42)', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff' }}><Icon name="play.fill" size={10}/></div>
+              <div style={{ position:'absolute', bottom:5, right:6, fontSize:10, fontWeight:700, color:'#fff', textShadow:'0 1px 3px rgba(0,0,0,0.5)' }}>{tile.d}</div>
+            </>
+          )}
+        </div>
+      ))}
+    </div>
+    <div style={{ flex:1 }}/>
+    <TabBar active="remotes"/>
+  </ScreenFrame>);
+};
+
+/* ─── v1.5 : Lecteur vidéo intégré ─────────────────────────────────── */
+const ScreenPlayer = () => {
+  const t = useT();
+  return (
+  <ScreenFrame bg="#0A0A0F">
+    <div style={{ position:'absolute', inset:0, background:'linear-gradient(160deg, #3A2A6E 0%, #1A1030 52%, #0A0A0F 100%)' }}/>
+    <div style={{ position:'absolute', inset:0, background:'radial-gradient(ellipse at 50% 36%, rgba(124,58,237,0.5), transparent 62%)' }}/>
+    <div style={{ position:'relative', padding:'56px 22px 0', display:'flex', alignItems:'center', justifyContent:'space-between', color:'#fff' }}>
+      <span style={{ fontSize:16, fontWeight:600 }}>{t('OK','Done')}</span>
+      <div style={{ textAlign:'center', minWidth:0, flex:1, padding:'0 12px' }}>
+        <div style={{ fontSize:15, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>sunset-timelapse.mkv</div>
+        <div style={{ fontSize:11, opacity:0.7, marginTop:2 }}>{t('media · Crypt sur B2','media · Crypt on B2')}</div>
+      </div>
+      <span style={{ fontSize:11, fontWeight:800, letterSpacing:0.6, padding:'4px 8px', borderRadius:6, background:'rgba(255,255,255,0.18)' }}>VLC</span>
+    </div>
+    <div style={{ position:'relative', flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:34, color:'#fff' }}>
+      <div style={{ opacity:0.85 }}><Icon name="rotate" size={26} weight="semibold" style={{ transform:'scaleX(-1)' }}/></div>
+      <div style={{ width:84, height:84, borderRadius:'50%', background:'rgba(255,255,255,0.16)', display:'flex', alignItems:'center', justifyContent:'center', border:'1px solid rgba(255,255,255,0.25)' }}><Icon name="play.fill" size={36}/></div>
+      <div style={{ opacity:0.85 }}><Icon name="rotate" size={26} weight="semibold"/></div>
+    </div>
+    <div style={{ position:'relative', display:'flex', justifyContent:'center', paddingBottom:14 }}>
+      <div style={{ display:'inline-flex', alignItems:'center', gap:7, background:'rgba(255,255,255,0.16)', color:'#fff', padding:'8px 14px', borderRadius:999, fontSize:13, fontWeight:600 }}><Icon name="clock" size={14}/>{t('Reprendre à 12:34','Resume at 12:34')}</div>
+    </div>
+    <div style={{ position:'relative', padding:'0 22px 40px', color:'#fff' }}>
+      <div style={{ height:5, borderRadius:3, background:'rgba(255,255,255,0.25)', position:'relative' }}>
+        <div style={{ width:'42%', height:'100%', borderRadius:3, background:'#fff' }}/>
+        <div style={{ position:'absolute', left:'42%', top:'50%', transform:'translate(-50%,-50%)', width:13, height:13, borderRadius:'50%', background:'#fff', boxShadow:'0 2px 6px rgba(0,0,0,0.4)' }}/>
+      </div>
+      <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, opacity:0.85, marginTop:7 }}><span>12:34</span><span>-27:46</span></div>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:18 }}>
+        {[
+          { icon:'doc', label:t('Sous-titres','Subtitles') },
+          { icon:'music', label:t('Audio','Audio') },
+          { icon:'speedometer', label:'1.0×' },
+          { icon:'share', label:t('Externe','External') },
+        ].map(b => (
+          <div key={b.label} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:5, opacity:0.92 }}>
+            <Icon name={b.icon} size={20} weight="semibold"/>
+            <span style={{ fontSize:10, fontWeight:600 }}>{b.label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  </ScreenFrame>);
+};
+
 /* ════════════════════════════════════════════════════════════════════
    Shots (palettes + headlines repris de app.jsx)
    ════════════════════════════════════════════════════════════════════ */
@@ -558,6 +665,8 @@ const SHOTS = [
   { id:'backends', Screen:ScreenRemotes, palette:'ocean', fr:{h:'80+ services.\nUn seul endroit.', s:'S3, R2, Drive, Dropbox, B2, SFTP, WebDAV, Storj, Wasabi…'}, en:{h:'80+ services.\nOne home.', s:'S3, R2, Drive, Dropbox, B2, SFTP, WebDAV, Storj, Wasabi…'} },
   { id:'crypt-paths', Screen:ScreenFolder, palette:'violet', fr:{h:'Noms déchiffrés\nà la volée.', s:'Aucun transit en clair. AES-256 + NaCl secretbox.'}, en:{h:'Filenames decrypted\non the fly.', s:'No cleartext in transit. AES-256 + NaCl secretbox.'} },
   { id:'stream', Screen:ScreenFileDetail, palette:'rose', fr:{h:'Stream direct.\nZéro téléchargement.', s:'Photos, vidéos, PDF — ouverts depuis Fichiers iOS.'}, en:{h:'Stream direct.\nNo full download.', s:'Photos, video, PDF — opened straight from Files.'} },
+  { id:'player', Screen:ScreenPlayer, palette:'midnight', isNew:true, fr:{h:'Lecteur vidéo\nintégré.', s:'MKV, AVI, WebM, TS… Sous-titres, pistes audio, reprise. Dans l\'app ou en externe.'}, en:{h:'Built-in\nvideo player.', s:'MKV, AVI, WebM, TS… Subtitles, audio tracks, resume. In-app or external.'} },
+  { id:'gallery', Screen:ScreenGallery, palette:'forest', isNew:true, fr:{h:'Une vraie\ngalerie médias.', s:'Vue grille avec vignettes images & vidéos. Liste ou grille, mode « Médias ».'}, en:{h:'A real media\ngallery.', s:'Grid view with photo & video thumbnails. List or grid, "Media only" mode.'} },
   { id:'home', Screen:ScreenHome, palette:'cream', fr:{h:'Votre centre\nde contrôle.', s:'Transferts, favoris, sync photo, débit. En un coup d\'œil.'}, en:{h:'Your control\ncenter.', s:'Transfers, pins, photo sync, throughput. At a glance.'} },
   { id:'wizard', Screen:ScreenWizard, palette:'forest', fr:{h:'Assistant\nguidé.', s:'OAuth en deux tapotements. Import rclone.conf en un geste.'}, en:{h:'Guided\nsetup.', s:'OAuth in two taps. rclone.conf import in one gesture.'} },
   { id:'photos', Screen:ScreenPhotoSync, palette:'rose', fr:{h:'Backup photo,\nintelligent.', s:'Throttle adaptatif, reprise réseau, exécution en arrière-plan.'}, en:{h:'Smart photo\nbackup.', s:'Adaptive throttle, network resume, background tasks.'} },
@@ -583,11 +692,15 @@ const AppStoreBadge = () => {
   );
 };
 
-const Header = ({ lang, setLang }) => (
+const Header = ({ lang, setLang }) => {
+  const t = useT();
+  return (
   <header className="nav">
     <div className="wrap nav-in">
       <a className="brand" href="#top"><img src="icon.png" alt="Rclone GUI"/>Rclone GUI</a>
       <div className="nav-sp"/>
+      <a className="ghost navlink" href="#versions">{t('Nouveautés','What\'s new')}</a>
+      <a className="ghost navlink" href="#faq">FAQ</a>
       <a className="ghost" href={GITHUB_URL} target="_blank" rel="noopener" style={{ marginRight:6 }}>GitHub</a>
       <div className="lang">
         <button className={lang==='en'?'on':''} onClick={() => setLang('en')}>EN</button>
@@ -595,7 +708,8 @@ const Header = ({ lang, setLang }) => (
       </div>
     </div>
   </header>
-);
+  );
+};
 
 const Hero = () => {
   const t = useT();
@@ -603,7 +717,7 @@ const Hero = () => {
     <section className="hero" id="top">
       <div className="wrap">
         <img className="icon" src="icon.png" alt="Rclone GUI"/>
-        <div><span className="pill"><Icon name="bolt.fill" size={14}/>{t('v1.4 · ESSAI GRATUIT','v1.4 · FREE TRIAL')}</span></div>
+        <div><span className="pill"><Icon name="bolt.fill" size={14}/>{t('v1.5 · ESSAI GRATUIT','v1.5 · FREE TRIAL')}</span></div>
         <h1 className="title">{ML(t('Tous vos clouds.\nChiffrés.','Every cloud.\nEncrypted.'))}</h1>
         <p className="sub">{t('Parcourez 80+ services cloud — y compris vos remotes rclone chiffrés — directement dans Fichiers. iPhone, iPad & Mac.','Browse 80+ cloud services — including your encrypted rclone crypt remotes — right inside Files. iPhone, iPad & Mac.')}</p>
         <div className="cta-row">
@@ -651,6 +765,7 @@ const Gallery = ({ lang }) => {
           const ink = p.dark ? '#fff' : '#0B0820';
           return (
             <div key={s.id} className="panel" style={{ background:`linear-gradient(180deg, ${p.from} 0%, ${p.to} 100%)`, color:ink }}>
+              {s.isNew && <span className="newtag">{t('NOUVEAU · v1.5','NEW · v1.5')}</span>}
               <div className="kick" style={{ color:p.accent }}>RCLONE GUI · iOS</div>
               <h3>{ML(copy.h)}</h3>
               <p className="psub">{copy.s}</p>
@@ -879,6 +994,107 @@ const FreeMonth = () => {
   );
 };
 
+const VERSIONS = [
+  { v:'1.5', current:true, date:{ fr:'Juin 2026', en:'June 2026' }, items:[
+    { fr:'Lecteur vidéo intégré multi-format (MKV, AVI, WebM, TS…) : sous-titres intégrés et fichiers externes, pistes audio, reprise là où vous étiez.', en:'Built-in multi-format video player (MKV, AVI, WebM, TS…): embedded and sidecar subtitles, audio tracks, resume where you left off.' },
+    { fr:'Au choix : lecture dans l\'app ou dans une app externe (Infuse, VLC).', en:'Your choice: play in-app or in an external app (Infuse, VLC).' },
+    { fr:'Galerie en grille avec vignettes pour photos et vidéos : bascule liste/grille, mode « Médias uniquement », génération des vignettes en Wi-Fi par défaut.', en:'Grid gallery with thumbnails for photos and videos: list/grid toggle, "Media only" mode, Wi-Fi-only thumbnail generation by default.' },
+    { fr:'Nouvelle option pour exclure les données de l\'app des sauvegardes iCloud.', en:'New option to exclude the app\'s data from iCloud backups.' },
+    { fr:'Stabilité et performances.', en:'Stability and performance improvements.' },
+  ] },
+  { v:'1.4', date:{ fr:'Juin 2026', en:'June 2026' }, items:[
+    { fr:'Nouveaux clouds : Drime, Internxt et Filen (Internxt et Filen chiffrés de bout en bout).', en:'New clouds: Drime, Internxt and Filen (Internxt and Filen are end-to-end encrypted).' },
+    { fr:'Panneau « où trouver vos identifiants » pour Pixeldrain, 1Fichier, ImageKit, Internet Archive, Gofile, Storj, NetStorage…', en:'"Where to get your credentials" panel for Pixeldrain, 1Fichier, ImageKit, Internet Archive, Gofile, Storj, NetStorage…' },
+    { fr:'Sélecteur de stockage pour les remotes composites (alias, union, combine) — fini la saisie manuelle de « remote:chemin ».', en:'Storage picker for composite remotes (alias, union, combine) — no more typing "remote:path" by hand.' },
+    { fr:'Correction de la connexion aux remotes protégés par mot de passe (SFTP, FTP, WebDAV, SMB…).', en:'Fixed connecting to password-protected remotes (SFTP, FTP, WebDAV, SMB…).' },
+    { fr:'Remotes verrouillés masqués des Récents et Favoris.', en:'Locked remotes hidden from Recents and Favorites.' },
+  ] },
+  { v:'1.3', date:{ fr:'Juin 2026', en:'June 2026' }, items:[
+    { fr:'Correctif important : l\'import d\'une configuration rclone chiffrée par mot de passe ne plante plus.', en:'Important fix: importing a password-encrypted rclone configuration no longer crashes the app.' },
+    { fr:'Bouton « J\'ai un code » pour utiliser des codes promo.', en:'"I have a code" button to redeem promo codes.' },
+    { fr:'Page « Contacter le développeur » dans Réglages → Support.', en:'"Contact the Developer" page in Settings → Support.' },
+    { fr:'Traduction anglaise complète de l\'app + code source désormais public sur GitHub.', en:'Completed English translation across the whole app + source code now public on GitHub.' },
+  ] },
+  { v:'1.2', date:{ fr:'Juin 2026', en:'June 2026' }, items:[
+    { fr:'App macOS native (Mac Apple Silicon) : barre latérale et intégration Finder.', en:'Native macOS app (Apple Silicon Macs): sidebar layout and Finder integration.' },
+    { fr:'Assistant guidé pour les remotes chiffrés (crypt) : choix du stockage, navigation jusqu\'au dossier, mot de passe — sans saisie de chemin.', en:'Guided wizard for encrypted (crypt) remotes: pick storage, browse to the folder, set a password — no manual path typing.' },
+    { fr:'Assistant d\'ajout amélioré : bouton Retour et sélecteur de fichier natif pour importer rclone.conf.', en:'Improved add-remote wizard: Back button and native file picker to import rclone.conf.' },
+  ] },
+  { v:'1.1', date:{ fr:'Mai 2026', en:'May 2026' }, items:[
+    { fr:'Localisation anglaise complète : l\'interface suit la langue de l\'appareil.', en:'Full English localization: the interface follows your device language.' },
+    { fr:'Première ouverture plus fluide, stabilité et finitions.', en:'Smoother first-launch, stability and polish.' },
+  ] },
+  { v:'1.0', date:{ fr:'Mai 2026', en:'May 2026' }, items:[
+    { fr:'Première version publique : client rclone natif, 70+ backends, intégration Fichiers (File Provider), chiffrement crypt de bout en bout, sync photo, Face ID, zéro tracking.', en:'First public release: native rclone client, 70+ backends, Files integration (File Provider), end-to-end crypt encryption, photo sync, Face ID, zero tracking.' },
+  ] },
+];
+const Versions = () => {
+  const t = useT();
+  const lang = React.useContext(LangContext);
+  return (
+    <section id="versions">
+      <div className="wrap">
+        <div className="eyebrow">{t('Nouveautés','What\'s new')}</div>
+        <h2 className="sec">{t('Chaque version, en mieux','Every release, better')}</h2>
+        <p className="sec-sub">{t('L\'historique complet des mises à jour et ce qu\'elles apportent.','The full update history and what each one adds.')}</p>
+        <div className="versions">
+          {VERSIONS.map(rel => (
+            <div key={rel.v} className={rel.current ? 'ver current' : 'ver'}>
+              <div className="ver-head">
+                <span className="ver-num">{t('Version ','Version ')}{rel.v}</span>
+                <span className="ver-date">{rel.date[lang] || rel.date.en}</span>
+                {rel.current && <span className="ver-tag">{t('ACTUELLE','CURRENT')}</span>}
+              </div>
+              <ul className="ver-list">
+                {rel.items.map((it, i) => (
+                  <li key={i}><Icon name="check.circle" size={18}/>{it[lang] || it.en}</li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+};
+
+const FAQ = () => {
+  const t = useT();
+  const items = [
+    { q:t('Rclone GUI est-il gratuit ?','Is Rclone GUI free?'),
+      a:t('Il y a un essai gratuit (1 mois via un code personnel sur ce site). Ensuite, un achat unique à vie de 29,99 € (iPhone + iPad + Mac) ou un abonnement dès 2,99 €/mois (11,99 €/an). L\'app est aussi open source : vous pouvez la compiler vous-même gratuitement.','There is a free trial (1 month via a personal code on this site). After that, a one-time lifetime purchase of €29.99 (iPhone + iPad + Mac) or a subscription from €2.99/month (€11.99/year). It is also open source, so you can build it yourself for free.') },
+    { q:t('Quels services cloud sont pris en charge ?','Which cloud services are supported?'),
+      a:t('Plus de 80 backends via le moteur rclone : Amazon S3, Cloudflare R2, Google Drive, Dropbox, OneDrive, Backblaze B2, SFTP, WebDAV, Storj, Wasabi, Drime, Internxt, Filen, et bien d\'autres.','80+ backends through the rclone engine: Amazon S3, Cloudflare R2, Google Drive, Dropbox, OneDrive, Backblaze B2, SFTP, WebDAV, Storj, Wasabi, Drime, Internxt, Filen and many more.') },
+    { q:t('Quels formats vidéo puis-je lire ? (v1.5)','Which video formats can I play? (v1.5)'),
+      a:t('Le lecteur intégré est multi-format : MP4, MOV, M4V, mais aussi MKV, AVI, WebM, TS et plus, grâce à un moteur hybride. Sous-titres (intégrés et fichiers externes) et pistes audio inclus. Vous pouvez aussi ouvrir la vidéo dans une app externe (Infuse, VLC).','The built-in player is multi-format: MP4, MOV, M4V, plus MKV, AVI, WebM, TS and more, thanks to a hybrid engine. Subtitles (embedded and sidecar files) and audio tracks included. You can also open videos in an external app (Infuse, VLC).') },
+    { q:t('Mes données sont-elles privées et chiffrées ?','Is my data private and encrypted?'),
+      a:t('Oui. Le chiffrement rclone « crypt » est natif, avec déchiffrement des noms à la volée ; vos clés ne quittent jamais l\'appareil. Aucun tracker, aucun serveur backend. Vous pouvez aussi exclure les données de l\'app des sauvegardes iCloud (v1.5).','Yes. rclone "crypt" encryption is native, with on-the-fly filename decryption; your keys never leave the device. No trackers, no backend server. You can also exclude the app\'s data from iCloud backups (v1.5).') },
+    { q:t('Fonctionne-t-il sur Mac et iPad ?','Does it work on Mac and iPad?'),
+      a:t('Oui : iPhone, iPad et Mac (Apple Silicon, app native depuis la v1.2). L\'achat à vie couvre les trois plateformes.','Yes: iPhone, iPad and Mac (Apple Silicon, native app since v1.2). The lifetime purchase covers all three platforms.') },
+    { q:t('Comment obtenir une réduction ?','How can I get a discount?'),
+      a:t('Étudiant·e, emploi précaire, chômage ou budget serré ? Écrivez au développeur pour un code adapté à vos moyens — sans justificatif.','Student, precarious job, unemployed or on a tight budget? Email the developer for a code based on what you can afford — no proof required.') },
+    { q:t('Est-ce open source ?','Is it open source?'),
+      a:t('Oui, sous licence MPL-2.0 et auditable sur GitHub. Aucun serveur backend, aucune analytics.','Yes, under the MPL-2.0 license and auditable on GitHub. No backend server, no analytics.') },
+  ];
+  return (
+    <section id="faq">
+      <div className="wrap">
+        <div className="eyebrow">{t('Questions','Questions')}</div>
+        <h2 className="sec">{t('Vos questions','Your questions')}</h2>
+        <p className="sec-sub">{t('Tout ce qu\'il faut savoir avant de vous lancer.','Everything you need to know before you start.')}</p>
+        <div className="faq">
+          {items.map((it, i) => (
+            <details className="faq-item" key={i} open={i===0}>
+              <summary>{it.q}</summary>
+              <p>{it.a}</p>
+            </details>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+};
+
 const Footer = () => {
   const t = useT();
   return (
@@ -887,6 +1103,8 @@ const Footer = () => {
         <div className="foot">
           <a className="brand" href="#top"><img src="icon.png" alt="" style={{ width:26, height:26, borderRadius:7 }}/>Rclone GUI</a>
           <div className="nav-sp"/>
+          <a href="#versions">{t('Nouveautés','What\'s new')}</a>
+          <a href="#faq">FAQ</a>
           <a href={APP_STORE_URL} target="_blank" rel="noopener">App Store</a>
           <a href={GITHUB_URL} target="_blank" rel="noopener">GitHub</a>
           <a href="privacy.html">{t('Confidentialité','Privacy')}</a>
@@ -906,8 +1124,10 @@ const App = () => {
       <Hero/>
       <Gallery lang={lang}/>
       <Features/>
+      <Versions/>
       <Pricing/>
       <FreeMonth/>
+      <FAQ/>
       <Footer/>
     </LangContext.Provider>
   );
