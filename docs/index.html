@@ -44,7 +44,7 @@
     ]
   },
   "downloadUrl": "https://apps.apple.com/app/id6770088773",
-  "softwareVersion": "1.5",
+  "softwareVersion": "1.6",
   "author": {
     "@type": "Person",
     "name": "Vitalys Rougetet"
@@ -59,6 +59,7 @@
     "Built-in multi-format video player (MP4, MKV, AVI, WebM, TS) with subtitles and audio tracks",
     "Media gallery with grid view and photo/video thumbnails",
     "Option to exclude app data from iCloud backups",
+    "Import credential files (SSH keys, certificates, service-account JSON) for backends that require them",
     "No backend server, no data collection"
   ],
   "screenshot": "https://rclone.rougetet.com/icon.png"
@@ -108,6 +109,11 @@
       "@type": "Question",
       "name": "Does it work on Mac and iPad?",
       "acceptedAnswer": { "@type": "Answer", "text": "Yes. Rclone GUI runs on iPhone, iPad and Mac (native Apple Silicon app since version 1.2). The one-time lifetime purchase covers all three platforms." }
+    },
+    {
+      "@type": "Question",
+      "name": "How do I connect a backend that requires a key file?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Since version 1.6 you can import the file directly. When a backend needs a file to authenticate (an SSH private key, a known_hosts file, a Google service-account JSON, a TLS certificate or a PEM key), an Import a file button opens the Files app so you can pick it — no need to type a filesystem path, which isn't possible on iOS. The imported credential is copied securely on-device and never sent anywhere else." }
     }
   ]
 }

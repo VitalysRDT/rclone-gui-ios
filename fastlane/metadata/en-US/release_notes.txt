@@ -1,7 +1,5 @@
-What's new in 1.5:
-- Built-in video player: play your videos right inside the app — including MKV, AVI, WebM and TS — thanks to a multi-format engine. Subtitles (embedded and sidecar files), audio tracks, and resume where you left off. Plus your choice of playing in-app or in an external app (Infuse, VLC).
-- Gallery: a new grid view with thumbnails for your photos and videos. Switch between list and grid in any folder, or turn on "Media only" for a true gallery experience. A thumbnail generation setting (Wi-Fi only by default) keeps you in control of your data.
-- Privacy: a new option to exclude the app's data from iCloud backups.
+What's new in 1.6:
+- Connect with a file: when a backend needs a file to sign in (an SSH private key, a known_hosts file, a Google service-account JSON, a TLS certificate…), you can now import it straight from Files — no more impossible-to-type file paths. Imported credentials are stored securely on your device and never sent anywhere else.
 - Stability and performance improvements.
 
 Thanks for using Rclone GUI! We'd love your feedback.

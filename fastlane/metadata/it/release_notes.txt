@@ -1,7 +1,5 @@
-Novità della versione 1.5:
-- Lettore video integrato: riproduci i tuoi video direttamente nell'app, anche MKV, AVI, WebM e TS, grazie a un motore multiformato. Sottotitoli (integrati e file esterni), tracce audio e ripresa da dove avevi interrotto. A tua scelta: riproduzione nell'app o in un'app esterna (Infuse, VLC).
-- Galleria: nuova vista a griglia con miniature per le tue foto e i tuoi video. Passa da elenco a griglia in qualsiasi cartella, oppure attiva «Solo media» per una vera esperienza da galleria. L'impostazione di generazione delle miniature (solo Wi-Fi per impostazione predefinita) ti fa controllare i tuoi dati.
-- Privacy: nuova opzione per escludere i dati dell'app dai backup di iCloud.
+Novità della versione 1.6:
+- Connessione tramite file: quando un backend richiede un file per l'accesso (una chiave privata SSH, un file known_hosts, un JSON di service account Google, un certificato TLS…), ora puoi importarlo direttamente da File — niente più percorsi di file impossibili da digitare. Le credenziali importate sono archiviate in modo sicuro sul dispositivo e non vengono mai inviate altrove.
 - Miglioramenti di stabilità e prestazioni.
 
-Grazie per usare Rclone GUI!
+Grazie per usare Rclone GUI! Ci piacerebbe avere il tuo feedback.

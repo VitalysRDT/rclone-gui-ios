@@ -1,7 +1,5 @@
-Nowości w wersji 1.5:
-- Wbudowany odtwarzacz wideo: odtwarzaj filmy bezpośrednio w aplikacji – także MKV, AVI, WebM i TS – dzięki wieloformatowemu silnikowi. Napisy (wbudowane i z plików obok), ścieżki audio oraz wznawianie od momentu przerwania. Do wyboru: odtwarzanie w aplikacji lub w aplikacji zewnętrznej (Infuse, VLC).
-- Galeria: nowy widok siatki z miniaturami zdjęć i filmów. Przełączaj między listą a siatką w każdym folderze lub włącz „Tylko multimedia”, aby uzyskać prawdziwy tryb galerii. Ustawienie generowania miniatur (domyślnie tylko Wi-Fi) daje kontrolę nad transferem danych.
-- Prywatność: nowa opcja wykluczania danych aplikacji z kopii zapasowych iCloud.
+Nowości w wersji 1.6:
+- Łączenie za pomocą pliku: gdy backend wymaga pliku do logowania (klucz prywatny SSH, plik known_hosts, plik JSON konta usługi Google, certyfikat TLS…), możesz teraz zaimportować go bezpośrednio z aplikacji Pliki — koniec z niemożliwymi do wpisania ścieżkami plików. Zaimportowane dane logowania są bezpiecznie przechowywane na urządzeniu i nigdy nigdzie nie są wysyłane.
 - Poprawki stabilności i wydajności.
 
-Dziękujemy za korzystanie z Rclone GUI!
+Dziękujemy za korzystanie z Rclone GUI! Czekamy na Twoją opinię.
