@@ -1,15 +1,26 @@
-# Jira → Trello sync
+# Jira ↔ Trello sync (bidirectionnel)
 
-Automatisation **Jira → Trello** (Jira = source de vérité) tournant en
-**GitHub Actions** (`.github/workflows/jira-trello-sync.yml`), toutes les 30 min
-+ déclenchement manuel. Aucun credential dans le dépôt : tout passe par les
-**GitHub Secrets**.
+Automatisation **Jira ↔ Trello** tournant en **GitHub Actions**
+(`.github/workflows/jira-trello-sync.yml`), toutes les 30 min + déclenchement
+manuel. Aucun credential dans le dépôt : tout passe par les **GitHub Secrets**.
 
-Chaque ticket Jira retenu par le JQL crée/met à jour une carte Trello :
-`summary → nom`, `description → desc` (ADF aplati + lien Jira), `status → liste`
-(créée automatiquement), `duedate → échéance`, `issuetype → étiquette`. Le sync
-est **idempotent** (marqueur `[jira:KEY]` dans la carte). Les cartes dont le
-ticket disparaît du JQL sont **archivées** (jamais supprimées).
+Chaque ticket Jira (retenu par le JQL) est apparié à une carte Trello via un
+marqueur caché `[jira:KEY]`. **Réconciliation champ par champ** : le côté le plus
+récemment modifié gagne (Jira `updated` vs Trello `dateLastActivity`), et on
+n'écrit que si la valeur diffère (pas de ping-pong).
+
+| Champ | Sens |
+|---|---|
+| résumé ↔ nom de carte | bidirectionnel |
+| échéance (`duedate` ↔ `due`) | bidirectionnel |
+| **statut ↔ liste** (nom de liste = nom de statut, transition Jira) | bidirectionnel |
+| description (ADF aplati + lien) | Jira → Trello (autorité Jira) |
+| type, étiquettes | Jira → Trello |
+
+**Création** : un ticket Jira sans carte → carte créée ; une **carte Trello sans
+marqueur** → ticket Jira créé puis carte re-liée. Cartes dont le ticket sort du
+JQL → **archivées** (jamais supprimées). Le sens est réglable via
+`SYNC_DIRECTION` (`bidirectional` | `jira-to-trello` | `trello-to-jira`).
 
 ## 1. Créer un board Trello dédié
 
@@ -27,8 +38,10 @@ récupère son shortlink (l'identifiant dans l'URL `trello.com/b/XXXXXXXX`).
 | `JIRA_PROJECT` | clé du projet (ex. `RG`) — ou laisse vide et fournis `JIRA_JQL` |
 | `JIRA_JQL` | *(optionnel)* requête JQL personnalisée, ex. `project = RG AND statusCategory != Done` |
 | `TRELLO_KEY` | https://trello.com/power-ups/admin → ton Power-Up → *API key* |
-| `TRELLO_TOKEN` | token Trello (un token API Atlassian fonctionne aussi) |
+| `TRELLO_TOKEN` | token Trello (Power-Up / authorize ; ⚠️ pas un token API Atlassian) |
 | `TRELLO_BOARD` | shortlink/id du board mirror (étape 1) |
+| `SYNC_DIRECTION` | *(optionnel)* `bidirectional` (défaut), `jira-to-trello` ou `trello-to-jira` |
+| `JIRA_ISSUETYPE_ID` | *(optionnel)* type des tickets créés depuis une carte Trello (défaut `10042`) |
 
 > Le **token API Atlassian** sert à la fois pour Jira (`JIRA_TOKEN`) et Trello
 > (`TRELLO_TOKEN`) si tu utilises le même compte Atlassian.
@@ -54,8 +67,11 @@ python3 scripts/jira-trello-sync/sync.py
 
 ## Notes
 
-- **Sens unique** Jira → Trello : les modifications faites côté Trello sont
-  écrasées au prochain sync. (Le bidirectionnel demande une gestion de conflits ;
-  on peut l'ajouter si besoin.)
-- Le mapping `status → liste` crée une liste Trello par statut Jira rencontré.
+- **Bidirectionnel** par défaut, avec arbitrage **dernier-modifié-gagne** au niveau
+  de chaque champ (pas d'écrasement aveugle, pas de ping-pong).
+- Le mapping `statut ↔ liste` crée une liste Trello par statut Jira ; côté Jira,
+  une transition est jouée vers le statut homonyme de la liste (si disponible
+  dans le workflow).
+- La **description** reste pilotée par Jira (autorité) : édite-la côté Jira.
+- ⚠️ Cible un **board dédié** : déplacer/éditer une carte y est propagé à Jira.
 - Aucune dépendance tierce : `sync.py` n'utilise que la bibliothèque standard.
