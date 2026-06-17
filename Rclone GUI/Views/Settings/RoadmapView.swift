@@ -2,11 +2,12 @@
 //  RoadmapView.swift
 //  Rclone GUI — Views/Settings
 //
-//  Compact "what's coming" screen. The full, continuously-evolving roadmap
-//  lives on the website (rclone.rougetet.com/#roadmap) so it can change
-//  without shipping an App Store update; here we surface the headline items
-//  per horizon and link out for the detail. Stays on-brand: privacy-first,
-//  open source, no backend.
+//  Compact "what's coming" screen with target dates. The full, continuously-
+//  evolving roadmap lives on the website (rclone.rougetet.com/#roadmap) so it
+//  can change without an App Store update; here we surface the headline items
+//  per horizon with their target date and link out. Dates are locale-neutral
+//  (numeric month/year, Qn) so they need no translation. Stays on-brand:
+//  privacy-first, open source, no backend.
 //
 
 import SwiftUI
@@ -14,6 +15,12 @@ import SwiftUI
 struct RoadmapView: View {
     @Environment(\.openURL) private var openURL
     private let fullURL = URL(string: "https://rclone.rougetet.com/#roadmap")!
+
+    private struct Item: Identifiable {
+        let id = UUID()
+        let name: LocalizedStringKey
+        let date: String   // locale-neutral, e.g. "07/2026", "Q1 2027"
+    }
 
     var body: some View {
         List {
@@ -23,24 +30,27 @@ struct RoadmapView: View {
                     .foregroundStyle(.secondary)
             }
 
-            horizon(
-                label: "Court terme",
-                tag: "En préparation",
-                tint: .green,
-                items: "Transferts Pro · Flows · Ghost Vault · Handoff P2P · Glass Engine"
-            )
-            horizon(
-                label: "Moyen terme",
-                tag: "Prévu",
-                tint: .blue,
-                items: "Remote Lens · Recherche sémantique on-device · Sealed Share · Règles de sync · Mode Voyage"
-            )
-            horizon(
-                label: "Long terme",
-                tag: "Vision",
-                tint: .purple,
-                items: "ChronoDrive · Ghost Sync · Quantum Vault · CipherSpace · Héritage numérique"
-            )
+            horizon(label: "Court terme", window: "07–09 / 2026", tint: .green, items: [
+                Item(name: "Transferts Pro", date: "07/2026"),
+                Item(name: "Flows", date: "07/2026"),
+                Item(name: "Ghost Vault", date: "08/2026"),
+                Item(name: "Handoff P2P", date: "08/2026"),
+                Item(name: "Glass Engine", date: "09/2026"),
+            ])
+            horizon(label: "Moyen terme", window: "10–12 / 2026", tint: .blue, items: [
+                Item(name: "Remote Lens", date: "10/2026"),
+                Item(name: "Sealed Share", date: "10/2026"),
+                Item(name: "Recherche sémantique on-device", date: "11/2026"),
+                Item(name: "Règles de sync", date: "11/2026"),
+                Item(name: "Mode Voyage", date: "12/2026"),
+            ])
+            horizon(label: "Long terme", window: "2027", tint: .purple, items: [
+                Item(name: "ChronoDrive", date: "Q1 2027"),
+                Item(name: "Ghost Sync", date: "Q1 2027"),
+                Item(name: "Quantum Vault", date: "Q2 2027"),
+                Item(name: "Héritage numérique", date: "Q2 2027"),
+                Item(name: "CipherSpace", date: "Q3 2027"),
+            ])
 
             Section {
                 Button {
@@ -49,7 +59,7 @@ struct RoadmapView: View {
                     Label("Voir la feuille de route complète", systemImage: "safari")
                 }
             } footer: {
-                Text("Roadmap indicative, sans engagement de date — priorisée avec vos retours.")
+                Text("Dates cibles, susceptibles d'évoluer.")
             }
         }
         .navigationTitle("Feuille de route")
@@ -59,14 +69,18 @@ struct RoadmapView: View {
     }
 
     @ViewBuilder
-    private func horizon(
-        label: LocalizedStringKey,
-        tag: LocalizedStringKey,
-        tint: Color,
-        items: LocalizedStringKey
-    ) -> some View {
+    private func horizon(label: LocalizedStringKey, window: String, tint: Color, items: [Item]) -> some View {
         Section {
-            Text(items).font(.callout)
+            ForEach(items) { it in
+                HStack(spacing: 10) {
+                    Text(it.name).font(.callout)
+                    Spacer(minLength: 8)
+                    Text(it.date)
+                        .font(.caption.weight(.semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                }
+            }
         } header: {
             HStack {
                 Text(label)
@@ -74,8 +88,9 @@ struct RoadmapView: View {
                     .foregroundStyle(.primary)
                     .textCase(nil)
                 Spacer()
-                Text(tag)
+                Text(window)
                     .font(.caption2.weight(.bold))
+                    .monospacedDigit()
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
                     .background(tint.opacity(0.18), in: Capsule())
