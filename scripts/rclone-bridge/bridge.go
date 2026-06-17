@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"mime"
 	"net"
 	"net/http"
@@ -49,6 +50,89 @@ type RPCResult struct {
 }
 
 var streamSessions sync.Map // map[string]*http.Server
+
+// ─── Live log capture (Phase E2) ──────────────────────────────────────────
+// rclone logs through log/slog. We tee its default handler into a bounded
+// ring buffer that the host polls via DrainLogs, so Settings → Logs can show
+// the engine's real activity (notices, warnings, errors) — no backend server,
+// nothing leaves the device.
+
+var (
+	logMu     sync.Mutex
+	logRing   []string
+	logActive bool
+)
+
+const logRingCap = 2000
+
+type captureHandler struct{ inner slog.Handler }
+
+func (h *captureHandler) Enabled(ctx context.Context, l slog.Level) bool {
+	return h.inner.Enabled(ctx, l)
+}
+
+func (h *captureHandler) Handle(ctx context.Context, r slog.Record) error {
+	line := r.Time.UTC().Format(time.RFC3339) + "\t" + slogLevelLabel(r.Level) + "\t" + r.Message
+	logMu.Lock()
+	logRing = append(logRing, line)
+	if len(logRing) > logRingCap {
+		logRing = logRing[len(logRing)-logRingCap:]
+	}
+	logMu.Unlock()
+	return h.inner.Handle(ctx, r)
+}
+
+func (h *captureHandler) WithAttrs(a []slog.Attr) slog.Handler {
+	return &captureHandler{inner: h.inner.WithAttrs(a)}
+}
+
+func (h *captureHandler) WithGroup(name string) slog.Handler {
+	return &captureHandler{inner: h.inner.WithGroup(name)}
+}
+
+func slogLevelLabel(l slog.Level) string {
+	switch {
+	case l < slog.LevelInfo:
+		return "DEBUG"
+	case l < slog.Level(2): // rclone NOTICE = 2
+		return "INFO"
+	case l < slog.LevelWarn:
+		return "NOTICE"
+	case l < slog.LevelError:
+		return "WARNING"
+	default:
+		return "ERROR"
+	}
+}
+
+// StartLogCapture begins teeing rclone's slog output into the ring buffer.
+// Idempotent — call once at startup. Preserves the existing handler (stderr).
+func StartLogCapture() {
+	logMu.Lock()
+	defer logMu.Unlock()
+	if logActive {
+		return
+	}
+	slog.SetDefault(slog.New(&captureHandler{inner: slog.Default().Handler()}))
+	logActive = true
+}
+
+// DrainLogs returns the log lines captured since the last call as a JSON array
+// of "RFC3339\tLEVEL\tmessage" strings, then clears the buffer. Returns "[]"
+// when empty.
+func DrainLogs() string {
+	logMu.Lock()
+	defer logMu.Unlock()
+	if len(logRing) == 0 {
+		return "[]"
+	}
+	out, err := json.Marshal(logRing)
+	logRing = logRing[:0]
+	if err != nil {
+		return "[]"
+	}
+	return string(out)
+}
 
 // SetEnv updates a process environment variable. Must be used instead of
 // the host's setenv(3) when the host is Swift on iOS: gomobile boots the
