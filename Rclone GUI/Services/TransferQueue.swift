@@ -33,6 +33,11 @@ public final class TransferQueue {
     private var modelContext: ModelContext?
     private var pollTasks: [Int: Task<Void, Never>] = [:]
     private var statsTask: Task<Void, Never>?
+    /// Phase E — re-enqueue auto borné. Compteur par signature logique de
+    /// transfert (remote+chemin+dest) pour couvrir les coupures réseau
+    /// transitoires sans boucler sur des erreurs permanentes.
+    private var autoRetryCounts: [String: Int] = [:]
+    private let maxAutoRetries = 2
 
     // MARK: - Setup
 
@@ -128,6 +133,7 @@ public final class TransferQueue {
                 displayName: entry.name,
                 sourceKind: .remote
             )
+            transfer.isDirectoryTransfer = true
             transfer.status = .running
             modelContext?.insert(transfer)
             try modelContext?.save()
@@ -151,6 +157,7 @@ public final class TransferQueue {
                 sourceKind: .remote,
                 bytesTotal: entry.size
             )
+            transfer.isDirectoryTransfer = false
             transfer.status = .running
             modelContext?.insert(transfer)
             try modelContext?.save()
@@ -721,6 +728,26 @@ public final class TransferQueue {
         pollTasks[jobID] = task
     }
 
+    private func autoRetryKey(_ t: Transfer) -> String {
+        "\(t.sourceRemote ?? "")|\(t.sourcePath)|\(t.destinationRemote ?? "")|\(t.destinationPath)"
+    }
+
+    /// Éligible au re-enqueue automatique ? On exclut les batches et PhotoSync
+    /// (logiques propres) et les downloads de DOSSIER (retry() les relancerait
+    /// en copyfile). Borné par `maxAutoRetries` via une signature stable.
+    private func shouldAutoRetry(_ t: Transfer) -> Bool {
+        guard t.batchID == nil, t.sourceKind != .photoLibrary else { return false }
+        switch t.kind {
+        case .copy, .move, .sync:
+            break
+        case .download where (t.isDirectoryTransfer ?? false) == false:
+            break
+        default:
+            return false
+        }
+        return autoRetryCounts[autoRetryKey(t), default: 0] < maxAutoRetries
+    }
+
     private func pollLoop(transferID: String, jobID: Int) async {
         while !Task.isCancelled {
             do {
@@ -748,6 +775,27 @@ public final class TransferQueue {
                             category: "transfer",
                             message: "✅ \(finalKind.rawValue) terminé : \(finalSrc)"
                         )
+                    } else if shouldAutoRetry(transfer) {
+                        // Re-enqueue auto borné (coupures réseau transitoires).
+                        let key = autoRetryKey(transfer)
+                        let attempt = autoRetryCounts[key, default: 0] + 1
+                        autoRetryCounts[key] = attempt
+                        transfer.status = .failed
+                        transfer.lastError = (status.error ?? "Échec") + " — nouvelle tentative \(attempt)/\(maxAutoRetries)"
+                        transfer.finishedAt = .now
+                        try? modelContext?.save()
+                        await LogService.shared.log(
+                            .info,
+                            category: "transfer",
+                            message: "🔁 Nouvelle tentative auto \(attempt)/\(maxAutoRetries) : \(finalSrc)"
+                        )
+                        let toRetry = transfer
+                        let backoff = Double(attempt) * 3.0
+                        Task { @MainActor in
+                            try? await Task.sleep(for: .seconds(backoff))
+                            try? await self.retry(toRetry)
+                        }
+                        break
                     } else {
                         transfer.status = .failed
                         transfer.lastError = status.error ?? "Échec inconnu"
