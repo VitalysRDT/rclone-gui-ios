@@ -77,6 +77,7 @@ const Icon = ({ name, size = 18, weight = 'regular', style }) => {
     case 'wand': return <svg {...common}><path d="m4 20 12-12M14 6l4 4M11 3l1 2M19 11l2 1M16 14l1 2M6 5l2 1"/></svg>;
     case 'arrow.up': return <svg {...common}><path d="M12 19V5M6 11l6-6 6 6"/></svg>;
     case 'rotate': return <svg {...common}><path d="M3 12a9 9 0 0 1 15.4-6.4L21 8M21 4v4h-4M21 12a9 9 0 0 1-15.4 6.4L3 16M3 20v-4h4"/></svg>;
+    case 'columns': return <svg {...common}><rect x="3.5" y="4.5" width="5" height="15" rx="1.4"/><rect x="9.5" y="4.5" width="5" height="11" rx="1.4"/><rect x="15.5" y="4.5" width="5" height="8" rx="1.4"/></svg>;
     default: return <svg {...common}><rect x="4" y="4" width="16" height="16" rx="3"/></svg>;
   }
 };
@@ -1087,6 +1088,70 @@ const ROADMAP = [
     { n:{ fr:'CipherSpace', en:'CipherSpace' }, when:{ fr:'T3 2027', en:'Q3 2027' }, d:{ fr:'Explorer ses archives chiffrées dans l\'espace, sur visionOS.', en:'Explore your encrypted archives in space, on visionOS.' } },
   ] },
 ];
+const TRELLO_BOARD_ID = 'QjhP4sDK';
+const TRELLO_BOARD_URL = 'https://trello.com/b/QjhP4sDK';
+const TRELLO_LABEL_HEX = {
+  green:'#4bce97', yellow:'#e2b203', orange:'#fea362', red:'#f87168',
+  purple:'#9f8fef', blue:'#579dff', sky:'#6cc3e0', lime:'#94c748',
+  pink:'#e774bb', black:'#8c9bab'
+};
+const TrelloBoard = ({ lang }) => {
+  const t = useT();
+  const [cols, setCols] = React.useState(null);
+  const [err, setErr] = React.useState(false);
+  React.useEffect(() => {
+    const base = 'https://api.trello.com/1/boards/' + TRELLO_BOARD_ID;
+    Promise.all([
+      fetch(base + '/lists?fields=name').then(r => r.json()),
+      fetch(base + '/cards?fields=name,due,idList,labels').then(r => r.json()),
+    ]).then(([lists, cards]) => {
+      if (!Array.isArray(lists) || !Array.isArray(cards)) throw new Error('bad payload');
+      const byList = {};
+      cards.forEach(c => { (byList[c.idList] = byList[c.idList] || []).push(c); });
+      setCols(lists.map(l => ({ id:l.id, name:l.name, cards: byList[l.id] || [] })));
+    }).catch(() => setErr(true));
+  }, []);
+  const fmtDue = (iso) => {
+    if (!iso) return null;
+    try { return new Date(iso).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', { month:'short', year:'numeric' }); }
+    catch (e) { return null; }
+  };
+  return (
+    <div className="tb">
+      <div className="tb-head">
+        <div>
+          <span className="tb-live"><span className="tb-dot"/>{t('Suivi en direct','Live tracking')}</span>
+          <p className="tb-sub">{t('Notre board public, synchronisé automatiquement avec notre suivi interne (Jira ↔ Trello).','Our public board, automatically kept in sync with our internal tracker (Jira ↔ Trello).')}</p>
+        </div>
+        <a className="btn btn-violet tb-open" href={TRELLO_BOARD_URL} target="_blank" rel="noopener"><Icon name="columns" size={16}/>{t('Ouvrir sur Trello','Open in Trello')}</a>
+      </div>
+      {err && <p className="tb-msg">{t('Board momentanément indisponible — ','Board temporarily unavailable — ')}<a href={TRELLO_BOARD_URL} target="_blank" rel="noopener">{t('ouvrir sur Trello','open in Trello')}</a>.</p>}
+      {!err && !cols && <p className="tb-msg">{t('Chargement du board…','Loading board…')}</p>}
+      {!err && cols && (
+        <div className="tb-board">
+          {cols.map(col => (
+            <div className="tb-col" key={col.id}>
+              <div className="tb-col-head"><span>{col.name}</span><span className="tb-count">{col.cards.length}</span></div>
+              {col.cards.map(c => (
+                <div className="tb-card" key={c.id}>
+                  {(c.labels && c.labels.length > 0) && (
+                    <div className="tb-labels">
+                      {c.labels.map(l => (
+                        <span className="tb-lab" key={l.id} style={{ background: TRELLO_LABEL_HEX[l.color] || '#8c9bab' }}>{l.name || ''}</span>
+                      ))}
+                    </div>
+                  )}
+                  <div className="tb-name">{c.name}</div>
+                  {c.due && <div className="tb-due"><Icon name="clock" size={12}/>{fmtDue(c.due)}</div>}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 const Roadmap = ({ lang }) => {
   const t = useT();
   return (
@@ -1120,6 +1185,7 @@ const Roadmap = ({ lang }) => {
           <Icon name="bolt.fill" size={16}/>
           <span><b>{t('Pari produit','Product bet')} : </b>{t('« Capability, pas compte » — le partage et le multi-appareils deviennent des objets cryptographiques que tu possèdes et révoques, jamais une ligne dans une base (puisqu\'il n\'y en a pas).','"Capability, not account" — sharing and multi-device become cryptographic objects you own and revoke, never a row in a database (because there isn\'t one).')}</span>
         </div>
+        <TrelloBoard lang={lang}/>
         <p className="rm-note">{t('Dates cibles, susceptibles d\'évoluer — priorisées avec vos retours. Open source : suivez l\'avancement sur GitHub.','Target dates, subject to change — prioritized with your feedback. Open source: follow progress on GitHub.')}</p>
       </div>
     </section>
