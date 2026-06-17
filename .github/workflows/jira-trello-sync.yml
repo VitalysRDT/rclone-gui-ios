@@ -1,6 +1,6 @@
-name: Jira → Trello sync
+name: Jira ↔ Trello sync
 
-# Synchronise les tickets Jira (source de vérité) vers un board Trello.
+# Synchronise Jira et un board Trello (bidirectionnel par défaut).
 # Tous les credentials sont des GitHub Secrets — rien en clair dans le dépôt.
 # Désactivé tant que les secrets ne sont pas configurés (le job sort en no-op).
 
@@ -40,6 +40,8 @@ jobs:
           JIRA_TOKEN: ${{ secrets.JIRA_TOKEN }}
           JIRA_PROJECT: ${{ secrets.JIRA_PROJECT }}
           JIRA_JQL: ${{ secrets.JIRA_JQL }}
+          JIRA_ISSUETYPE_ID: ${{ secrets.JIRA_ISSUETYPE_ID }}
+          SYNC_DIRECTION: ${{ secrets.SYNC_DIRECTION }}
           TRELLO_KEY: ${{ secrets.TRELLO_KEY }}
           TRELLO_TOKEN: ${{ secrets.TRELLO_TOKEN }}
           TRELLO_BOARD: ${{ secrets.TRELLO_BOARD }}
