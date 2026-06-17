@@ -168,6 +168,16 @@ struct SettingsView: View {
                         tint: .teal
                     )
                 }
+                NavigationLink {
+                    RoadmapView()
+                } label: {
+                    SettingsNavigationRow(
+                        icon: "sparkles",
+                        title: "Feuille de route",
+                        subtitle: "Les fonctionnalités à venir",
+                        tint: .purple
+                    )
+                }
             }
 
             Section("Support") {
