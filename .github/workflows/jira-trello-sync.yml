@@ -42,6 +42,7 @@ jobs:
           JIRA_JQL: ${{ secrets.JIRA_JQL }}
           JIRA_ISSUETYPE_ID: ${{ secrets.JIRA_ISSUETYPE_ID }}
           SYNC_DIRECTION: ${{ secrets.SYNC_DIRECTION }}
+          ASSIGNEE_MAP: ${{ secrets.ASSIGNEE_MAP }}
           TRELLO_KEY: ${{ secrets.TRELLO_KEY }}
           TRELLO_TOKEN: ${{ secrets.TRELLO_TOKEN }}
           TRELLO_BOARD: ${{ secrets.TRELLO_BOARD }}

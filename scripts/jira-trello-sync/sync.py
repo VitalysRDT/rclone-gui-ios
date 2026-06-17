@@ -37,6 +37,12 @@ JIRA_TOKEN   = env("JIRA_TOKEN", req=True)
 JIRA_PROJECT = env("JIRA_PROJECT", "")
 JIRA_JQL     = env("JIRA_JQL", "") or (f'project = "{JIRA_PROJECT}" ORDER BY Rank ASC' if JIRA_PROJECT else "")
 JIRA_ISSUETYPE_ID = env("JIRA_ISSUETYPE_ID", "10042")  # défaut: Tâche
+# Map assignés Jira ↔ Trello : {"<jiraAccountId>": "<trelloMemberId>", ...}
+try:
+    ASSIGNEE_MAP = json.loads(env("ASSIGNEE_MAP", "") or "{}")
+except Exception:
+    ASSIGNEE_MAP = {}
+ASSIGNEE_MAP_REV = {v: k for k, v in ASSIGNEE_MAP.items()}
 TRELLO_KEY   = env("TRELLO_KEY", req=True)
 TRELLO_TOKEN = env("TRELLO_TOKEN", req=True)
 TRELLO_BOARD = env("TRELLO_BOARD", req=True)
@@ -110,7 +116,7 @@ def marker(key): return f"[jira:{key}]"
 def due_day(iso): return iso[:10] if iso else None  # ISO/date → YYYY-MM-DD
 
 def jira_search():
-    fields = "summary,description,status,duedate,issuetype,labels,priority,updated"
+    fields = "summary,description,status,duedate,issuetype,labels,priority,updated,assignee,components"
     token = None
     out = []
     while True:
@@ -141,6 +147,43 @@ def jira_transition(key, target):
     code, _ = jira("POST", f"/issue/{key}/transitions", body={"transition": {"id": tid}})
     return code in (200, 204)
 
+def sync_comments(key, cid):
+    """Commentaires bidirectionnels, anti-boucle par marqueurs :
+    miroir d'un commentaire Jira #J côté Trello → texte « ↪ Jira #J … » ;
+    miroir d'un commentaire Trello #T côté Jira → « ↪ Trello #T … »."""
+    n = 0
+    _, jc = jira("GET", f"/issue/{key}/comment", params={"maxResults": 100})
+    jcomments = jc.get("comments", []) if isinstance(jc, dict) else []
+    _, tacts = trello("GET", f"/cards/{cid}/actions", filter="commentCard", limit="50")
+    tcomments = tacts if isinstance(tacts, list) else []
+    jtexts = [adf_to_text(c.get("body")) for c in jcomments]
+    ttexts = [(a.get("data", {}) or {}).get("text", "") for a in tcomments]
+
+    if TO_TRELLO:
+        for c in jcomments:
+            jid = c["id"]
+            if any(f"↪ Jira #{jid}" in t for t in ttexts):
+                continue
+            author = (c.get("author") or {}).get("displayName", "Jira")
+            body = adf_to_text(c.get("body")).strip()
+            if not body:
+                continue
+            trello("POST", f"/cards/{cid}/actions/comments", text=f"↪ Jira #{jid} · {author} : {body}")
+            n += 1
+    if TO_JIRA:
+        for a in tcomments:
+            text = (a.get("data", {}) or {}).get("text", "")
+            if text.startswith("↪ Jira #"):
+                continue  # c'est déjà un miroir d'un commentaire Jira
+            tid = a["id"]
+            if any(f"↪ Trello #{tid}" in t for t in jtexts):
+                continue
+            author = (a.get("memberCreator") or {}).get("fullName", "Trello")
+            jira("POST", f"/issue/{key}/comment",
+                 body={"body": text_to_adf(f"↪ Trello #{tid} · {author} : {text}")})
+            n += 1
+    return n
+
 # ── Sync ────────────────────────────────────────────────────────────────────
 def main():
     print(f"Direction: {DIRECTION}")
@@ -152,7 +195,7 @@ def main():
     listname = {v: k for k, v in lists.items()}
     labels = {l["name"]: l["id"] for l in trello("GET", f"/boards/{bid}/labels")[1] if l["name"]}
     cards = trello("GET", f"/boards/{bid}/cards",
-                   fields="id,name,desc,due,idList,idLabels,dateLastActivity")[1]
+                   fields="id,name,desc,due,idList,idLabels,idMembers,dateLastActivity")[1]
 
     by_key, unlinked = {}, []
     for c in cards:
@@ -259,6 +302,33 @@ def main():
             lid = ensure_label((f.get("issuetype") or {}).get("name"))
             if lid and lid not in (c.get("idLabels") or []):
                 trello("POST", f"/cards/{cid}/idLabels", value=lid)
+            # composants Jira → étiquettes Trello
+            for comp in f.get("components") or []:
+                clid = ensure_label(comp.get("name"))
+                if clid and clid not in (c.get("idLabels") or []):
+                    trello("POST", f"/cards/{cid}/idLabels", value=clid)
+
+        # assigné ↔ membre (bidirectionnel, via ASSIGNEE_MAP)
+        if ASSIGNEE_MAP:
+            jacct = (f.get("assignee") or {}).get("accountId")
+            want_member = ASSIGNEE_MAP.get(jacct) if jacct else None
+            cur_mapped = [m for m in (c.get("idMembers") or []) if m in ASSIGNEE_MAP_REV]
+            cur_member = cur_mapped[0] if cur_mapped else None
+            if want_member != cur_member:
+                if jnewer and TO_TRELLO:
+                    for m in cur_mapped:
+                        trello("DELETE", f"/cards/{cid}/idMembers/{m}")
+                    if want_member:
+                        trello("POST", f"/cards/{cid}/idMembers", value=want_member)
+                    changes.append("assigné→Trello")
+                elif (not jnewer) and TO_JIRA:
+                    acct = ASSIGNEE_MAP_REV.get(cur_member) if cur_member else None
+                    jira("PUT", f"/issue/{key}/assignee", body={"accountId": acct})
+                    changes.append("assigné→Jira")
+
+        # commentaires (bidirectionnel, anti-boucle par marqueurs)
+        nc = sync_comments(key, cid)
+        if nc: changes.append(f"{nc} commentaire(s)")
 
         if changes: print(f"  ↻ {key}: {', '.join(changes)}")
 
