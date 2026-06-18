@@ -169,6 +169,16 @@ struct SettingsView: View {
                     )
                 }
                 NavigationLink {
+                    ChangelogView()
+                } label: {
+                    SettingsNavigationRow(
+                        icon: "clock.arrow.circlepath",
+                        title: "Historique des versions",
+                        subtitle: "Les nouveautés de chaque mise à jour",
+                        tint: .orange
+                    )
+                }
+                NavigationLink {
                     RoadmapView()
                 } label: {
                     SettingsNavigationRow(
