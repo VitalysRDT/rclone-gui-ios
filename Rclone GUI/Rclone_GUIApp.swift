@@ -181,6 +181,15 @@ struct Rclone_GUIApp: App {
                             )
                         }
                     }
+                    // Transferts Pro — politique réseau : applique la limite
+                    // Wi-Fi/cellulaire et la pause/reprise auto à chaque
+                    // changement de lien (et une fois au lancement).
+                    Task { @MainActor in
+                        await TransferQueue.shared.applyNetworkPolicy()
+                        for await _ in NotificationCenter.default.notifications(named: .networkPathDidChange) {
+                            await TransferQueue.shared.handleNetworkChange()
+                        }
+                    }
                 }
         }
         .modelContainer(sharedModelContainer)
