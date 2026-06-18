@@ -719,7 +719,7 @@ const Hero = () => {
     <section className="hero" id="top">
       <div className="wrap">
         <img className="icon" src="icon.png" alt="Rclone GUI"/>
-        <div><span className="pill"><Icon name="bolt.fill" size={14}/>{t('v1.6 · ESSAI GRATUIT','v1.6 · FREE TRIAL')}</span></div>
+        <div><span className="pill"><Icon name="bolt.fill" size={14}/>{t('v1.7 · ESSAI GRATUIT','v1.7 · FREE TRIAL')}</span></div>
         <h1 className="title">{ML(t('Tous vos clouds.\nChiffrés.','Every cloud.\nEncrypted.'))}</h1>
         <p className="sub">{t('Parcourez 80+ services cloud — y compris vos remotes rclone chiffrés — directement dans Fichiers. iPhone, iPad & Mac.','Browse 80+ cloud services — including your encrypted rclone crypt remotes — right inside Files. iPhone, iPad & Mac.')}</p>
         <div className="cta-row">
@@ -997,7 +997,17 @@ const FreeMonth = () => {
 };
 
 const VERSIONS = [
-  { v:'1.6', current:true, date:{ fr:'Juin 2026', en:'June 2026' }, items:[
+  { v:'1.7', current:true, date:{ fr:'Juin 2026', en:'June 2026' }, items:[
+    { fr:'Téléchargez des dossiers entiers en une fois (récursif).', en:'Download entire folders in one go (recursive).' },
+    { fr:'Raccourcis & Siri : ouvrez un remote ou lancez un envoi de fichier depuis l\'app Raccourcis, grâce aux App Intents.', en:'Shortcuts & Siri: open a remote or start a file upload from the Shortcuts app, powered by App Intents.' },
+    { fr:'Confidentialité renforcée : le cache média est effacé automatiquement au verrouillage par inactivité, et vous pouvez plafonner sa taille (éviction automatique).', en:'Stronger privacy: the media cache is wiped automatically when the app locks on inactivity, and you can cap its size (automatic eviction).' },
+    { fr:'Transferts plus fiables : les transferts échoués sont relancés automatiquement, dans une limite raisonnable.', en:'More reliable transfers: failed transfers are retried automatically, within a sensible limit.' },
+    { fr:'Assistant guidé pour créer votre coffre chiffré « Crypt ».', en:'Guided assistant to set up your encrypted "Crypt" vault.' },
+    { fr:'Journaux internes en direct pour diagnostiquer une connexion.', en:'Live internal logs to diagnose a connection.' },
+    { fr:'Nouvel écran « Feuille de route » pour découvrir ce qui arrive.', en:'New "Roadmap" screen to see what\'s coming next.' },
+    { fr:'Améliorations de stabilité et de performance.', en:'Stability and performance improvements.' },
+  ] },
+  { v:'1.6', date:{ fr:'Juin 2026', en:'June 2026' }, items:[
     { fr:'Connexion par fichier : quand un backend exige un fichier pour s\'authentifier (clé privée SSH, known_hosts, JSON de compte de service Google, certificat TLS…), importez-le directement depuis Fichiers — fini les chemins impossibles à saisir.', en:'Connect with a file: when a backend needs a file to sign in (SSH private key, known_hosts, Google service-account JSON, TLS certificate…), import it straight from Files — no more impossible-to-type paths.' },
     { fr:'Les identifiants importés sont copiés en sécurité sur l\'appareil et ne sont jamais transmis ailleurs.', en:'Imported credentials are copied securely on-device and never sent anywhere else.' },
     { fr:'Améliorations de stabilité et de performance.', en:'Stability and performance improvements.' },
