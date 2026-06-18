@@ -93,6 +93,16 @@ struct TransfersView: View {
                 }
                 .accessibilityLabel("Plus d'actions de transferts")
             }
+            #if os(iOS)
+            // Mode édition : permet de réordonner la file « En attente » par
+            // glisser-déposer (handles de déplacement). Affiché seulement s'il
+            // y a une file.
+            if hasQueuedItems {
+                ToolbarItem(placement: .topBarLeading) {
+                    EditButton()
+                }
+            }
+            #endif
         }
         .sheet(isPresented: $showLogShare) {
             if let url = logExportURL {
@@ -147,6 +157,11 @@ struct TransfersView: View {
 
     private var globalPauseShowsResume: Bool {
         !hasActivePausable && hasPausedResumable
+    }
+
+    /// Y a-t-il des transferts en file d'attente (réordonnables) ?
+    private var hasQueuedItems: Bool {
+        transfers.contains { $0.status == .enqueued || $0.status == .pending }
     }
 
     private func toggleGlobalPause() async {
@@ -255,6 +270,107 @@ struct TransfersView: View {
         }
     }
 
+    // MARK: - Lignes & en-têtes
+
+    /// Une ligne de transfert + ses swipes + son menu contextuel. `position`
+    /// est le rang dans la file (#n), affiché uniquement pour les `.enqueued`.
+    @ViewBuilder
+    private func transferRow(_ transfer: Transfer, position: Int?) -> some View {
+        TransferRowView(transfer: transfer, queuePosition: position)
+            .swipeActions(edge: .trailing) {
+                if transfer.status == .running || transfer.status == .pending || transfer.status == .enqueued {
+                    Button(role: .destructive) {
+                        Task { await TransferQueue.shared.cancel(transfer) }
+                    } label: {
+                        Label("Annuler", systemImage: "xmark.circle")
+                    }
+                    if transfer.kind != .delete {
+                        Button {
+                            Task { await pauseTransfer(transfer) }
+                        } label: {
+                            Label("Pause", systemImage: "pause.fill")
+                        }
+                        .tint(.orange)
+                    }
+                } else {
+                    Button(role: .destructive) {
+                        modelContext.delete(transfer)
+                        try? modelContext.save()
+                    } label: {
+                        Label("Supprimer", systemImage: "trash")
+                    }
+                }
+            }
+            .swipeActions(edge: .leading) {
+                if transfer.status == .paused {
+                    Button {
+                        Task { await resumeTransfer(transfer) }
+                    } label: {
+                        Label("Reprendre", systemImage: "play.fill")
+                    }
+                    .tint(.green)
+                } else if transfer.status == .failed {
+                    Button {
+                        Task { await retry(transfer) }
+                    } label: {
+                        Label("Réessayer", systemImage: "arrow.clockwise")
+                    }
+                    .tint(.blue)
+                }
+            }
+            .contextMenu {
+                transferRowMenu(transfer)
+            }
+    }
+
+    @ViewBuilder
+    private func groupHeader(_ group: TransferGroup) -> some View {
+        HStack {
+            Text(group.title)
+            Spacer()
+            if let detail = headerDetail(group) {
+                Text(detail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+        }
+    }
+
+    /// Indicateur de file : slots utilisés/max sur « En cours », nombre en
+    /// attente sur « En attente ».
+    private func headerDetail(_ group: TransferGroup) -> String? {
+        switch group.role {
+        case .running:
+            return "\(runningQueuedCount)/\(TransferQueue.shared.maxConcurrent) actifs"
+        case .pending:
+            let n = group.items.count
+            return n > 1 ? "\(n) en file" : "1 en file"
+        default:
+            return nil
+        }
+    }
+
+    /// Transferts download/upload réellement en cours (ceux bornés par la file).
+    private var runningQueuedCount: Int {
+        transfers.filter {
+            $0.status == .running && ($0.kind == .download || $0.kind == .upload)
+        }.count
+    }
+
+    /// Glisser-déposer dans la file : renumérote `queueOrder` selon le nouvel
+    /// ordre affiché, puis relance le scheduler.
+    private func moveInQueue(_ items: [Transfer], from source: IndexSet, to destination: Int) {
+        var reordered = items
+        reordered.move(fromOffsets: source, toOffset: destination)
+        for (index, transfer) in reordered.enumerated() {
+            transfer.queueOrder = index
+        }
+        try? modelContext.save()
+        TransferQueue.shared.scheduleNext()
+        hapticTrigger &+= 1
+    }
+
     private func retry(_ transfer: Transfer) async {
         do {
             try await TransferQueue.shared.retry(transfer)
@@ -359,61 +475,26 @@ struct TransfersView: View {
             } else {
                 let groups = TransferGroup.organize(filteredTransfers)
                 ForEach(groups, id: \.title) { group in
-                    Section(group.title) {
+                    Section {
                         // Cap les sections terminales (Terminés/Échoués) qui
                         // peuvent gonfler à plusieurs centaines d'éléments.
-                        let isTerminal = group.title == "Terminés" || group.title == "Échoués"
+                        let isTerminal = group.role == .completed || group.role == .failed
                         let visibleItems = isTerminal
                             ? Array(group.items.prefix(terminalDisplayLimit))
                             : group.items
-                        ForEach(visibleItems) { transfer in
-                            TransferRowView(transfer: transfer)
-                                .swipeActions(edge: .trailing) {
-                                    if transfer.status == .running || transfer.status == .pending || transfer.status == .enqueued {
-                                        Button(role: .destructive) {
-                                            Task {
-                                                await TransferQueue.shared.cancel(transfer)
-                                            }
-                                        } label: {
-                                            Label("Annuler", systemImage: "xmark.circle")
-                                        }
-                                        if transfer.kind != .delete {
-                                            Button {
-                                                Task { await pauseTransfer(transfer) }
-                                            } label: {
-                                                Label("Pause", systemImage: "pause.fill")
-                                            }
-                                            .tint(.orange)
-                                        }
-                                    } else {
-                                        Button(role: .destructive) {
-                                            modelContext.delete(transfer)
-                                            try? modelContext.save()
-                                        } label: {
-                                            Label("Supprimer", systemImage: "trash")
-                                        }
-                                    }
-                                }
-                                .swipeActions(edge: .leading) {
-                                    if transfer.status == .paused {
-                                        Button {
-                                            Task { await resumeTransfer(transfer) }
-                                        } label: {
-                                            Label("Reprendre", systemImage: "play.fill")
-                                        }
-                                        .tint(.green)
-                                    } else if transfer.status == .failed {
-                                        Button {
-                                            Task { await retry(transfer) }
-                                        } label: {
-                                            Label("Réessayer", systemImage: "arrow.clockwise")
-                                        }
-                                        .tint(.blue)
-                                    }
-                                }
-                                .contextMenu {
-                                    transferRowMenu(transfer)
-                                }
+                        if group.reorderable {
+                            // File d'attente : réordonnable par glisser-déposer.
+                            // L'ordre affiché = ordre du scheduler (queueOrder).
+                            ForEach(Array(visibleItems.enumerated()), id: \.element.id) { index, transfer in
+                                transferRow(transfer, position: transfer.status == .enqueued ? index + 1 : nil)
+                            }
+                            .onMove { source, destination in
+                                moveInQueue(visibleItems, from: source, to: destination)
+                            }
+                        } else {
+                            ForEach(visibleItems) { transfer in
+                                transferRow(transfer, position: nil)
+                            }
                         }
                         if isTerminal && group.items.count > visibleItems.count {
                             Button {
@@ -429,6 +510,8 @@ struct TransfersView: View {
                             }
                             .foregroundStyle(.tint)
                         }
+                    } header: {
+                        groupHeader(group)
                     }
                 }
             }
@@ -798,8 +881,12 @@ private enum TransferFilter: String, CaseIterable, Identifiable {
 }
 
 private struct TransferGroup {
+    enum Role { case running, paused, pending, completed, failed }
     let title: String
     let items: [Transfer]
+    let role: Role
+    /// Seule la file « En attente » est réordonnable par glisser-déposer.
+    var reorderable: Bool { role == .pending }
 
     static func organize(_ all: [Transfer]) -> [TransferGroup] {
         var running: [Transfer] = []
@@ -817,12 +904,15 @@ private struct TransferGroup {
             case .failed: failed.append(t)
             }
         }
+        // La file affichée suit l'ordre du scheduler (queueOrder asc, puis
+        // ancienneté) pour que le rang #n et le glisser-déposer soient cohérents.
+        pending.sort { ($0.queueOrder, $0.startedAt) < ($1.queueOrder, $1.startedAt) }
         var groups: [TransferGroup] = []
-        if !running.isEmpty { groups.append(.init(title: String(localized: "En cours"), items: running)) }
-        if !paused.isEmpty { groups.append(.init(title: String(localized: "En pause"), items: paused)) }
-        if !pending.isEmpty { groups.append(.init(title: String(localized: "En attente"), items: pending)) }
-        if !completed.isEmpty { groups.append(.init(title: String(localized: "Terminés"), items: completed)) }
-        if !failed.isEmpty { groups.append(.init(title: String(localized: "Échec"), items: failed)) }
+        if !running.isEmpty { groups.append(.init(title: String(localized: "En cours"), items: running, role: .running)) }
+        if !paused.isEmpty { groups.append(.init(title: String(localized: "En pause"), items: paused, role: .paused)) }
+        if !pending.isEmpty { groups.append(.init(title: String(localized: "En attente"), items: pending, role: .pending)) }
+        if !completed.isEmpty { groups.append(.init(title: String(localized: "Terminés"), items: completed, role: .completed)) }
+        if !failed.isEmpty { groups.append(.init(title: String(localized: "Échec"), items: failed, role: .failed)) }
         return groups
     }
 }

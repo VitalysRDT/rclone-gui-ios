@@ -723,24 +723,47 @@ public final class TransferQueue {
         await applyNetworkPolicy()
     }
 
+    /// Génération de politique réseau : invalide une fenêtre de drain en cours
+    /// si un nouvel évènement réseau survient entre-temps.
+    private var networkPolicyGeneration = 0
+    /// Fenêtre de drain (s) avant de suspendre sur bascule vers cellulaire.
+    private static let networkDrainSeconds: UInt64 = 8
+
     /// Applique la limite de bande passante selon le lien (Wi-Fi vs cellulaire),
     /// met en pause auto en cellulaire/hors-ligne si demandé, et reprend les
     /// transferts AUTO-pausés quand la connexion redevient utilisable.
     public func applyNetworkPolicy() async {
+        networkPolicyGeneration &+= 1
+        let gen = networkPolicyGeneration
         let reach = NetworkReachability.shared
-        let online = reach.isOnline
         let cellular = reach.isCellularLike
         let pauseOnCellular = UserDefaults.standard.bool(forKey: Self.pauseOnCellularKey)
         let wifiMBps = UserDefaults.standard.double(forKey: Self.wifiLimitKey)
         let cellMBps = UserDefaults.standard.double(forKey: Self.cellularLimitKey)
 
-        if !online {
+        if !reach.isOnline {
+            // Hors-ligne : pause immédiate (drainer sans réseau n'a aucun sens).
             await LogService.shared.log(.info, category: "transfer",
                 message: "📴 Hors-ligne : pause auto des transferts actifs")
             await autoPauseActive()
             return
         }
         if cellular && pauseOnCellular {
+            // Fenêtre de DRAIN : on laisse les transferts en vol progresser
+            // quelques secondes avant de les suspendre, plutôt qu'un arrêt sec
+            // qui gaspille les octets en cours sur la bascule Wi-Fi → cellulaire.
+            await LogService.shared.log(.info, category: "transfer",
+                message: "📵 Passage en cellulaire : drain \(Self.networkDrainSeconds)s avant pause")
+            try? await Task.sleep(nanoseconds: Self.networkDrainSeconds * 1_000_000_000)
+            // Un nouvel évènement réseau a invalidé ce drain → on laisse la
+            // nouvelle évaluation décider.
+            guard gen == networkPolicyGeneration else { return }
+            // Conditions plus réunies (retour Wi-Fi, option coupée…) → réévalue.
+            guard reach.isOnline, reach.isCellularLike,
+                  UserDefaults.standard.bool(forKey: Self.pauseOnCellularKey) else {
+                await applyNetworkPolicy()
+                return
+            }
             await LogService.shared.log(.info, category: "transfer",
                 message: "📵 Cellulaire + « pause en cellulaire » : transferts suspendus")
             await autoPauseActive()
@@ -1092,7 +1115,12 @@ public final class TransferQueue {
                             message: "🔁 Nouvelle tentative auto \(attempt)/\(maxAutoRetries) : \(finalSrc)"
                         )
                         let toRetry = transfer
-                        let backoff = Double(attempt) * 3.0
+                        // Backoff EXPONENTIEL avec jitter (équilibré), plafonné à
+                        // 60 s : plus doux pour le radio/la batterie que l'ancien
+                        // délai linéaire, et le jitter évite que plusieurs échecs
+                        // simultanés ne retentent tous au même instant.
+                        let capped = min(60.0, 3.0 * pow(2.0, Double(attempt - 1)))
+                        let backoff = capped / 2 + Double.random(in: 0...(capped / 2))
                         Task { @MainActor in
                             try? await Task.sleep(for: .seconds(backoff))
                             try? await self.retry(toRetry)
