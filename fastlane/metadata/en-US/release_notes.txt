@@ -1,5 +1,11 @@
-What's new in 1.6:
-- Connect with a file: when a backend needs a file to sign in (an SSH private key, a known_hosts file, a Google service-account JSON, a TLS certificate…), you can now import it straight from Files — no more impossible-to-type file paths. Imported credentials are stored securely on your device and never sent anywhere else.
+What's new in 1.7:
+- Download entire folders in one go (recursive).
+- Shortcuts & Siri: open a remote or start a file upload from the Shortcuts app, powered by App Intents.
+- Stronger privacy: the media cache is wiped automatically when the app locks on inactivity, and you can cap its size (automatic eviction).
+- More reliable transfers: failed transfers are retried automatically, within a sensible limit.
+- Guided assistant to set up your encrypted "Crypt" vault.
+- Live internal logs to diagnose a connection.
+- New "Roadmap" screen to see what's coming next.
 - Stability and performance improvements.
 
 Thanks for using Rclone GUI! We'd love your feedback.

@@ -1,5 +1,11 @@
-Nouveautés de la version 1.6 :
-- Connexion par fichier : quand un backend a besoin d'un fichier pour s'authentifier (clé privée SSH, fichier known_hosts, JSON de compte de service Google, certificat TLS…), vous pouvez désormais l'importer directement depuis Fichiers — fini les chemins de fichiers impossibles à saisir. Les identifiants importés sont stockés en sécurité sur l'appareil et ne sont jamais transmis ailleurs.
+Nouveautés de la version 1.7 :
+- Téléchargez des dossiers entiers en une fois (récursif).
+- Raccourcis & Siri : ouvrez un remote ou lancez un envoi de fichier depuis l'app Raccourcis, grâce aux App Intents.
+- Confidentialité renforcée : le cache média est effacé automatiquement au verrouillage par inactivité, et vous pouvez plafonner sa taille (éviction automatique).
+- Transferts plus fiables : les transferts échoués sont relancés automatiquement, dans une limite raisonnable.
+- Assistant guidé pour créer votre coffre chiffré « Crypt ».
+- Journaux internes en direct pour diagnostiquer une connexion.
+- Nouvel écran « Feuille de route » pour découvrir ce qui arrive.
 - Améliorations de stabilité et de performance.
 
 Merci d'utiliser Rclone GUI ! Vos retours sont les bienvenus.

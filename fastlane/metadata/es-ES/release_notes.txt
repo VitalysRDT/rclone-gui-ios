@@ -1,5 +1,11 @@
-Novedades de la versión 1.6:
-- Conexión mediante archivo: cuando un backend necesita un archivo para iniciar sesión (una clave privada SSH, un archivo known_hosts, un JSON de cuenta de servicio de Google, un certificado TLS…), ahora puedes importarlo directamente desde Archivos: se acabaron las rutas de archivo imposibles de escribir. Las credenciales importadas se guardan de forma segura en el dispositivo y nunca se envían a ningún otro sitio.
+Novedades de la versión 1.7:
+- Descarga carpetas enteras de una vez (de forma recursiva).
+- Atajos y Siri: abre un remoto o inicia la subida de un archivo desde la app Atajos, gracias a App Intents.
+- Más privacidad: la caché multimedia se borra automáticamente al bloquearse por inactividad, y puedes limitar su tamaño (limpieza automática).
+- Transferencias más fiables: las transferencias fallidas se reintentan automáticamente, dentro de un límite razonable.
+- Asistente guiado para crear tu bóveda cifrada «Crypt».
+- Registros internos en directo para diagnosticar una conexión.
+- Nueva pantalla «Hoja de ruta» para ver lo que viene.
 - Mejoras de estabilidad y rendimiento.
 
 ¡Gracias por usar Rclone GUI! Nos encantaría conocer tu opinión.
