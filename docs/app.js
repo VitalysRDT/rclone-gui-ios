@@ -2977,6 +2977,9 @@ const Header = ({
     href: "#versions"
   }, t('Nouveautés', 'What\'s new')), /*#__PURE__*/React.createElement("a", {
     className: "ghost navlink",
+    href: "#prerelease"
+  }, t('Pré-release', 'Pre-release')), /*#__PURE__*/React.createElement("a", {
+    className: "ghost navlink",
     href: "#roadmap"
   }, "Roadmap"), /*#__PURE__*/React.createElement("a", {
     className: "ghost navlink",
@@ -3685,6 +3688,60 @@ const Versions = () => {
     }
   }))));
 };
+const PRERELEASE_URL = 'https://buy.stripe.com/dRm7sMgDL4j97UzfjHfAc00';
+const Prerelease = ({
+  lang
+}) => {
+  const t = useT();
+  return /*#__PURE__*/React.createElement("section", {
+    id: "prerelease"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "wrap"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "pr-card"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "pr-left"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "pr-badge"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "pr-dot"
+  }), t('PRÉ-RELEASE', 'PRE-RELEASE')), /*#__PURE__*/React.createElement("h2", {
+    className: "pr-title"
+  }, t('Version 1.8', 'Version 1.8'), /*#__PURE__*/React.createElement("span", {
+    className: "pr-when"
+  }, " · ", t('1ᵉʳ juillet 2026', 'July 1, 2026'))), /*#__PURE__*/React.createElement("p", {
+    className: "pr-sub"
+  }, t('Soyez les premiers à tester la prochaine version. Accès anticipé via TestFlight, avant la sortie publique sur l\'App Store.', 'Be the first to try the next release. Early access via TestFlight, before it ships publicly on the App Store.')), /*#__PURE__*/React.createElement("ul", {
+    className: "pr-list"
+  }, /*#__PURE__*/React.createElement("li", null, /*#__PURE__*/React.createElement(Icon, {
+    name: "check.circle",
+    size: 18
+  }), t('Transferts Pro : file d\'attente, priorités, reprise robuste, limites Wi-Fi/cellulaire.', 'Pro Transfers: queue, priorities, robust resume, Wi-Fi/cellular limits.')), /*#__PURE__*/React.createElement("li", null, /*#__PURE__*/React.createElement(Icon, {
+    name: "check.circle",
+    size: 18
+  }), t('Flows : automatisations 100 % locales (Raccourcis + App Intents) et Live Activity « santé du backup ».', 'Flows: 100% local automations (Shortcuts + App Intents) and a "backup health" Live Activity.')), /*#__PURE__*/React.createElement("li", null, /*#__PURE__*/React.createElement(Icon, {
+    name: "check.circle",
+    size: 18
+  }), t('Votre retour façonne directement la version finale.', 'Your feedback directly shapes the final release.')))), /*#__PURE__*/React.createElement("div", {
+    className: "pr-right"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "pr-price"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "pr-amount"
+  }, "20 €"), /*#__PURE__*/React.createElement("span", {
+    className: "pr-once"
+  }, t('accès pré-release', 'pre-release access'))), /*#__PURE__*/React.createElement("a", {
+    className: "btn btn-big pr-btn",
+    href: PRERELEASE_URL,
+    target: "_blank",
+    rel: "noopener"
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "bolt.fill",
+    size: 18
+  }), t('Rejoindre la pré-release', 'Join the pre-release')), /*#__PURE__*/React.createElement("p", {
+    className: "pr-note"
+  }, t('Paiement sécurisé via Stripe. Le lien d\'invitation TestFlight s\'affiche juste après le paiement.', 'Secure payment via Stripe. Your TestFlight invite link appears right after payment.'))))));
+};
 const ROADMAP = [{
   key: 'short',
   label: {
@@ -4127,6 +4184,8 @@ const Footer = () => {
   }), /*#__PURE__*/React.createElement("a", {
     href: "#versions"
   }, t('Nouveautés', 'What\'s new')), /*#__PURE__*/React.createElement("a", {
+    href: "#prerelease"
+  }, t('Pré-release', 'Pre-release')), /*#__PURE__*/React.createElement("a", {
     href: "#roadmap"
   }, "Roadmap"), /*#__PURE__*/React.createElement("a", {
     href: "#faq"
@@ -4157,7 +4216,9 @@ const App = () => {
     setLang: setLang
   }), /*#__PURE__*/React.createElement(Hero, null), /*#__PURE__*/React.createElement(Gallery, {
     lang: lang
-  }), /*#__PURE__*/React.createElement(Features, null), /*#__PURE__*/React.createElement(Versions, null), /*#__PURE__*/React.createElement(Roadmap, {
+  }), /*#__PURE__*/React.createElement(Features, null), /*#__PURE__*/React.createElement(Versions, null), /*#__PURE__*/React.createElement(Prerelease, {
+    lang: lang
+  }), /*#__PURE__*/React.createElement(Roadmap, {
     lang: lang
   }), /*#__PURE__*/React.createElement(Pricing, null), /*#__PURE__*/React.createElement(FreeMonth, null), /*#__PURE__*/React.createElement(FAQ, null), /*#__PURE__*/React.createElement(Footer, null));
 };
