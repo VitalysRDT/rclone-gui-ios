@@ -15,7 +15,6 @@ struct TransfersView: View {
     @State private var filter: TransferFilter = .all
 
     @AppStorage("transfer.bandwidthLimitMBps") private var bandwidthLimitMBps: Double = 0
-    @State private var isPausedGlobally = false
     /// C3 : remplace l'ancien `transientMessage` + `.alert` bloquant
     /// par un toast non-bloquant qui se dismiss tout seul.
     @State private var toast: AppToast?
@@ -66,11 +65,12 @@ struct TransfersView: View {
                     Task { await toggleGlobalPause() }
                 } label: {
                     Label(
-                        isPausedGlobally ? "Reprendre" : "Pause",
-                        systemImage: isPausedGlobally ? "play.fill" : "pause.fill"
+                        globalPauseShowsResume ? "Reprendre" : "Pause",
+                        systemImage: globalPauseShowsResume ? "play.fill" : "pause.fill"
                     )
                 }
-                .accessibilityLabel(isPausedGlobally ? "Reprendre tous les transferts" : "Mettre tous les transferts en pause")
+                .disabled(!hasActivePausable && !hasPausedResumable)
+                .accessibilityLabel(globalPauseShowsResume ? "Reprendre tous les transferts" : "Mettre tous les transferts en pause")
             }
             ToolbarItem(placement: .primaryAction) {
                 Menu {
@@ -89,7 +89,6 @@ struct TransfersView: View {
         .appToast($toast)
         .sensoryFeedback(.selection, trigger: hapticTrigger)
         .task {
-            isPausedGlobally = TransferQueue.shared.isPausedGlobally
             await refreshPhotoSyncState()
             while !Task.isCancelled {
                 let interval = photoSyncPollingInterval
@@ -110,22 +109,116 @@ struct TransfersView: View {
 
     // MARK: - Actions
 
+    /// Le bouton global est piloté par l'état RÉEL des transferts (et non par
+    /// un flag local qui pouvait désynchroniser des pauses par-ligne) : s'il
+    /// reste des transferts actifs on propose « Pause », sinon « Reprendre ».
+    private func isActivePausable(_ t: Transfer) -> Bool {
+        let isActive: Bool = t.status == .running || t.status == .pending || t.status == .enqueued
+        return isActive && t.sourceKind != .photoLibrary && t.kind != .delete
+    }
+
+    private func isPausedResumable(_ t: Transfer) -> Bool {
+        t.status == .paused && t.sourceKind != .photoLibrary
+    }
+
+    private var hasActivePausable: Bool {
+        transfers.contains(where: isActivePausable)
+    }
+
+    private var hasPausedResumable: Bool {
+        transfers.contains(where: isPausedResumable)
+    }
+
+    private var globalPauseShowsResume: Bool {
+        !hasActivePausable && hasPausedResumable
+    }
+
     private func toggleGlobalPause() async {
         do {
-            if isPausedGlobally {
+            if globalPauseShowsResume {
                 let bytesPerSecond = Int64(bandwidthLimitMBps * 1024 * 1024)
                 try await TransferQueue.shared.resumeAllTransfers(bytesPerSecond: bytesPerSecond)
-                isPausedGlobally = false
                 toast = AppToast(title: String(localized: "Transferts repris"), severity: .success)
             } else {
                 try await TransferQueue.shared.pauseAllTransfers()
-                isPausedGlobally = true
                 toast = AppToast(title: String(localized: "Tous les transferts sont en pause"), severity: .info)
             }
             hapticTrigger &+= 1
         } catch {
             toast = AppToast(title: String(localized: "Échec"), message: error.localizedDescription, severity: .error)
         }
+    }
+
+    private func pauseTransfer(_ transfer: Transfer) async {
+        await TransferQueue.shared.pause(transfer)
+        toast = AppToast(title: String(localized: "Transfert en pause"), severity: .info)
+        hapticTrigger &+= 1
+    }
+
+    private func resumeTransfer(_ transfer: Transfer) async {
+        do {
+            try await TransferQueue.shared.resume(transfer)
+            toast = AppToast(title: String(localized: "Transfert repris"), severity: .success)
+            hapticTrigger &+= 1
+        } catch {
+            toast = AppToast(title: String(localized: "Reprise impossible"), message: error.localizedDescription, severity: .error)
+        }
+    }
+
+    /// Menu contextuel (appui long / clic droit) — mêmes actions que les
+    /// swipe gauche/droite, mais robuste au rafraîchissement continu de la
+    /// liste pendant un transfert long (le swipe se referme tout seul quand
+    /// les stats live re-render la ligne) et bien plus naturel sur macOS.
+    @ViewBuilder
+    private func transferRowMenu(_ transfer: Transfer) -> some View {
+        switch transfer.status {
+        case .running, .pending, .enqueued:
+            if transfer.kind != .delete {
+                Button {
+                    Task { await pauseTransfer(transfer) }
+                } label: {
+                    Label("Pause", systemImage: "pause.fill")
+                }
+            }
+            Button(role: .destructive) {
+                Task { await TransferQueue.shared.cancel(transfer) }
+            } label: {
+                Label("Annuler", systemImage: "xmark.circle")
+            }
+        case .paused:
+            Button {
+                Task { await resumeTransfer(transfer) }
+            } label: {
+                Label("Reprendre", systemImage: "play.fill")
+            }
+            Button(role: .destructive) {
+                deleteTransfer(transfer)
+            } label: {
+                Label("Supprimer", systemImage: "trash")
+            }
+        case .failed:
+            Button {
+                Task { await retry(transfer) }
+            } label: {
+                Label("Réessayer", systemImage: "arrow.clockwise")
+            }
+            Button(role: .destructive) {
+                deleteTransfer(transfer)
+            } label: {
+                Label("Supprimer", systemImage: "trash")
+            }
+        case .completed:
+            Button(role: .destructive) {
+                deleteTransfer(transfer)
+            } label: {
+                Label("Supprimer", systemImage: "trash")
+            }
+        }
+    }
+
+    private func deleteTransfer(_ transfer: Transfer) {
+        modelContext.delete(transfer)
+        try? modelContext.save()
     }
 
     private func retry(_ transfer: Transfer) async {
@@ -250,6 +343,14 @@ struct TransfersView: View {
                                         } label: {
                                             Label("Annuler", systemImage: "xmark.circle")
                                         }
+                                        if transfer.kind != .delete {
+                                            Button {
+                                                Task { await pauseTransfer(transfer) }
+                                            } label: {
+                                                Label("Pause", systemImage: "pause.fill")
+                                            }
+                                            .tint(.orange)
+                                        }
                                     } else {
                                         Button(role: .destructive) {
                                             modelContext.delete(transfer)
@@ -260,7 +361,14 @@ struct TransfersView: View {
                                     }
                                 }
                                 .swipeActions(edge: .leading) {
-                                    if transfer.status == .failed {
+                                    if transfer.status == .paused {
+                                        Button {
+                                            Task { await resumeTransfer(transfer) }
+                                        } label: {
+                                            Label("Reprendre", systemImage: "play.fill")
+                                        }
+                                        .tint(.green)
+                                    } else if transfer.status == .failed {
                                         Button {
                                             Task { await retry(transfer) }
                                         } label: {
@@ -268,6 +376,9 @@ struct TransfersView: View {
                                         }
                                         .tint(.blue)
                                     }
+                                }
+                                .contextMenu {
+                                    transferRowMenu(transfer)
                                 }
                         }
                         if isTerminal && group.items.count > visibleItems.count {
@@ -658,6 +769,7 @@ private struct TransferGroup {
 
     static func organize(_ all: [Transfer]) -> [TransferGroup] {
         var running: [Transfer] = []
+        var paused: [Transfer] = []
         var pending: [Transfer] = []
         var completed: [Transfer] = []
         var failed: [Transfer] = []
@@ -666,13 +778,14 @@ private struct TransferGroup {
             case .running: running.append(t)
             case .pending: pending.append(t)
             case .enqueued: pending.append(t)
-            case .paused:  pending.append(t)
+            case .paused:  paused.append(t)
             case .completed: completed.append(t)
             case .failed: failed.append(t)
             }
         }
         var groups: [TransferGroup] = []
         if !running.isEmpty { groups.append(.init(title: String(localized: "En cours"), items: running)) }
+        if !paused.isEmpty { groups.append(.init(title: String(localized: "En pause"), items: paused)) }
         if !pending.isEmpty { groups.append(.init(title: String(localized: "En attente"), items: pending)) }
         if !completed.isEmpty { groups.append(.init(title: String(localized: "Terminés"), items: completed)) }
         if !failed.isEmpty { groups.append(.init(title: String(localized: "Échec"), items: failed)) }
