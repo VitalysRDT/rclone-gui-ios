@@ -10,6 +10,8 @@ import SwiftUI
 
 struct TransferRowView: View {
     let transfer: Transfer
+    /// Rang dans la file d'attente (#n), affiché pour les transferts en attente.
+    var queuePosition: Int? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
@@ -38,6 +40,16 @@ struct TransferRowView: View {
                 }
 
                 Spacer(minLength: 8)
+
+                if let queuePosition {
+                    Text("#\(queuePosition)")
+                        .font(.caption2.monospacedDigit().weight(.bold))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(.quaternary, in: Capsule())
+                        .accessibilityLabel("Position \(queuePosition) dans la file")
+                }
 
                 statusBadge
             }
