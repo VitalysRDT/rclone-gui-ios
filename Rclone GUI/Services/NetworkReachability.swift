@@ -10,6 +10,13 @@
 import Foundation
 import Network
 
+extension Notification.Name {
+    /// Postée (sur la main queue) quand l'état réseau pertinent change
+    /// (en ligne/hors-ligne, cellulaire/bridé). La TransferQueue s'y abonne
+    /// pour appliquer sa politique réseau (limite cellulaire, pause/reprise auto).
+    static let networkPathDidChange = Notification.Name("rclone.networkPathDidChange")
+}
+
 final class NetworkReachability: @unchecked Sendable {
     static let shared = NetworkReachability()
 
@@ -23,11 +30,24 @@ final class NetworkReachability: @unchecked Sendable {
     private init() {
         monitor.pathUpdateHandler = { [weak self] path in
             guard let self else { return }
+            let newExpensive = path.isExpensive       // cellulaire, partage de connexion…
+            let newConstrained = path.isConstrained   // mode données réduites
+            let newSatisfied = (path.status == .satisfied)
             self.lock.lock()
-            self._isExpensive = path.isExpensive          // cellulaire, partage de connexion…
-            self._isConstrained = path.isConstrained      // mode données réduites
-            self._isSatisfied = (path.status == .satisfied)
+            let changed = newExpensive != self._isExpensive
+                || newConstrained != self._isConstrained
+                || newSatisfied != self._isSatisfied
+            self._isExpensive = newExpensive
+            self._isConstrained = newConstrained
+            self._isSatisfied = newSatisfied
             self.lock.unlock()
+            // Notifie les observateurs (politique de transfert) uniquement
+            // quand un champ pertinent bascule, pour ne pas spammer.
+            if changed {
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(name: .networkPathDidChange, object: nil)
+                }
+            }
         }
         monitor.start(queue: queue)
     }
@@ -52,5 +72,14 @@ final class NetworkReachability: @unchecked Sendable {
     var isUnmetered: Bool {
         lock.lock(); defer { lock.unlock() }
         return _isSatisfied && !_isExpensive && !_isConstrained
+    }
+
+    /// À traiter comme du « cellulaire » pour la politique de bande passante :
+    /// soit cellulaire (`isExpensive`), soit Wi-Fi bridé / données réduites
+    /// (`isConstrained`). Un hotspot ou un Wi-Fi metered ne doit pas laisser
+    /// filer un gros transfert comme un Wi-Fi domestique.
+    var isCellularLike: Bool {
+        lock.lock(); defer { lock.unlock() }
+        return _isExpensive || _isConstrained
     }
 }

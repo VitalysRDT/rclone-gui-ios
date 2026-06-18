@@ -64,19 +64,8 @@ public final class TransferQueue {
             displayName: localURL.lastPathComponent,
             sourceKind: .remote
         )
-        transfer.status = .running
-        modelContext?.insert(transfer)
-        try modelContext?.save()
-
-        let jobID = try await TransferService.shared.copyFileAsync(
-            srcFs: "\(remote):",
-            srcPath: path,
-            dstFs: parent.path,
-            dstPath: localURL.lastPathComponent
-        )
-        transfer.jobID = jobID
-        try modelContext?.save()
-        startPolling(transfer)
+        // Le dispatch effectif (copyfile) est fait par le scheduler via relaunch().
+        enqueueAndSchedule(transfer)
     }
 
     @discardableResult
@@ -134,17 +123,7 @@ public final class TransferQueue {
                 sourceKind: .remote
             )
             transfer.isDirectoryTransfer = true
-            transfer.status = .running
-            modelContext?.insert(transfer)
-            try modelContext?.save()
-
-            let jobID = try await TransferService.shared.copyDirAsync(
-                srcFs: "\(remote):\(entry.pathInRemote)",
-                dstFs: destinationURL.path
-            )
-            transfer.jobID = jobID
-            try modelContext?.save()
-            startPolling(transfer)
+            enqueueAndSchedule(transfer)
         } else {
             let transfer = Transfer(
                 kind: .download,
@@ -158,20 +137,7 @@ public final class TransferQueue {
                 bytesTotal: entry.size
             )
             transfer.isDirectoryTransfer = false
-            transfer.status = .running
-            modelContext?.insert(transfer)
-            try modelContext?.save()
-
-            let parent = destinationURL.deletingLastPathComponent()
-            let jobID = try await TransferService.shared.copyFileAsync(
-                srcFs: "\(remote):",
-                srcPath: entry.pathInRemote,
-                dstFs: parent.path,
-                dstPath: destinationURL.lastPathComponent
-            )
-            transfer.jobID = jobID
-            try modelContext?.save()
-            startPolling(transfer)
+            enqueueAndSchedule(transfer)
         }
     }
 
@@ -194,19 +160,7 @@ public final class TransferQueue {
             sourceKind: sourceKind,
             bytesTotal: fileSize(at: local)
         )
-        transfer.status = .running
-        modelContext?.insert(transfer)
-        try modelContext?.save()
-
-        let jobID = try await TransferService.shared.copyFileAsync(
-            srcFs: local.deletingLastPathComponent().path,
-            srcPath: local.lastPathComponent,
-            dstFs: "\(remote):",
-            dstPath: path
-        )
-        transfer.jobID = jobID
-        try modelContext?.save()
-        startPolling(transfer)
+        enqueueAndSchedule(transfer)
     }
 
     @discardableResult
@@ -271,17 +225,7 @@ public final class TransferQueue {
             sourceKind: sourceKind,
             bytesTotal: directorySize(at: localFolder)
         )
-        transfer.status = .running
-        modelContext?.insert(transfer)
-        try modelContext?.save()
-
-        let jobID = try await TransferService.shared.copyDirAsync(
-            srcFs: localFolder.path,
-            dstFs: "\(remote):\(destinationFolder)"
-        )
-        transfer.jobID = jobID
-        try modelContext?.save()
-        startPolling(transfer)
+        enqueueAndSchedule(transfer)
     }
 
     public func enqueueDelete(remote: String, path: String, isDirectory: Bool) async throws {
@@ -499,6 +443,7 @@ public final class TransferQueue {
         transfer.lastError = "Annulé par l'utilisateur"
         transfer.finishedAt = .now
         try? modelContext?.save()
+        scheduleNext()   // libère un slot → démarre le suivant en file
     }
 
     // MARK: - Pause / reprise par transfert
@@ -521,37 +466,53 @@ public final class TransferQueue {
         transfer.jobID = nil
         transfer.status = .paused
         transfer.finishedAt = nil
+        transfer.autoPaused = false   // pause manuelle par défaut (autoPauseActive remet true)
         try? modelContext?.save()
         await LogService.shared.log(
             .info,
             category: "transfer",
             message: "⏸️ Transfert en pause : \(transfer.sourcePath)"
         )
+        scheduleNext()   // libère un slot → démarre le suivant en file
     }
 
     /// Reprend un transfert mis en pause : relance l'opération rclone sur le
     /// MÊME enregistrement (la ligne reste en place et reprend sa progression).
     public func resume(_ transfer: Transfer) async throws {
         guard transfer.status == .paused else { return }
-        transfer.status = .running
+        transfer.autoPaused = false
         transfer.lastError = nil
         transfer.finishedAt = nil
-        try? modelContext?.save()
-        do {
-            let jobID = try await relaunch(transfer)
-            transfer.jobID = jobID
+        if isQueuedKind(transfer) {
+            // Repasse par la file bornée (respecte la concurrence max + priorité).
+            transfer.status = .enqueued
             try? modelContext?.save()
-            startPolling(transfer)
+            scheduleNext()
             await LogService.shared.log(
                 .info,
                 category: "transfer",
-                message: "▶️ Transfert repris : \(transfer.sourcePath)"
+                message: "▶️ Transfert remis en file : \(transfer.sourcePath)"
             )
-        } catch {
-            transfer.status = .paused
-            transfer.lastError = error.localizedDescription
+        } else {
+            // copy/move/sync : relance immédiate hors file bornée.
+            transfer.status = .running
             try? modelContext?.save()
-            throw error
+            do {
+                let jobID = try await relaunch(transfer)
+                transfer.jobID = jobID
+                try? modelContext?.save()
+                startPolling(transfer)
+                await LogService.shared.log(
+                    .info,
+                    category: "transfer",
+                    message: "▶️ Transfert repris : \(transfer.sourcePath)"
+                )
+            } catch {
+                transfer.status = .paused
+                transfer.lastError = error.localizedDescription
+                try? modelContext?.save()
+                throw error
+            }
         }
     }
 
@@ -638,6 +599,181 @@ public final class TransferQueue {
         case .delete:
             throw TransferQueueError.cannotRetry("Une suppression ne peut pas être reprise.")
         }
+    }
+
+    // MARK: - Scheduler (file d'attente à concurrence bornée)
+
+    static let maxConcurrentKey = "transfer.maxConcurrentTransfers"
+    static let pauseOnCellularKey = "transfer.pauseOnCellular"
+    static let cellularLimitKey = "transfer.cellularLimitMBps"
+    static let wifiLimitKey = "transfer.bandwidthLimitMBps"
+
+    /// Nombre max de transferts download/upload simultanés (défaut 3, borné 1…8).
+    public var maxConcurrent: Int {
+        let v = UserDefaults.standard.integer(forKey: Self.maxConcurrentKey)
+        return v <= 0 ? 3 : min(v, 8)
+    }
+
+    /// Seuls les transferts « lourds » (download/upload) passent par la file
+    /// bornée ; copy/move/sync/rename/delete restent dispatchés immédiatement.
+    private func isQueuedKind(_ t: Transfer) -> Bool {
+        t.kind == .download || t.kind == .upload
+    }
+
+    /// Peut-on démarrer de nouveaux transferts ? Faux si pause globale,
+    /// hors-ligne, ou cellulaire avec l'option « pause en cellulaire ».
+    private var canStartNewTransfers: Bool {
+        if isPausedGlobally { return false }
+        let reach = NetworkReachability.shared
+        if !reach.isOnline { return false }
+        if reach.isCellularLike && UserDefaults.standard.bool(forKey: Self.pauseOnCellularKey) {
+            return false
+        }
+        return true
+    }
+
+    /// Cœur de la file : démarre autant de transferts `.enqueued` que de slots
+    /// libres, par priorité (queueOrder) puis ancienneté. Synchrone : réclame
+    /// les slots de façon ATOMIQUE (statut `.running` posé avant tout await),
+    /// puis dispatch chaque job en arrière-plan via startClaimed.
+    public func scheduleNext() {
+        guard modelContext != nil, canStartNewTransfers else { return }
+        let slots = maxConcurrent - countRunningQueued()
+        guard slots > 0 else { return }
+        let waiting = Array(fetchEnqueuedSorted().prefix(slots))
+        guard !waiting.isEmpty else { return }
+        for t in waiting { t.status = .running }   // réservation atomique du slot
+        try? modelContext?.save()
+        for t in waiting { startClaimed(t) }
+    }
+
+    private func countRunningQueued() -> Int {
+        guard let modelContext else { return 0 }
+        let descriptor = FetchDescriptor<Transfer>(
+            predicate: #Predicate { $0.statusRaw == "running" }
+        )
+        let running = (try? modelContext.fetch(descriptor)) ?? []
+        return running.filter { isQueuedKind($0) }.count
+    }
+
+    private func fetchEnqueuedSorted() -> [Transfer] {
+        guard let modelContext else { return [] }
+        let descriptor = FetchDescriptor<Transfer>(
+            predicate: #Predicate { $0.statusRaw == "enqueued" },
+            sortBy: [SortDescriptor(\.queueOrder, order: .forward),
+                     SortDescriptor(\.startedAt, order: .forward)]
+        )
+        let all = (try? modelContext.fetch(descriptor)) ?? []
+        return all.filter { isQueuedKind($0) }
+    }
+
+    /// Dispatch effectif d'un transfert déjà réservé (.running) par scheduleNext.
+    private func startClaimed(_ transfer: Transfer) {
+        let id = transfer.id
+        Task { @MainActor in
+            do {
+                let jobID = try await relaunch(transfer)
+                guard let t = fetchTransfer(id: id), t.status == .running else { return }
+                t.jobID = jobID
+                try? modelContext?.save()
+                startPolling(t)
+            } catch {
+                if let t = fetchTransfer(id: id) {
+                    t.status = .failed
+                    t.lastError = error.localizedDescription
+                    t.finishedAt = .now
+                    try? modelContext?.save()
+                }
+                await LogService.shared.log(.error, category: "transfer",
+                    message: "Démarrage du transfert échoué : \(error.localizedDescription)")
+                scheduleNext()
+            }
+        }
+    }
+
+    /// Crée le transfert EN FILE D'ATTENTE (.enqueued) puis tente de démarrer.
+    /// Utilisé par les enqueue download/upload à la place du démarrage immédiat.
+    private func enqueueAndSchedule(_ transfer: Transfer) {
+        transfer.status = .enqueued
+        modelContext?.insert(transfer)
+        try? modelContext?.save()
+        scheduleNext()
+    }
+
+    /// Change le nombre de transferts simultanés et relance le scheduler.
+    public func setMaxConcurrent(_ n: Int) {
+        UserDefaults.standard.set(min(max(n, 1), 8), forKey: Self.maxConcurrentKey)
+        scheduleNext()
+    }
+
+    /// Fait passer un transfert en attente en TÊTE de file (priorité souple :
+    /// pas de préemption d'un job en cours, mais premier servi au slot suivant).
+    public func prioritize(_ transfer: Transfer) {
+        let minOrder = fetchEnqueuedSorted().map(\.queueOrder).min() ?? 0
+        transfer.queueOrder = minOrder - 1
+        try? modelContext?.save()
+        scheduleNext()
+    }
+
+    // MARK: - Politique réseau (Wi-Fi / cellulaire)
+
+    /// Abonné aux changements de lien (`.networkPathDidChange`) : applique la
+    /// politique réseau courante.
+    public func handleNetworkChange() async {
+        await applyNetworkPolicy()
+    }
+
+    /// Applique la limite de bande passante selon le lien (Wi-Fi vs cellulaire),
+    /// met en pause auto en cellulaire/hors-ligne si demandé, et reprend les
+    /// transferts AUTO-pausés quand la connexion redevient utilisable.
+    public func applyNetworkPolicy() async {
+        let reach = NetworkReachability.shared
+        let online = reach.isOnline
+        let cellular = reach.isCellularLike
+        let pauseOnCellular = UserDefaults.standard.bool(forKey: Self.pauseOnCellularKey)
+        let wifiMBps = UserDefaults.standard.double(forKey: Self.wifiLimitKey)
+        let cellMBps = UserDefaults.standard.double(forKey: Self.cellularLimitKey)
+
+        if !online {
+            await LogService.shared.log(.info, category: "transfer",
+                message: "📴 Hors-ligne : pause auto des transferts actifs")
+            await autoPauseActive()
+            return
+        }
+        if cellular && pauseOnCellular {
+            await LogService.shared.log(.info, category: "transfer",
+                message: "📵 Cellulaire + « pause en cellulaire » : transferts suspendus")
+            await autoPauseActive()
+            return
+        }
+        let bytes = cellular ? Int64(cellMBps * 1024 * 1024) : Int64(wifiMBps * 1024 * 1024)
+        try? await TransferService.shared.setBandwidthLimit(bytesPerSecond: bytes)
+        await LogService.shared.log(.info, category: "transfer",
+            message: cellular
+                ? "📶 Cellulaire : limite \(cellMBps <= 0 ? "illimitée" : String(format: "%.1f MB/s", cellMBps))"
+                : "📶 Wi-Fi : limite \(wifiMBps <= 0 ? "illimitée" : String(format: "%.1f MB/s", wifiMBps))")
+        resumeAutoPaused()
+    }
+
+    /// Met en pause AUTO tous les transferts download/upload actifs (marqués
+    /// `autoPaused` pour distinguer d'une pause manuelle).
+    private func autoPauseActive() async {
+        for t in fetchActivePausable() where isQueuedKind(t) {
+            await pause(t)
+            t.autoPaused = true
+        }
+        try? modelContext?.save()
+    }
+
+    /// Remet en file les transferts AUTO-pausés (jamais ceux pausés à la main).
+    private func resumeAutoPaused() {
+        let paused = fetchPaused().filter { $0.autoPaused }
+        for t in paused {
+            t.autoPaused = false
+            t.status = .enqueued
+        }
+        if !paused.isEmpty { try? modelContext?.save() }
+        scheduleNext()
     }
 
     /// Retry a failed transfer by re-enqueuing an equivalent operation. The
@@ -1003,6 +1139,9 @@ public final class TransferQueue {
             }
         }
         pollTasks[jobID] = nil
+        // Un transfert vient de se terminer (succès/échec) → libère son slot
+        // et démarre le suivant en file d'attente.
+        scheduleNext()
     }
 
     private func fetchTransfer(id: String) -> Transfer? {
@@ -1106,18 +1245,30 @@ public final class TransferQueue {
 
     private func replayInterrupted() async {
         guard let modelContext else { return }
+        // Respecte une pause globale persistée : sinon le scheduler relancerait
+        // les transferts dès le boot alors que l'utilisateur avait tout suspendu.
+        isPausedGlobally = UserDefaults.standard.bool(forKey: Self.persistedPauseKey)
         let descriptor = FetchDescriptor<Transfer>(
-            predicate: #Predicate { $0.statusRaw == "running" || $0.statusRaw == "pending" }
+            predicate: #Predicate { $0.statusRaw == "running" || $0.statusRaw == "pending" || $0.statusRaw == "enqueued" }
         )
         guard let candidates = try? modelContext.fetch(descriptor) else { return }
         for transfer in candidates {
-            // For Phase C, we mark them failed and let the user retry manually.
-            // Phase E will re-enqueue automatically based on transfer.kind.
-            transfer.status = .failed
-            transfer.lastError = "Interrompu — relance manuelle requise"
-            transfer.finishedAt = .now
+            if isQueuedKind(transfer) {
+                // Reprise robuste au démarrage à froid : le job rclone n'existe
+                // plus après la mort du process → on remet en file pour relance
+                // automatique (rclone saute les fichiers déjà transférés).
+                transfer.jobID = nil
+                transfer.autoPaused = false
+                transfer.status = .enqueued
+            } else {
+                // copy/move/sync/rename : pas de reprise auto, relance manuelle.
+                transfer.status = .failed
+                transfer.lastError = "Interrompu — relance manuelle requise"
+                transfer.finishedAt = .now
+            }
         }
         try? modelContext.save()
+        scheduleNext()
     }
 
     // MARK: - Batch helpers
