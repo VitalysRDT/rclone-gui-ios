@@ -702,6 +702,7 @@ const Header = ({ lang, setLang }) => {
       <a className="brand" href="#top"><img src="icon.png" alt="Rclone GUI"/>Rclone GUI</a>
       <div className="nav-sp"/>
       <a className="ghost navlink" href="#versions">{t('Nouveautés','What\'s new')}</a>
+      <a className="ghost navlink" href="#prerelease">{t('Pré-release','Pre-release')}</a>
       <a className="ghost navlink" href="#roadmap">Roadmap</a>
       <a className="ghost navlink" href="#faq">FAQ</a>
       <a className="ghost" href={GITHUB_URL} target="_blank" rel="noopener" style={{ marginRight:6 }}>GitHub</a>
@@ -1087,6 +1088,34 @@ const Versions = () => {
   );
 };
 
+const PRERELEASE_URL = 'https://buy.stripe.com/dRm7sMgDL4j97UzfjHfAc00';
+const Prerelease = ({ lang }) => {
+  const t = useT();
+  return (
+    <section id="prerelease">
+      <div className="wrap">
+        <div className="pr-card">
+          <div className="pr-left">
+            <span className="pr-badge"><span className="pr-dot"/>{t('PRÉ-RELEASE','PRE-RELEASE')}</span>
+            <h2 className="pr-title">{t('Version 1.8','Version 1.8')}<span className="pr-when"> · {t('1ᵉʳ juillet 2026','July 1, 2026')}</span></h2>
+            <p className="pr-sub">{t('Soyez les premiers à tester la prochaine version. Accès anticipé via TestFlight, avant la sortie publique sur l\'App Store.','Be the first to try the next release. Early access via TestFlight, before it ships publicly on the App Store.')}</p>
+            <ul className="pr-list">
+              <li><Icon name="check.circle" size={18}/>{t('Transferts Pro : file d\'attente, priorités, reprise robuste, limites Wi-Fi/cellulaire.','Pro Transfers: queue, priorities, robust resume, Wi-Fi/cellular limits.')}</li>
+              <li><Icon name="check.circle" size={18}/>{t('Flows : automatisations 100 % locales (Raccourcis + App Intents) et Live Activity « santé du backup ».','Flows: 100% local automations (Shortcuts + App Intents) and a "backup health" Live Activity.')}</li>
+              <li><Icon name="check.circle" size={18}/>{t('Votre retour façonne directement la version finale.','Your feedback directly shapes the final release.')}</li>
+            </ul>
+          </div>
+          <div className="pr-right">
+            <div className="pr-price"><span className="pr-amount">20 €</span><span className="pr-once">{t('accès pré-release','pre-release access')}</span></div>
+            <a className="btn btn-big pr-btn" href={PRERELEASE_URL} target="_blank" rel="noopener"><Icon name="bolt.fill" size={18}/>{t('Rejoindre la pré-release','Join the pre-release')}</a>
+            <p className="pr-note">{t('Paiement sécurisé via Stripe. Le lien d\'invitation TestFlight s\'affiche juste après le paiement.','Secure payment via Stripe. Your TestFlight invite link appears right after payment.')}</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
 const ROADMAP = [
   { key:'short', label:{ fr:'Court terme', en:'Short term' }, tag:{ fr:'Juil.–sept. 2026', en:'Jul–Sep 2026' }, items:[
     { n:{ fr:'Transferts Pro', en:'Pro Transfers' }, when:{ fr:'Juil. 2026', en:'Jul 2026' }, d:{ fr:'File d\'attente, priorités, reprise robuste, limites Wi-Fi/cellulaire, logs exportables.', en:'Queue, priorities, robust resume, Wi-Fi/cellular limits, exportable logs.' } },
@@ -1262,6 +1291,7 @@ const Footer = () => {
           <a className="brand" href="#top"><img src="icon.png" alt="" style={{ width:26, height:26, borderRadius:7 }}/>Rclone GUI</a>
           <div className="nav-sp"/>
           <a href="#versions">{t('Nouveautés','What\'s new')}</a>
+          <a href="#prerelease">{t('Pré-release','Pre-release')}</a>
           <a href="#roadmap">Roadmap</a>
           <a href="#faq">FAQ</a>
           <a href={APP_STORE_URL} target="_blank" rel="noopener">App Store</a>
@@ -1284,6 +1314,7 @@ const App = () => {
       <Gallery lang={lang}/>
       <Features/>
       <Versions/>
+      <Prerelease lang={lang}/>
       <Roadmap lang={lang}/>
       <Pricing/>
       <FreeMonth/>
