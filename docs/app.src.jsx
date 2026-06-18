@@ -50,6 +50,7 @@ const Icon = ({ name, size = 18, weight = 'regular', style }) => {
     case 'gear': return <svg {...common}><circle cx="12" cy="12" r="3"/><path d="M19.4 14a1.6 1.6 0 0 0 .3 1.7l.05.05a2 2 0 0 1-2.83 2.83l-.05-.05a1.6 1.6 0 0 0-1.7-.3 1.6 1.6 0 0 0-1 1.46V20a2 2 0 0 1-4 0v-.08a1.6 1.6 0 0 0-1-1.46 1.6 1.6 0 0 0-1.7.3l-.05.05a2 2 0 0 1-2.83-2.83l.05-.05a1.6 1.6 0 0 0 .3-1.7 1.6 1.6 0 0 0-1.46-1H4a2 2 0 0 1 0-4h.08a1.6 1.6 0 0 0 1.46-1 1.6 1.6 0 0 0-.3-1.7l-.05-.05a2 2 0 0 1 2.83-2.83l.05.05a1.6 1.6 0 0 0 1.7.3h.01a1.6 1.6 0 0 0 1-1.46V4a2 2 0 0 1 4 0v.08a1.6 1.6 0 0 0 1 1.46 1.6 1.6 0 0 0 1.7-.3l.05-.05a2 2 0 0 1 2.83 2.83l-.05.05a1.6 1.6 0 0 0-.3 1.7v.01a1.6 1.6 0 0 0 1.46 1H20a2 2 0 0 1 0 4h-.08a1.6 1.6 0 0 0-1.46 1Z"/></svg>;
     case 'arrows': return <svg {...common}><path d="M7 4v14M7 18l-3-3M7 18l3-3"/><path d="M17 20V6M17 6l-3 3M17 6l3 3"/></svg>;
     case 'chevron.right': return <svg {...common}><path d="M9 6l6 6-6 6"/></svg>;
+    case 'chevron.down': return <svg {...common}><path d="M6 9l6 6 6-6"/></svg>;
     case 'check': return <svg {...common}><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>;
     case 'check.circle': return <svg {...common} fill="currentColor" stroke="none"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-1.2 14L6.5 11.7l1.4-1.4 2.9 2.9 5.3-5.3 1.4 1.4-6.7 6.7Z"/></svg>;
     case 'plus': return <svg {...common}><path d="M12 5v14M5 12h14"/></svg>;
@@ -1048,6 +1049,9 @@ const VERSIONS = [
 const Versions = () => {
   const t = useT();
   const lang = React.useContext(LangContext);
+  const [showAll, setShowAll] = React.useState(false);
+  const shown = showAll ? VERSIONS : VERSIONS.slice(0, 2);
+  const hidden = VERSIONS.length - 2;
   return (
     <section id="versions">
       <div className="wrap">
@@ -1055,7 +1059,7 @@ const Versions = () => {
         <h2 className="sec">{t('Chaque version, en mieux','Every release, better')}</h2>
         <p className="sec-sub">{t('L\'historique complet des mises à jour et ce qu\'elles apportent.','The full update history and what each one adds.')}</p>
         <div className="versions">
-          {VERSIONS.map(rel => (
+          {shown.map(rel => (
             <div key={rel.v} className={rel.current ? 'ver current' : 'ver'}>
               <div className="ver-head">
                 <span className="ver-num">{t('Version ','Version ')}{rel.v}</span>
@@ -1070,6 +1074,14 @@ const Versions = () => {
             </div>
           ))}
         </div>
+        {hidden > 0 && (
+          <button className="ver-toggle" onClick={() => setShowAll(v => !v)} aria-expanded={showAll}>
+            {showAll
+              ? t('Réduire l\'historique', 'Show less')
+              : t('Voir les ' + hidden + ' versions précédentes', 'Show ' + hidden + ' earlier versions')}
+            <Icon name="chevron.down" size={16} style={{ transform: showAll ? 'rotate(180deg)' : 'none', transition:'transform .2s ease' }}/>
+          </button>
+        )}
       </div>
     </section>
   );

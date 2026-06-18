@@ -177,6 +177,10 @@ const Icon = ({
       return /*#__PURE__*/React.createElement("svg", common, /*#__PURE__*/React.createElement("path", {
         d: "M9 6l6 6-6 6"
       }));
+    case 'chevron.down':
+      return /*#__PURE__*/React.createElement("svg", common, /*#__PURE__*/React.createElement("path", {
+        d: "M6 9l6 6 6-6"
+      }));
     case 'check':
       return /*#__PURE__*/React.createElement("svg", common, /*#__PURE__*/React.createElement("path", {
         d: "M5 12.5l4.5 4.5L19 7.5"
@@ -3635,6 +3639,9 @@ const VERSIONS = [{
 const Versions = () => {
   const t = useT();
   const lang = React.useContext(LangContext);
+  const [showAll, setShowAll] = React.useState(false);
+  const shown = showAll ? VERSIONS : VERSIONS.slice(0, 2);
+  const hidden = VERSIONS.length - 2;
   return /*#__PURE__*/React.createElement("section", {
     id: "versions"
   }, /*#__PURE__*/React.createElement("div", {
@@ -3647,7 +3654,7 @@ const Versions = () => {
     className: "sec-sub"
   }, t('L\'historique complet des mises à jour et ce qu\'elles apportent.', 'The full update history and what each one adds.')), /*#__PURE__*/React.createElement("div", {
     className: "versions"
-  }, VERSIONS.map(rel => /*#__PURE__*/React.createElement("div", {
+  }, shown.map(rel => /*#__PURE__*/React.createElement("div", {
     key: rel.v,
     className: rel.current ? 'ver current' : 'ver'
   }, /*#__PURE__*/React.createElement("div", {
@@ -3665,7 +3672,18 @@ const Versions = () => {
   }, /*#__PURE__*/React.createElement(Icon, {
     name: "check.circle",
     size: 18
-  }), it[lang] || it.en))))))));
+  }), it[lang] || it.en)))))), hidden > 0 && /*#__PURE__*/React.createElement("button", {
+    className: "ver-toggle",
+    onClick: () => setShowAll(v => !v),
+    "aria-expanded": showAll
+  }, showAll ? t('Réduire l\'historique', 'Show less') : t('Voir les ' + hidden + ' versions précédentes', 'Show ' + hidden + ' earlier versions'), /*#__PURE__*/React.createElement(Icon, {
+    name: "chevron.down",
+    size: 16,
+    style: {
+      transform: showAll ? 'rotate(180deg)' : 'none',
+      transition: 'transform .2s ease'
+    }
+  }))));
 };
 const ROADMAP = [{
   key: 'short',
