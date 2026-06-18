@@ -1,5 +1,11 @@
-Nowości w wersji 1.6:
-- Łączenie za pomocą pliku: gdy backend wymaga pliku do logowania (klucz prywatny SSH, plik known_hosts, plik JSON konta usługi Google, certyfikat TLS…), możesz teraz zaimportować go bezpośrednio z aplikacji Pliki — koniec z niemożliwymi do wpisania ścieżkami plików. Zaimportowane dane logowania są bezpiecznie przechowywane na urządzeniu i nigdy nigdzie nie są wysyłane.
+Nowości w wersji 1.7:
+- Pobieraj całe foldery za jednym razem (rekurencyjnie).
+- Skróty i Siri: otwórz remote lub rozpocznij wysyłanie pliku bezpośrednio z aplikacji Skróty dzięki App Intents.
+- Większa prywatność: pamięć podręczna multimediów jest automatycznie czyszczona po zablokowaniu z powodu bezczynności, a jej rozmiar możesz ograniczyć (automatyczne usuwanie).
+- Bardziej niezawodne transfery: nieudane transfery są automatycznie ponawiane w rozsądnym limicie.
+- Asystent krok po kroku do utworzenia zaszyfrowanego sejfu „Crypt”.
+- Wewnętrzne dzienniki na żywo do diagnozowania połączenia.
+- Nowy ekran „Plan rozwoju”, aby zobaczyć, co nadchodzi.
 - Poprawki stabilności i wydajności.
 
 Dziękujemy za korzystanie z Rclone GUI! Czekamy na Twoją opinię.

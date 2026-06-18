@@ -1,5 +1,11 @@
-Neu in Version 1.6:
-- Anmeldung per Datei: Wenn ein Backend zur Anmeldung eine Datei benötigt (einen privaten SSH-Schlüssel, eine known_hosts-Datei, ein Google-Service-Account-JSON, ein TLS-Zertifikat …), können Sie sie jetzt direkt aus „Dateien“ importieren – keine unmöglich einzutippenden Dateipfade mehr. Importierte Anmeldedaten werden sicher auf dem Gerät gespeichert und nie irgendwohin gesendet.
+Neu in Version 1.7:
+- Laden Sie ganze Ordner in einem Schritt herunter (rekursiv).
+- Kurzbefehle & Siri: Öffnen Sie ein Remote oder starten Sie einen Datei-Upload direkt aus der Kurzbefehle-App – dank App Intents.
+- Mehr Datenschutz: Der Medien-Cache wird beim Sperren wegen Inaktivität automatisch gelöscht, und Sie können seine Größe begrenzen (automatische Bereinigung).
+- Zuverlässigere Übertragungen: Fehlgeschlagene Übertragungen werden innerhalb eines sinnvollen Limits automatisch wiederholt.
+- Geführter Assistent zum Einrichten Ihres verschlüsselten „Crypt“-Tresors.
+- Live-Protokolle im Inneren zur Diagnose einer Verbindung.
+- Neuer Bildschirm „Roadmap“, um zu sehen, was als Nächstes kommt.
 - Verbesserungen bei Stabilität und Leistung.
 
 Danke, dass Sie Rclone GUI verwenden! Wir freuen uns über Ihr Feedback.
