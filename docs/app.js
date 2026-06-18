@@ -3011,7 +3011,7 @@ const Hero = () => {
   }, /*#__PURE__*/React.createElement(Icon, {
     name: "bolt.fill",
     size: 14
-  }), t('v1.6 · ESSAI GRATUIT', 'v1.6 · FREE TRIAL'))), /*#__PURE__*/React.createElement("h1", {
+  }), t('v1.7 · ESSAI GRATUIT', 'v1.7 · FREE TRIAL'))), /*#__PURE__*/React.createElement("h1", {
     className: "title"
   }, ML(t('Tous vos clouds.\nChiffrés.', 'Every cloud.\nEncrypted.'))), /*#__PURE__*/React.createElement("p", {
     className: "sub"
@@ -3482,8 +3482,39 @@ const FreeMonth = () => {
   }, s.n), /*#__PURE__*/React.createElement("h5", null, s.h), /*#__PURE__*/React.createElement("p", null, s.p)))))));
 };
 const VERSIONS = [{
-  v: '1.6',
+  v: '1.7',
   current: true,
+  date: {
+    fr: 'Juin 2026',
+    en: 'June 2026'
+  },
+  items: [{
+    fr: 'Téléchargez des dossiers entiers en une fois (récursif).',
+    en: 'Download entire folders in one go (recursive).'
+  }, {
+    fr: 'Raccourcis & Siri : ouvrez un remote ou lancez un envoi de fichier depuis l\'app Raccourcis, grâce aux App Intents.',
+    en: 'Shortcuts & Siri: open a remote or start a file upload from the Shortcuts app, powered by App Intents.'
+  }, {
+    fr: 'Confidentialité renforcée : le cache média est effacé automatiquement au verrouillage par inactivité, et vous pouvez plafonner sa taille (éviction automatique).',
+    en: 'Stronger privacy: the media cache is wiped automatically when the app locks on inactivity, and you can cap its size (automatic eviction).'
+  }, {
+    fr: 'Transferts plus fiables : les transferts échoués sont relancés automatiquement, dans une limite raisonnable.',
+    en: 'More reliable transfers: failed transfers are retried automatically, within a sensible limit.'
+  }, {
+    fr: 'Assistant guidé pour créer votre coffre chiffré « Crypt ».',
+    en: 'Guided assistant to set up your encrypted "Crypt" vault.'
+  }, {
+    fr: 'Journaux internes en direct pour diagnostiquer une connexion.',
+    en: 'Live internal logs to diagnose a connection.'
+  }, {
+    fr: 'Nouvel écran « Feuille de route » pour découvrir ce qui arrive.',
+    en: 'New "Roadmap" screen to see what\'s coming next.'
+  }, {
+    fr: 'Améliorations de stabilité et de performance.',
+    en: 'Stability and performance improvements.'
+  }]
+}, {
+  v: '1.6',
   date: {
     fr: 'Juin 2026',
     en: 'June 2026'
