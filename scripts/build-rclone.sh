@@ -68,10 +68,26 @@ echo "Xcode SDK     : $(xcrun --show-sdk-path 2>/dev/null | head -1)"
 
 # --- Install / init gomobile -------------------------------------------------
 
+# Xcode Cloud runners occasionally fail to resolve proxy.golang.org (transient
+# DNS, e.g. "lookup proxy.golang.org: no such host"). Retry network-dependent
+# Go downloads with backoff so a flaky lookup doesn't fail the whole build.
+retry() {
+    n=0; max=5
+    until "$@"; do
+        n=$((n + 1))
+        if [ "$n" -ge "$max" ]; then
+            echo "ERROR: command failed after $max attempts: $*"
+            return 1
+        fi
+        echo "  …retry $n/$max in $((n * 10))s: $*"
+        sleep $((n * 10))
+    done
+}
+
 if ! command -v gomobile >/dev/null 2>&1; then
     echo ""
     echo "Installing gomobile (golang.org/x/mobile/cmd/gomobile)..."
-    go install golang.org/x/mobile/cmd/gomobile@latest
+    retry go install golang.org/x/mobile/cmd/gomobile@latest
     GOPATH="${GOPATH:-$HOME/go}"
     export PATH="$PATH:$GOPATH/bin"
     if ! command -v gomobile >/dev/null 2>&1; then
@@ -83,7 +99,7 @@ fi
 echo "gomobile      : $(command -v gomobile)"
 
 # Init is idempotent and downloads the iOS support code if needed
-gomobile init
+retry gomobile init
 
 # --- Clone rclone ------------------------------------------------------------
 
