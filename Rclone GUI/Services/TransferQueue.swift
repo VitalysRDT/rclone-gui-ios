@@ -637,7 +637,21 @@ public final class TransferQueue {
     /// les slots de façon ATOMIQUE (statut `.running` posé avant tout await),
     /// puis dispatch chaque job en arrière-plan via startClaimed.
     public func scheduleNext() {
-        guard modelContext != nil, canStartNewTransfers else { return }
+        guard modelContext != nil else { return }
+        guard canStartNewTransfers else {
+            // Diagnostic : des transferts attendent mais on ne peut pas démarrer
+            // → journalise la raison (visible dans Réglages → Logs).
+            if !fetchEnqueuedSorted().isEmpty {
+                let reason = isPausedGlobally
+                    ? "pause globale active"
+                    : (!NetworkReachability.shared.isOnline
+                        ? "hors-ligne"
+                        : "cellulaire + « pause en cellulaire »")
+                Task { await LogService.shared.log(.info, category: "transfer",
+                    message: "⏳ File en attente : démarrage bloqué (\(reason))") }
+            }
+            return
+        }
         let slots = maxConcurrent - countRunningQueued()
         guard slots > 0 else { return }
         let waiting = Array(fetchEnqueuedSorted().prefix(slots))
@@ -992,17 +1006,14 @@ public final class TransferQueue {
     /// Retries with exponential backoff on RPC failure — rclone's Go runtime
     /// may not be listening yet at the moment this is invoked.
     public func restoreFromPersistedState(bytesPerSecond: Int64) async {
-        let wasPaused = UserDefaults.standard.bool(forKey: Self.persistedPauseKey)
-        // IMPORTANT : on n'appelle PAS pauseAllTransfers() au boot, même
-        // si wasPaused == true. La pause utilise core/bwlimit rate=1b qui
-        // s'applique GLOBALEMENT à rclone : un bwlimit 1 byte/s tue aussi
-        // les operations/list, operations/about et tout RPC qui transfère
-        // du JSON, pas seulement les jobs utilisateur. Au boot, rclone a
-        // de toute façon oublié ses jobs en cours, donc il n'y a rien à
-        // suspendre côté moteur. On garde juste le flag isPausedGlobally
-        // côté Swift pour que la TransferQueue ne démarre PAS de nouveaux
-        // transferts utilisateur tant que la pause n'est pas levée.
-        isPausedGlobally = wasPaused
+        // La pause GLOBALE est un état de SESSION, PAS un verrou persistant :
+        // la restaurer à `true` au boot bloquait silencieusement tout nouveau
+        // transfert (symptôme « reste en file, ne démarre pas »). Les transferts
+        // mis en pause restent `.paused` individuellement (persistés par
+        // SwiftData) et restent repris à la main ; un nouveau lancement démarre
+        // donc librement.
+        isPausedGlobally = false
+        UserDefaults.standard.set(false, forKey: Self.persistedPauseKey)
 
         let delays: [UInt64] = [500_000_000, 1_000_000_000, 2_000_000_000]
         for (index, delay) in delays.enumerated() {
@@ -1013,13 +1024,6 @@ public final class TransferQueue {
                         .info,
                         category: "transfer",
                         message: "Bandwidth state restored after \(index) retry attempt(s)"
-                    )
-                }
-                if wasPaused {
-                    await LogService.shared.log(
-                        .info,
-                        category: "transfer",
-                        message: "Pause utilisateur conservée côté Swift (pas de bwlimit global appliqué pour ne pas freezer les list/about)"
                     )
                 }
                 return
@@ -1273,9 +1277,9 @@ public final class TransferQueue {
 
     private func replayInterrupted() async {
         guard let modelContext else { return }
-        // Respecte une pause globale persistée : sinon le scheduler relancerait
-        // les transferts dès le boot alors que l'utilisateur avait tout suspendu.
-        isPausedGlobally = UserDefaults.standard.bool(forKey: Self.persistedPauseKey)
+        // La pause globale n'est plus un verrou persistant (cf.
+        // restoreFromPersistedState) : un nouveau lancement démarre librement.
+        isPausedGlobally = false
         let descriptor = FetchDescriptor<Transfer>(
             predicate: #Predicate { $0.statusRaw == "running" || $0.statusRaw == "pending" || $0.statusRaw == "enqueued" }
         )
