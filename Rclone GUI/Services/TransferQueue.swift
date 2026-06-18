@@ -494,10 +494,150 @@ public final class TransferQueue {
             pollTasks[id] = nil
             try? await TransferService.shared.stopJob(jobID: id)
         }
+        transfer.jobID = nil
         transfer.status = .failed
         transfer.lastError = "Annulé par l'utilisateur"
         transfer.finishedAt = .now
         try? modelContext?.save()
+    }
+
+    // MARK: - Pause / reprise par transfert
+
+    /// Met EN PAUSE un transfert précis (et lui seul). rclone ne sait pas
+    /// suspendre un job en cours : on l'arrête proprement (`job/stop`) tout en
+    /// conservant TOUTES les métadonnées du transfert, puis on passe la ligne
+    /// en `.paused`. La reprise relancera l'opération via `relaunch(_:)`.
+    /// Les copies de DOSSIER reprennent efficacement (rclone saute les fichiers
+    /// déjà transférés) ; un fichier seul redémarre depuis le début.
+    public func pause(_ transfer: Transfer) async {
+        guard transfer.status == .running
+            || transfer.status == .pending
+            || transfer.status == .enqueued else { return }
+        if let id = transfer.jobID {
+            pollTasks[id]?.cancel()
+            pollTasks[id] = nil
+            try? await TransferService.shared.stopJob(jobID: id)
+        }
+        transfer.jobID = nil
+        transfer.status = .paused
+        transfer.finishedAt = nil
+        try? modelContext?.save()
+        await LogService.shared.log(
+            .info,
+            category: "transfer",
+            message: "⏸️ Transfert en pause : \(transfer.sourcePath)"
+        )
+    }
+
+    /// Reprend un transfert mis en pause : relance l'opération rclone sur le
+    /// MÊME enregistrement (la ligne reste en place et reprend sa progression).
+    public func resume(_ transfer: Transfer) async throws {
+        guard transfer.status == .paused else { return }
+        transfer.status = .running
+        transfer.lastError = nil
+        transfer.finishedAt = nil
+        try? modelContext?.save()
+        do {
+            let jobID = try await relaunch(transfer)
+            transfer.jobID = jobID
+            try? modelContext?.save()
+            startPolling(transfer)
+            await LogService.shared.log(
+                .info,
+                category: "transfer",
+                message: "▶️ Transfert repris : \(transfer.sourcePath)"
+            )
+        } catch {
+            transfer.status = .paused
+            transfer.lastError = error.localizedDescription
+            try? modelContext?.save()
+            throw error
+        }
+    }
+
+    /// Relance l'opération rclone d'un transfert et renvoie le nouveau jobID.
+    /// Centralise le routage (fichier vs dossier ; download/upload/copy/move/
+    /// sync) utilisé par la reprise (`resume`). Les uploads issus de Fichiers
+    /// peuvent échouer si le fichier local temporaire a été purgé entre-temps.
+    private func relaunch(_ t: Transfer) async throws -> Int {
+        switch t.kind {
+        case .download:
+            guard let remote = t.sourceRemote else {
+                throw TransferQueueError.cannotRetry("Remote source manquant.")
+            }
+            let destinationURL = URL(fileURLWithPath: t.destinationPath)
+            if t.isDirectoryTransfer ?? false {
+                try FileManager.default.createDirectory(at: destinationURL, withIntermediateDirectories: true)
+                return try await TransferService.shared.copyDirAsync(
+                    srcFs: "\(remote):\(t.sourcePath)",
+                    dstFs: destinationURL.path
+                )
+            } else {
+                let parent = destinationURL.deletingLastPathComponent()
+                try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
+                return try await TransferService.shared.copyFileAsync(
+                    srcFs: "\(remote):",
+                    srcPath: t.sourcePath,
+                    dstFs: parent.path,
+                    dstPath: destinationURL.lastPathComponent
+                )
+            }
+
+        case .upload:
+            guard let remote = t.destinationRemote else {
+                throw TransferQueueError.cannotRetry("Remote destination manquant.")
+            }
+            let localURL = URL(fileURLWithPath: t.sourcePath)
+            let isFolder = t.sourceKind == .localFolder
+                || (t.isDirectoryTransfer ?? false)
+                || isDirectory(localURL)
+            if isFolder {
+                return try await TransferService.shared.copyDirAsync(
+                    srcFs: localURL.path,
+                    dstFs: "\(remote):\(t.destinationPath)"
+                )
+            } else {
+                return try await TransferService.shared.copyFileAsync(
+                    srcFs: localURL.deletingLastPathComponent().path,
+                    srcPath: localURL.lastPathComponent,
+                    dstFs: "\(remote):",
+                    dstPath: t.destinationPath
+                )
+            }
+
+        case .copy, .move, .sync:
+            guard let srcRemote = t.sourceRemote,
+                  let dstRemote = t.destinationRemote else {
+                throw TransferQueueError.cannotRetry("Source ou destination manquante.")
+            }
+            switch (t.kind, t.isDirectoryTransfer ?? false) {
+            case (.copy, false), (.sync, false):
+                return try await TransferService.shared.copyFileAsync(
+                    srcFs: "\(srcRemote):", srcPath: t.sourcePath,
+                    dstFs: "\(dstRemote):", dstPath: t.destinationPath)
+            case (.copy, true):
+                return try await TransferService.shared.copyDirAsync(
+                    srcFs: "\(srcRemote):\(t.sourcePath)",
+                    dstFs: "\(dstRemote):\(t.destinationPath)")
+            case (.move, false):
+                return try await TransferService.shared.moveFileAsync(
+                    srcFs: "\(srcRemote):", srcPath: t.sourcePath,
+                    dstFs: "\(dstRemote):", dstPath: t.destinationPath)
+            case (.move, true):
+                return try await TransferService.shared.moveDirAsync(
+                    srcFs: "\(srcRemote):\(t.sourcePath)",
+                    dstFs: "\(dstRemote):\(t.destinationPath)")
+            case (.sync, true):
+                return try await TransferService.shared.syncDirAsync(
+                    srcFs: "\(srcRemote):\(t.sourcePath)",
+                    dstFs: "\(dstRemote):\(t.destinationPath)")
+            default:
+                throw TransferQueueError.cannotRetry("Type de transfert non supporté.")
+            }
+
+        case .delete:
+            throw TransferQueueError.cannotRetry("Une suppression ne peut pas être reprise.")
+        }
     }
 
     /// Retry a failed transfer by re-enqueuing an equivalent operation. The
@@ -565,20 +705,46 @@ public final class TransferQueue {
     /// runs, so we replay this flag at boot via `restoreFromPersistedState`.
     public static let persistedPauseKey = "transfer.isPausedGlobally"
 
-    /// Pause every running rclone job by lowering the global bandwidth ceiling
-    /// to 1 byte/second (rclone treats rate "0" as "unlimited"). Idempotent.
+    /// Met en pause TOUS les transferts actifs, individuellement (stop + état
+    /// `.paused`), au lieu de l'ancien `core/bwlimit 1b` global qui finissait
+    /// par faire timeout/mourir les jobs (d'où « ça ne redémarre pas »).
+    /// Exclut PhotoSync (qui a sa propre pause) et les suppressions (instantanées).
     public func pauseAllTransfers() async throws {
-        try await TransferService.shared.pauseAllTransfers()
+        for t in fetchActivePausable() where t.sourceKind != .photoLibrary && t.kind != .delete {
+            await pause(t)
+        }
         isPausedGlobally = true
         UserDefaults.standard.set(true, forKey: Self.persistedPauseKey)
     }
 
-    /// Restore the user's preferred bandwidth ceiling and resume progress.
+    /// Reprend TOUS les transferts en pause (relance chaque opération) et
+    /// restaure la limite de bande passante préférée de l'utilisateur.
     /// `bytesPerSecond == 0` means "no limit" (rate "off").
     public func resumeAllTransfers(bytesPerSecond: Int64) async throws {
-        try await TransferService.shared.resumeAllTransfers(bytesPerSecond: bytesPerSecond)
+        // La pause par-transfert ne touche pas le bwlimit, mais on réapplique
+        // la préférence utilisateur par sécurité (no-op si déjà correcte).
+        try? await TransferService.shared.setBandwidthLimit(bytesPerSecond: bytesPerSecond)
+        for t in fetchPaused() where t.sourceKind != .photoLibrary {
+            try? await resume(t)
+        }
         isPausedGlobally = false
         UserDefaults.standard.set(false, forKey: Self.persistedPauseKey)
+    }
+
+    private func fetchActivePausable() -> [Transfer] {
+        guard let modelContext else { return [] }
+        let descriptor = FetchDescriptor<Transfer>(
+            predicate: #Predicate { $0.statusRaw == "running" || $0.statusRaw == "pending" || $0.statusRaw == "enqueued" }
+        )
+        return (try? modelContext.fetch(descriptor)) ?? []
+    }
+
+    private func fetchPaused() -> [Transfer] {
+        guard let modelContext else { return [] }
+        let descriptor = FetchDescriptor<Transfer>(
+            predicate: #Predicate { $0.statusRaw == "paused" }
+        )
+        return (try? modelContext.fetch(descriptor)) ?? []
     }
 
     /// Apply the user's bandwidth setting without toggling pause state.
