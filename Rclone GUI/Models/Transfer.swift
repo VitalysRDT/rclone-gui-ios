@@ -105,6 +105,18 @@ public final class Transfer {
     /// nil → treated as false for backward compat with pre-Sprint-3 records.
     public var isDirectoryTransfer: Bool? = false
 
+    /// File d'attente (Transferts Pro) : ordre manuel stable parmi les
+    /// transferts `.enqueued`. Plus petit = démarre plus tôt. L'action
+    /// « Prioriser » descend cette valeur sous le minimum courant pour passer
+    /// devant. 0 par défaut → ordre FIFO par `startedAt`.
+    public var queueOrder: Int = 0
+
+    /// Pause AUTOMATIQUE (réseau : hors-ligne ou cellulaire avec
+    /// « pause en cellulaire ») par opposition à une pause manuelle. Seuls les
+    /// transferts auto-pausés sont repris automatiquement au retour d'une
+    /// connexion adéquate ; une pause manuelle n'est jamais levée toute seule.
+    public var autoPaused: Bool = false
+
     public var bytesTotal: Int64
     public var bytesTransferred: Int64
 

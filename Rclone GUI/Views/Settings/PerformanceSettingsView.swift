@@ -15,6 +15,12 @@ struct PerformanceSettingsView: View {
     /// Granularity 0.5 MB/s — fine enough for cellular tuning, coarse enough
     /// to keep the slider readable.
     @AppStorage("transfer.bandwidthLimitMBps") private var bandwidthLimitMBps: Double = 0
+    /// File d'attente (Transferts Pro) : nb max de transferts simultanés.
+    @AppStorage("transfer.maxConcurrentTransfers") private var maxConcurrent: Int = 3
+    /// Suspend les transferts en cellulaire (et Wi-Fi bridé).
+    @AppStorage("transfer.pauseOnCellular") private var pauseOnCellular: Bool = false
+    /// Limite de bande passante distincte appliquée en cellulaire (0 = illimité).
+    @AppStorage("transfer.cellularLimitMBps") private var cellularLimitMBps: Double = 0
 
     @State private var isPaused = false
     @State private var transientMessage: String?
@@ -86,6 +92,73 @@ struct PerformanceSettingsView: View {
                 }
                 .disabled(isApplying)
             }
+
+            Section {
+                Stepper(value: Binding(
+                    get: { maxConcurrent },
+                    set: { newValue in
+                        maxConcurrent = newValue
+                        TransferQueue.shared.setMaxConcurrent(newValue)
+                    }
+                ), in: 1...8) {
+                    HStack {
+                        Text("Transferts simultanés")
+                        Spacer()
+                        Text("\(maxConcurrent)")
+                            .font(.body.weight(.semibold))
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            } header: {
+                Text("File d'attente")
+            } footer: {
+                Text("Nombre maximum de téléchargements/envois actifs en même temps. Les suivants patientent dans la file et démarrent automatiquement dès qu'un slot se libère.")
+            }
+
+            Section {
+                Toggle(isOn: Binding(
+                    get: { pauseOnCellular },
+                    set: { newValue in
+                        pauseOnCellular = newValue
+                        Task { await TransferQueue.shared.applyNetworkPolicy() }
+                    }
+                )) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Pause en cellulaire")
+                            .font(.body.weight(.medium))
+                        Text("Suspend les transferts sur données cellulaires (et Wi-Fi en mode données réduites). Ils reprennent automatiquement en Wi-Fi.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                if !pauseOnCellular {
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            Text("Limite cellulaire")
+                                .font(.subheadline)
+                            Spacer()
+                            Text(cellularRateLabel)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
+                        }
+                        Slider(value: Binding(
+                            get: { cellularLimitMBps },
+                            set: { newValue in
+                                cellularLimitMBps = newValue
+                                Task { await TransferQueue.shared.applyNetworkPolicy() }
+                            }
+                        ), in: 0...Self.maxMBps, step: 0.5)
+                        .accessibilityValue(cellularRateLabel)
+                    }
+                    .padding(.vertical, 2)
+                }
+            } header: {
+                Text("Réseau cellulaire")
+            } footer: {
+                Text("Limite distincte appliquée quand l'appareil est en cellulaire. 0 MB/s = sans limite.")
+            }
         }
         .navigationTitle("Performance")
         .alert("Info", isPresented: Binding(
@@ -145,6 +218,14 @@ struct PerformanceSettingsView: View {
             return "\(Int(bandwidthLimitMBps * 1024)) KB/s"
         }
         return String(format: "%.1f MB/s", bandwidthLimitMBps)
+    }
+
+    private var cellularRateLabel: String {
+        if cellularLimitMBps <= 0 { return String(localized: "Illimité") }
+        if cellularLimitMBps < 1 {
+            return "\(Int(cellularLimitMBps * 1024)) KB/s"
+        }
+        return String(format: "%.1f MB/s", cellularLimitMBps)
     }
 
     @ViewBuilder

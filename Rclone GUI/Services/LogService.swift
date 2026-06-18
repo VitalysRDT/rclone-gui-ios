@@ -170,19 +170,22 @@ public actor LogService {
         ring.removeAll(keepingCapacity: true)
     }
 
-    /// Write the entire ring to a temp file and return its URL — ready
-    /// to feed to a ShareSheet.
-    public func exportAsFile() throws -> URL {
+    /// Write the ring to a temp file and return its URL — ready to feed to a
+    /// ShareSheet. Pass `category` to export only the lines of one category
+    /// (ex. "transfer" pour les logs de transferts exportables).
+    public func exportAsFile(category: String? = nil) throws -> URL {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
 
-        let lines = ring.map { e in
+        let scoped = category == nil ? ring : ring.filter { $0.category == category }
+        let lines = scoped.map { e in
             "\(formatter.string(from: e.timestamp)) [\(e.level.rawValue)] [\(e.category)] \(e.message)"
         }
         let text = lines.joined(separator: "\n")
+        let suffix = category.map { "-\($0)" } ?? ""
         let url = FileManager.default
             .temporaryDirectory
-            .appending(path: "rclone-gui-logs-\(UUID().uuidString.prefix(8)).log")
+            .appending(path: "rclone-gui-logs\(suffix)-\(UUID().uuidString.prefix(8)).log")
         try text.data(using: .utf8)?.write(to: url, options: .atomic)
         return url
     }

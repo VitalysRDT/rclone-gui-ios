@@ -19,6 +19,9 @@ struct TransfersView: View {
     /// par un toast non-bloquant qui se dismiss tout seul.
     @State private var toast: AppToast?
     @State private var hapticTrigger = 0
+    /// Export des logs de transfert (catégorie "transfer") → ShareSheet.
+    @State private var logExportURL: URL?
+    @State private var showLogShare = false
 
     // Pagination des sections Terminés/Échoués : un historique de plusieurs
     // centaines de transferts faisait freezer la liste (pas de virtualisation
@@ -74,6 +77,11 @@ struct TransfersView: View {
             }
             ToolbarItem(placement: .primaryAction) {
                 Menu {
+                    Button {
+                        Task { await exportTransferLogs() }
+                    } label: {
+                        Label("Exporter les logs de transfert", systemImage: "square.and.arrow.up")
+                    }
                     Button(role: .destructive) {
                         clearCompleted()
                     } label: {
@@ -84,6 +92,14 @@ struct TransfersView: View {
                     Image(systemName: "ellipsis.circle")
                 }
                 .accessibilityLabel("Plus d'actions de transferts")
+            }
+        }
+        .sheet(isPresented: $showLogShare) {
+            if let url = logExportURL {
+                ShareLink(item: url) {
+                    Label("Partager le fichier de logs", systemImage: "square.and.arrow.up")
+                        .padding()
+                }
             }
         }
         .appToast($toast)
@@ -173,6 +189,14 @@ struct TransfersView: View {
     private func transferRowMenu(_ transfer: Transfer) -> some View {
         switch transfer.status {
         case .running, .pending, .enqueued:
+            if transfer.status == .enqueued {
+                Button {
+                    TransferQueue.shared.prioritize(transfer)
+                    hapticTrigger &+= 1
+                } label: {
+                    Label("Prioriser", systemImage: "arrow.up.to.line")
+                }
+            }
             if transfer.kind != .delete {
                 Button {
                     Task { await pauseTransfer(transfer) }
@@ -219,6 +243,16 @@ struct TransfersView: View {
     private func deleteTransfer(_ transfer: Transfer) {
         modelContext.delete(transfer)
         try? modelContext.save()
+    }
+
+    private func exportTransferLogs() async {
+        do {
+            let url = try await LogService.shared.exportAsFile(category: "transfer")
+            logExportURL = url
+            showLogShare = true
+        } catch {
+            toast = AppToast(title: String(localized: "Export échoué"), message: error.localizedDescription, severity: .error)
+        }
     }
 
     private func retry(_ transfer: Transfer) async {
