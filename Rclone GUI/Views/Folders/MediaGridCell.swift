@@ -21,41 +21,49 @@ struct MediaGridCell: View {
 
     var body: some View {
         VStack(spacing: 6) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color.secondary.opacity(0.12))
-
-                if let thumb {
-                    Image(decorative: thumb.image, scale: 1)
-                        .resizable()
-                        .scaledToFill()
-                } else {
-                    Image(systemName: placeholderIcon)
-                        .font(.system(size: 28))
-                        .foregroundStyle(placeholderColor)
-                    if loading {
+            // La taille de la cellule est pilotée par une FORME flexible carrée
+            // (elle prend la largeur de colonne puis impose un ratio 1:1). La
+            // vignette, le placeholder et les badges sont posés en `.overlay` :
+            // un overlay est dimensionné PAR le parent et n'influence JAMAIS sa
+            // taille. Sans ça, l'image `scaledToFill` (qui peut rapporter une
+            // taille > cellule selon son ratio) faisait déborder la cellule de
+            // son slot de grille → vignettes de tailles inégales qui se
+            // chevauchaient (bug iPhone Mini, pire en paysage).
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.secondary.opacity(0.12))
+                .aspectRatio(1, contentMode: .fit)
+                .overlay {
+                    if let thumb {
+                        Image(decorative: thumb.image, scale: 1)
+                            .resizable()
+                            .scaledToFill()
+                    } else {
+                        Image(systemName: placeholderIcon)
+                            .font(.system(size: 28))
+                            .foregroundStyle(placeholderColor)
+                    }
+                }
+                .overlay(alignment: .bottomTrailing) {
+                    if thumb == nil, loading {
                         ProgressView()
                             .controlSize(.small)
                             .padding(6)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                     }
                 }
-
-                if isVideo {
-                    Image(systemName: "play.circle.fill")
-                        .font(.system(size: 22))
-                        .foregroundStyle(.white)
-                        .shadow(radius: 3)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
-                        .padding(6)
+                .overlay(alignment: .bottomLeading) {
+                    if isVideo {
+                        Image(systemName: "play.circle.fill")
+                            .font(.system(size: 22))
+                            .foregroundStyle(.white)
+                            .shadow(radius: 3)
+                            .padding(6)
+                    }
                 }
-            }
-            .aspectRatio(1, contentMode: .fit)
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(.quaternary, lineWidth: 0.5)
-            }
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(.quaternary, lineWidth: 0.5)
+                }
 
             Text(entry.name)
                 .font(.caption2)
