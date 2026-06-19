@@ -79,6 +79,31 @@ struct ChangelogView: View {
     // Historique aligné sur rclone.rougetet.com (le plus récent en premier).
     private static let releases: [Release] = [
         Release(
+            version: "1.8", dateFR: "Juin 2026", dateEN: "June 2026",
+            itemsFR: [
+                "Transferts Pro : file d'attente avec nombre de transferts simultanés réglable, et réordonnancement par glisser-déposer.",
+                "Pause et reprise transfert par transfert (plus seulement tout d'un coup), avec priorités et indicateur de file.",
+                "Reprise automatique après une coupure réseau ou un redémarrage de l'app.",
+                "Réglages réseau : limite de débit distincte en Wi-Fi et en cellulaire, et option « pause en cellulaire ».",
+                "Logs de transfert exportables pour diagnostiquer un envoi ou un téléchargement.",
+                "Création de dossier directement depuis le navigateur de fichiers.",
+                "Nouvel écran « Historique des versions » dans les Réglages.",
+                "Vue galerie : vignettes mieux alignées (fini les chevauchements sur petit écran).",
+                "Corrections de stabilité et de fiabilité des transferts.",
+            ],
+            itemsEN: [
+                "Pro Transfers: a queue with an adjustable number of simultaneous transfers, plus drag-and-drop reordering.",
+                "Pause and resume each transfer individually (not just all at once), with priorities and a queue indicator.",
+                "Automatic resume after a network drop or an app restart.",
+                "Network settings: separate speed limits for Wi-Fi and cellular, plus a \"pause on cellular\" option.",
+                "Exportable transfer logs to diagnose an upload or a download.",
+                "Create a folder right from the file browser.",
+                "New \"Version history\" screen in Settings.",
+                "Gallery view: better-aligned thumbnails (no more overlapping on small screens).",
+                "Stability and transfer reliability fixes.",
+            ]
+        ),
+        Release(
             version: "1.7", dateFR: "Juin 2026", dateEN: "June 2026",
             itemsFR: [
                 "Téléchargez des dossiers entiers en une fois (récursif).",
