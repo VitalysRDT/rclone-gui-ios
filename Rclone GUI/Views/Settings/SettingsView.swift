@@ -77,6 +77,17 @@ struct SettingsView: View {
                         tint: .green
                     )
                 }
+
+                NavigationLink {
+                    FlowsView()
+                } label: {
+                    SettingsNavigationRow(
+                        icon: "wand.and.stars",
+                        title: "Flows & automatisations",
+                        subtitle: "Raccourcis et actions Siri, 100 % locaux",
+                        tint: .purple
+                    )
+                }
             }
 
             Section("Stockage") {
