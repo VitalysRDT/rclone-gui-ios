@@ -1,11 +1,10 @@
-Novedades de la versión 1.7:
-- Descarga carpetas enteras de una vez (de forma recursiva).
-- Atajos y Siri: abre un remoto o inicia la subida de un archivo desde la app Atajos, gracias a App Intents.
-- Más privacidad: la caché multimedia se borra automáticamente al bloquearse por inactividad, y puedes limitar su tamaño (limpieza automática).
-- Transferencias más fiables: las transferencias fallidas se reintentan automáticamente, dentro de un límite razonable.
-- Asistente guiado para crear tu bóveda cifrada «Crypt».
-- Registros internos en directo para diagnosticar una conexión.
-- Nueva pantalla «Hoja de ruta» para ver lo que viene.
-- Mejoras de estabilidad y rendimiento.
-
-¡Gracias por usar Rclone GUI! Nos encantaría conocer tu opinión.
+Novedades de la versión 1.8:
+- Transferencias Pro: cola con número ajustable de transferencias simultáneas y reordenación arrastrando y soltando.
+- Pausa y reanuda cada transferencia individualmente (ya no solo todas a la vez), con prioridades e indicador de cola.
+- Reanudación automática tras un corte de red o un reinicio de la app.
+- Ajustes de red: límite de velocidad distinto para Wi-Fi y datos móviles, y opción «pausar con datos móviles».
+- Registros de transferencia exportables para diagnosticar una subida o una descarga.
+- Crea carpetas directamente desde el explorador de archivos.
+- Nueva pantalla «Historial de versiones» en los Ajustes.
+- Vista de galería: miniaturas mejor alineadas (se acabaron las superposiciones en pantallas pequeñas).
+- Correcciones de estabilidad y fiabilidad de las transferencias.

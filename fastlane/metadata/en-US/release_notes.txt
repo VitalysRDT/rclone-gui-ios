@@ -1,11 +1,10 @@
-What's new in 1.7:
-- Download entire folders in one go (recursive).
-- Shortcuts & Siri: open a remote or start a file upload from the Shortcuts app, powered by App Intents.
-- Stronger privacy: the media cache is wiped automatically when the app locks on inactivity, and you can cap its size (automatic eviction).
-- More reliable transfers: failed transfers are retried automatically, within a sensible limit.
-- Guided assistant to set up your encrypted "Crypt" vault.
-- Live internal logs to diagnose a connection.
-- New "Roadmap" screen to see what's coming next.
-- Stability and performance improvements.
-
-Thanks for using Rclone GUI! We'd love your feedback.
+What's new in 1.8:
+- Pro Transfers: a queue with an adjustable number of simultaneous transfers, plus drag-and-drop reordering.
+- Pause and resume each transfer individually (not just all at once), with priorities and a queue indicator.
+- Automatic resume after a network drop or an app restart.
+- Network settings: separate speed limits for Wi-Fi and cellular, plus a "pause on cellular" option.
+- Exportable transfer logs to diagnose an upload or a download.
+- Create a folder right from the file browser.
+- New "Version history" screen in Settings.
+- Gallery view: better-aligned thumbnails (no more overlapping on small screens).
+- Stability and transfer reliability fixes.

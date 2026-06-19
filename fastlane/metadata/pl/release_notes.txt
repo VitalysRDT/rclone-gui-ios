@@ -1,11 +1,10 @@
-Nowości w wersji 1.7:
-- Pobieraj całe foldery za jednym razem (rekurencyjnie).
-- Skróty i Siri: otwórz remote lub rozpocznij wysyłanie pliku bezpośrednio z aplikacji Skróty dzięki App Intents.
-- Większa prywatność: pamięć podręczna multimediów jest automatycznie czyszczona po zablokowaniu z powodu bezczynności, a jej rozmiar możesz ograniczyć (automatyczne usuwanie).
-- Bardziej niezawodne transfery: nieudane transfery są automatycznie ponawiane w rozsądnym limicie.
-- Asystent krok po kroku do utworzenia zaszyfrowanego sejfu „Crypt”.
-- Wewnętrzne dzienniki na żywo do diagnozowania połączenia.
-- Nowy ekran „Plan rozwoju”, aby zobaczyć, co nadchodzi.
-- Poprawki stabilności i wydajności.
-
-Dziękujemy za korzystanie z Rclone GUI! Czekamy na Twoją opinię.
+Nowości w wersji 1.8:
+- Transfery Pro: kolejka z regulowaną liczbą jednoczesnych transferów oraz zmiana kolejności metodą przeciągnij i upuść.
+- Wstrzymuj i wznawiaj każdy transfer osobno (już nie tylko wszystkie naraz), z priorytetami i wskaźnikiem kolejki.
+- Automatyczne wznawianie po przerwaniu połączenia lub ponownym uruchomieniu aplikacji.
+- Ustawienia sieci: osobny limit prędkości dla Wi-Fi i sieci komórkowej oraz opcja „wstrzymaj w sieci komórkowej".
+- Eksportowalne dzienniki transferów do diagnozowania wysyłania lub pobierania.
+- Tworzenie folderu bezpośrednio z przeglądarki plików.
+- Nowy ekran „Historia wersji" w Ustawieniach.
+- Widok galerii: lepiej wyrównane miniatury (koniec z nakładaniem się na małych ekranach).
+- Poprawki stabilności i niezawodności transferów.

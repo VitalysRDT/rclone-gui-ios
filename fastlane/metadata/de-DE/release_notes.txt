@@ -1,11 +1,10 @@
-Neu in Version 1.7:
-- Laden Sie ganze Ordner in einem Schritt herunter (rekursiv).
-- Kurzbefehle & Siri: Öffnen Sie ein Remote oder starten Sie einen Datei-Upload direkt aus der Kurzbefehle-App – dank App Intents.
-- Mehr Datenschutz: Der Medien-Cache wird beim Sperren wegen Inaktivität automatisch gelöscht, und Sie können seine Größe begrenzen (automatische Bereinigung).
-- Zuverlässigere Übertragungen: Fehlgeschlagene Übertragungen werden innerhalb eines sinnvollen Limits automatisch wiederholt.
-- Geführter Assistent zum Einrichten Ihres verschlüsselten „Crypt“-Tresors.
-- Live-Protokolle im Inneren zur Diagnose einer Verbindung.
-- Neuer Bildschirm „Roadmap“, um zu sehen, was als Nächstes kommt.
-- Verbesserungen bei Stabilität und Leistung.
-
-Danke, dass Sie Rclone GUI verwenden! Wir freuen uns über Ihr Feedback.
+Neu in Version 1.8:
+- Pro-Übertragungen: Warteschlange mit einstellbarer Anzahl gleichzeitiger Übertragungen und Neuordnung per Drag & Drop.
+- Übertragungen einzeln anhalten und fortsetzen (nicht mehr nur alle auf einmal), mit Prioritäten und Warteschlangenanzeige.
+- Automatische Fortsetzung nach Netzwerkabbruch oder App-Neustart.
+- Netzwerkeinstellungen: getrennte Geschwindigkeitslimits für WLAN und Mobilfunk sowie Option „Im Mobilfunk pausieren".
+- Exportierbare Übertragungsprotokolle zur Diagnose von Uploads oder Downloads.
+- Ordner direkt im Dateibrowser erstellen.
+- Neuer Bildschirm „Versionsverlauf" in den Einstellungen.
+- Galerieansicht: besser ausgerichtete Miniaturen (keine Überlappungen mehr auf kleinen Bildschirmen).
+- Stabilitäts- und Zuverlässigkeitsverbesserungen bei Übertragungen.

@@ -1,11 +1,10 @@
-Novità della versione 1.7:
-- Scarica intere cartelle in una volta sola (in modo ricorsivo).
-- Comandi rapidi e Siri: apri un remote o avvia il caricamento di un file dall'app Comandi rapidi, grazie agli App Intents.
-- Maggiore privacy: la cache multimediale viene cancellata automaticamente al blocco per inattività e puoi limitarne le dimensioni (pulizia automatica).
-- Trasferimenti più affidabili: i trasferimenti non riusciti vengono ritentati automaticamente, entro un limite ragionevole.
-- Assistente guidato per creare il tuo archivio cifrato «Crypt».
-- Log interni in tempo reale per diagnosticare una connessione.
-- Nuova schermata «Roadmap» per scoprire cosa arriverà.
-- Miglioramenti di stabilità e prestazioni.
-
-Grazie per usare Rclone GUI! Ci piacerebbe avere il tuo feedback.
+Novità della versione 1.8:
+- Trasferimenti Pro: coda con numero regolabile di trasferimenti simultanei e riordino con trascinamento.
+- Metti in pausa e riprendi ogni trasferimento singolarmente (non più solo tutti insieme), con priorità e indicatore della coda.
+- Ripresa automatica dopo un'interruzione di rete o un riavvio dell'app.
+- Impostazioni di rete: limite di velocità distinto per Wi-Fi e rete cellulare, e opzione «pausa su rete cellulare».
+- Log di trasferimento esportabili per diagnosticare un invio o un download.
+- Crea una cartella direttamente dal browser dei file.
+- Nuova schermata «Cronologia versioni» nelle Impostazioni.
+- Vista galleria: miniature allineate meglio (niente più sovrapposizioni su schermi piccoli).
+- Correzioni di stabilità e affidabilità dei trasferimenti.
