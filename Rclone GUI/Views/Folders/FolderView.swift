@@ -39,6 +39,8 @@ struct FolderView: View {
     @State private var showingDestinationPicker = false
     @State private var showingFileImporter = false
     @State private var showingPhotoPicker = false
+    @State private var showingNewFolderAlert = false
+    @State private var newFolderName = ""
     @State private var selectedPhotoItems: [PhotosPickerItem] = []
     @State private var transientMessage: String?
     @State private var openingEntryID: String?
@@ -368,6 +370,12 @@ struct FolderView: View {
             } message: {
                 Text(transientMessage ?? "")
             }
+            .modifier(NewFolderAlert(
+                isPresented: $showingNewFolderAlert,
+                name: $newFolderName,
+                folderTitle: displayTitle,
+                onCreate: { Task { await createFolder() } }
+            ))
             .confirmationDialog(
                 pasteConflictTitle,
                 isPresented: Binding(
@@ -840,6 +848,13 @@ struct FolderView: View {
             }
 
             Button {
+                newFolderName = ""
+                showingNewFolderAlert = true
+            } label: {
+                Label("Nouveau dossier", systemImage: "folder.badge.plus")
+            }
+
+            Button {
                 showingFileImporter = true
             } label: {
                 Label("Uploader fichiers ou dossiers", systemImage: "arrow.up.doc")
@@ -900,6 +915,34 @@ struct FolderView: View {
                 .error,
                 category: "browse",
                 message: "Échec list \(remote):\(path) : \(error.localizedDescription)"
+            )
+        }
+    }
+
+    /// Crée un sous-dossier dans le dossier courant via rclone `operations/mkdir`
+    /// puis rafraîchit la liste (mkdir est instantané sur la plupart des backends).
+    private func createFolder() async {
+        let name = newFolderName.trimmingCharacters(in: .whitespacesAndNewlines)
+        newFolderName = ""
+        guard !name.isEmpty else { return }
+        guard !name.contains("/") else {
+            transientMessage = "Le nom de dossier ne peut pas contenir « / »."
+            return
+        }
+        let cleanFolder = path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let newPath = cleanFolder.isEmpty ? name : "\(cleanFolder)/\(name)"
+        do {
+            try await TransferService.shared.mkdir(remote: remote, path: newPath)
+            await LogService.shared.log(
+                .info, category: "browse",
+                message: "Dossier créé : \(remote):\(newPath)"
+            )
+            await load()
+        } catch {
+            transientMessage = "Impossible de créer le dossier : \(error.localizedDescription)"
+            await LogService.shared.log(
+                .error, category: "browse",
+                message: "Échec mkdir \(remote):\(newPath) : \(error.localizedDescription)"
             )
         }
     }
@@ -1243,5 +1286,30 @@ private struct FolderCountChip: View {
             .background(tint.opacity(0.14),
                         in: RoundedRectangle(cornerRadius: RG.Radius.pill, style: .continuous))
             .accessibilityHidden(true)
+    }
+}
+
+/// Alerte de création de dossier extraite en `ViewModifier` : isole sa logique
+/// de la grande chaîne de modificateurs de `FolderView` (sinon le type-checker
+/// SwiftUI explose). Saisie du nom + bouton « Créer » désactivé si vide.
+private struct NewFolderAlert: ViewModifier {
+    @Binding var isPresented: Bool
+    @Binding var name: String
+    let folderTitle: String
+    let onCreate: () -> Void
+
+    func body(content: Content) -> some View {
+        content.alert("Nouveau dossier", isPresented: $isPresented) {
+            TextField("Nom du dossier", text: $name)
+                .autocorrectionDisabled()
+                #if os(iOS)
+                .textInputAutocapitalization(.never)
+                #endif
+            Button("Créer", action: onCreate)
+                .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+            Button("Annuler", role: .cancel) { name = "" }
+        } message: {
+            Text("Le dossier sera créé dans \(folderTitle).")
+        }
     }
 }
