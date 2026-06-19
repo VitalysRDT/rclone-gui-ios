@@ -1,11 +1,10 @@
-Nouveautés de la version 1.7 :
-- Téléchargez des dossiers entiers en une fois (récursif).
-- Raccourcis & Siri : ouvrez un remote ou lancez un envoi de fichier depuis l'app Raccourcis, grâce aux App Intents.
-- Confidentialité renforcée : le cache média est effacé automatiquement au verrouillage par inactivité, et vous pouvez plafonner sa taille (éviction automatique).
-- Transferts plus fiables : les transferts échoués sont relancés automatiquement, dans une limite raisonnable.
-- Assistant guidé pour créer votre coffre chiffré « Crypt ».
-- Journaux internes en direct pour diagnostiquer une connexion.
-- Nouvel écran « Feuille de route » pour découvrir ce qui arrive.
-- Améliorations de stabilité et de performance.
-
-Merci d'utiliser Rclone GUI ! Vos retours sont les bienvenus.
+Nouveautés de la version 1.8 :
+- Transferts Pro : file d'attente avec nombre de transferts simultanés réglable, et réordonnancement par glisser-déposer.
+- Pause et reprise transfert par transfert (plus seulement tout d'un coup), avec priorités et indicateur de file.
+- Reprise automatique après une coupure réseau ou un redémarrage de l'app.
+- Réglages réseau : limite de débit distincte en Wi-Fi et en cellulaire, et option « pause en cellulaire ».
+- Logs de transfert exportables pour diagnostiquer un envoi ou un téléchargement.
+- Création de dossier directement depuis le navigateur de fichiers.
+- Nouvel écran « Historique des versions » dans les Réglages.
+- Vue galerie : vignettes mieux alignées (fini les chevauchements sur petit écran).
+- Corrections de stabilité et de fiabilité des transferts.
