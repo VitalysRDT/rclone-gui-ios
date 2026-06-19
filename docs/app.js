@@ -3018,7 +3018,7 @@ const Hero = () => {
   }, /*#__PURE__*/React.createElement(Icon, {
     name: "bolt.fill",
     size: 14
-  }), t('v1.7 · ESSAI GRATUIT', 'v1.7 · FREE TRIAL'))), /*#__PURE__*/React.createElement("h1", {
+  }), t('v1.8 · ESSAI GRATUIT', 'v1.8 · FREE TRIAL'))), /*#__PURE__*/React.createElement("h1", {
     className: "title"
   }, ML(t('Tous vos clouds.\nChiffrés.', 'Every cloud.\nEncrypted.'))), /*#__PURE__*/React.createElement("p", {
     className: "sub"
@@ -3489,8 +3489,42 @@ const FreeMonth = () => {
   }, s.n), /*#__PURE__*/React.createElement("h5", null, s.h), /*#__PURE__*/React.createElement("p", null, s.p)))))));
 };
 const VERSIONS = [{
-  v: '1.7',
+  v: '1.8',
   current: true,
+  date: {
+    fr: 'Juin 2026',
+    en: 'June 2026'
+  },
+  items: [{
+    fr: 'Transferts Pro : file d\'attente avec nombre de transferts simultanés réglable, et réordonnancement par glisser-déposer.',
+    en: 'Pro Transfers: a queue with an adjustable number of simultaneous transfers, plus drag-and-drop reordering.'
+  }, {
+    fr: 'Mettez en pause et reprenez chaque transfert individuellement (plus seulement tout d\'un coup), avec indicateur de file et priorités.',
+    en: 'Pause and resume each transfer individually (not just all at once), with a queue indicator and priorities.'
+  }, {
+    fr: 'Reprise automatique : les transferts repartent seuls après une coupure réseau ou un redémarrage de l\'app.',
+    en: 'Automatic resume: transfers pick back up on their own after a network drop or an app restart.'
+  }, {
+    fr: 'Réglages réseau : limite de débit distincte en Wi-Fi et en cellulaire, plus une option « pause en cellulaire ».',
+    en: 'Network settings: separate speed limits for Wi-Fi and cellular, plus a "pause on cellular" option.'
+  }, {
+    fr: 'Logs de transfert exportables pour diagnostiquer un envoi ou un téléchargement.',
+    en: 'Exportable transfer logs to diagnose an upload or a download.'
+  }, {
+    fr: 'Créez un dossier directement depuis le navigateur de fichiers.',
+    en: 'Create a folder right from the file browser.'
+  }, {
+    fr: 'Nouvel écran « Historique des versions » dans les Réglages.',
+    en: 'New "Version history" screen in Settings.'
+  }, {
+    fr: 'Vue galerie : vignettes mieux alignées (fini les chevauchements sur petit écran).',
+    en: 'Gallery view: better-aligned thumbnails (no more overlapping on small screens).'
+  }, {
+    fr: 'Stabilité : correctifs sur la file d\'attente et la fiabilité des reprises.',
+    en: 'Stability: fixes to the transfer queue and resume reliability.'
+  }]
+}, {
+  v: '1.7',
   date: {
     fr: 'Juin 2026',
     en: 'June 2026'
@@ -3707,19 +3741,19 @@ const Prerelease = ({
     className: "pr-dot"
   }), t('PRÉ-RELEASE', 'PRE-RELEASE')), /*#__PURE__*/React.createElement("h2", {
     className: "pr-title"
-  }, t('Version 1.8', 'Version 1.8'), /*#__PURE__*/React.createElement("span", {
+  }, t('Flows', 'Flows'), /*#__PURE__*/React.createElement("span", {
     className: "pr-when"
-  }, " · ", t('1ᵉʳ juillet 2026', 'July 1, 2026'))), /*#__PURE__*/React.createElement("p", {
+  }, " · ", t('prochaine version', 'next release'))), /*#__PURE__*/React.createElement("p", {
     className: "pr-sub"
-  }, t('Soyez les premiers à tester la prochaine version. Accès anticipé via TestFlight, avant la sortie publique sur l\'App Store.', 'Be the first to try the next release. Early access via TestFlight, before it ships publicly on the App Store.')), /*#__PURE__*/React.createElement("ul", {
+  }, t('Transferts Pro est désormais public dans la 1.8. La prochaine étape : Flows. Accès anticipé via TestFlight, avant la sortie publique sur l\'App Store.', 'Pro Transfers is now public in 1.8. Next up: Flows. Early access via TestFlight, before it ships publicly on the App Store.')), /*#__PURE__*/React.createElement("ul", {
     className: "pr-list"
   }, /*#__PURE__*/React.createElement("li", null, /*#__PURE__*/React.createElement(Icon, {
     name: "check.circle",
     size: 18
-  }), t('Transferts Pro : file d\'attente, priorités, reprise robuste, limites Wi-Fi/cellulaire.', 'Pro Transfers: queue, priorities, robust resume, Wi-Fi/cellular limits.')), /*#__PURE__*/React.createElement("li", null, /*#__PURE__*/React.createElement(Icon, {
+  }), t('Flows : automatisations 100 % locales de vos sauvegardes (Raccourcis + App Intents).', 'Flows: 100% local automations for your backups (Shortcuts + App Intents).')), /*#__PURE__*/React.createElement("li", null, /*#__PURE__*/React.createElement(Icon, {
     name: "check.circle",
     size: 18
-  }), t('Flows : automatisations 100 % locales (Raccourcis + App Intents) et Live Activity « santé du backup ».', 'Flows: 100% local automations (Shortcuts + App Intents) and a "backup health" Live Activity.')), /*#__PURE__*/React.createElement("li", null, /*#__PURE__*/React.createElement(Icon, {
+  }), t('Live Activity « santé du backup » en direct sur l\'écran verrouillé.', 'A "backup health" Live Activity, live on your Lock Screen.')), /*#__PURE__*/React.createElement("li", null, /*#__PURE__*/React.createElement(Icon, {
     name: "check.circle",
     size: 18
   }), t('Votre retour façonne directement la version finale.', 'Your feedback directly shapes the final release.')))), /*#__PURE__*/React.createElement("div", {

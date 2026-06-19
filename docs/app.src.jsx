@@ -721,7 +721,7 @@ const Hero = () => {
     <section className="hero" id="top">
       <div className="wrap">
         <img className="icon" src="icon.png" alt="Rclone GUI"/>
-        <div><span className="pill"><Icon name="bolt.fill" size={14}/>{t('v1.7 · ESSAI GRATUIT','v1.7 · FREE TRIAL')}</span></div>
+        <div><span className="pill"><Icon name="bolt.fill" size={14}/>{t('v1.8 · ESSAI GRATUIT','v1.8 · FREE TRIAL')}</span></div>
         <h1 className="title">{ML(t('Tous vos clouds.\nChiffrés.','Every cloud.\nEncrypted.'))}</h1>
         <p className="sub">{t('Parcourez 80+ services cloud — y compris vos remotes rclone chiffrés — directement dans Fichiers. iPhone, iPad & Mac.','Browse 80+ cloud services — including your encrypted rclone crypt remotes — right inside Files. iPhone, iPad & Mac.')}</p>
         <div className="cta-row">
@@ -999,7 +999,18 @@ const FreeMonth = () => {
 };
 
 const VERSIONS = [
-  { v:'1.7', current:true, date:{ fr:'Juin 2026', en:'June 2026' }, items:[
+  { v:'1.8', current:true, date:{ fr:'Juin 2026', en:'June 2026' }, items:[
+    { fr:'Transferts Pro : file d\'attente avec nombre de transferts simultanés réglable, et réordonnancement par glisser-déposer.', en:'Pro Transfers: a queue with an adjustable number of simultaneous transfers, plus drag-and-drop reordering.' },
+    { fr:'Mettez en pause et reprenez chaque transfert individuellement (plus seulement tout d\'un coup), avec indicateur de file et priorités.', en:'Pause and resume each transfer individually (not just all at once), with a queue indicator and priorities.' },
+    { fr:'Reprise automatique : les transferts repartent seuls après une coupure réseau ou un redémarrage de l\'app.', en:'Automatic resume: transfers pick back up on their own after a network drop or an app restart.' },
+    { fr:'Réglages réseau : limite de débit distincte en Wi-Fi et en cellulaire, plus une option « pause en cellulaire ».', en:'Network settings: separate speed limits for Wi-Fi and cellular, plus a "pause on cellular" option.' },
+    { fr:'Logs de transfert exportables pour diagnostiquer un envoi ou un téléchargement.', en:'Exportable transfer logs to diagnose an upload or a download.' },
+    { fr:'Créez un dossier directement depuis le navigateur de fichiers.', en:'Create a folder right from the file browser.' },
+    { fr:'Nouvel écran « Historique des versions » dans les Réglages.', en:'New "Version history" screen in Settings.' },
+    { fr:'Vue galerie : vignettes mieux alignées (fini les chevauchements sur petit écran).', en:'Gallery view: better-aligned thumbnails (no more overlapping on small screens).' },
+    { fr:'Stabilité : correctifs sur la file d\'attente et la fiabilité des reprises.', en:'Stability: fixes to the transfer queue and resume reliability.' },
+  ] },
+  { v:'1.7', date:{ fr:'Juin 2026', en:'June 2026' }, items:[
     { fr:'Téléchargez des dossiers entiers en une fois (récursif).', en:'Download entire folders in one go (recursive).' },
     { fr:'Raccourcis & Siri : ouvrez un remote ou lancez un envoi de fichier depuis l\'app Raccourcis, grâce aux App Intents.', en:'Shortcuts & Siri: open a remote or start a file upload from the Shortcuts app, powered by App Intents.' },
     { fr:'Confidentialité renforcée : le cache média est effacé automatiquement au verrouillage par inactivité, et vous pouvez plafonner sa taille (éviction automatique).', en:'Stronger privacy: the media cache is wiped automatically when the app locks on inactivity, and you can cap its size (automatic eviction).' },
@@ -1097,11 +1108,11 @@ const Prerelease = ({ lang }) => {
         <div className="pr-card">
           <div className="pr-left">
             <span className="pr-badge"><span className="pr-dot"/>{t('PRÉ-RELEASE','PRE-RELEASE')}</span>
-            <h2 className="pr-title">{t('Version 1.8','Version 1.8')}<span className="pr-when"> · {t('1ᵉʳ juillet 2026','July 1, 2026')}</span></h2>
-            <p className="pr-sub">{t('Soyez les premiers à tester la prochaine version. Accès anticipé via TestFlight, avant la sortie publique sur l\'App Store.','Be the first to try the next release. Early access via TestFlight, before it ships publicly on the App Store.')}</p>
+            <h2 className="pr-title">{t('Flows','Flows')}<span className="pr-when"> · {t('prochaine version','next release')}</span></h2>
+            <p className="pr-sub">{t('Transferts Pro est désormais public dans la 1.8. La prochaine étape : Flows. Accès anticipé via TestFlight, avant la sortie publique sur l\'App Store.','Pro Transfers is now public in 1.8. Next up: Flows. Early access via TestFlight, before it ships publicly on the App Store.')}</p>
             <ul className="pr-list">
-              <li><Icon name="check.circle" size={18}/>{t('Transferts Pro : file d\'attente, priorités, reprise robuste, limites Wi-Fi/cellulaire.','Pro Transfers: queue, priorities, robust resume, Wi-Fi/cellular limits.')}</li>
-              <li><Icon name="check.circle" size={18}/>{t('Flows : automatisations 100 % locales (Raccourcis + App Intents) et Live Activity « santé du backup ».','Flows: 100% local automations (Shortcuts + App Intents) and a "backup health" Live Activity.')}</li>
+              <li><Icon name="check.circle" size={18}/>{t('Flows : automatisations 100 % locales de vos sauvegardes (Raccourcis + App Intents).','Flows: 100% local automations for your backups (Shortcuts + App Intents).')}</li>
+              <li><Icon name="check.circle" size={18}/>{t('Live Activity « santé du backup » en direct sur l\'écran verrouillé.','A "backup health" Live Activity, live on your Lock Screen.')}</li>
               <li><Icon name="check.circle" size={18}/>{t('Votre retour façonne directement la version finale.','Your feedback directly shapes the final release.')}</li>
             </ul>
           </div>
