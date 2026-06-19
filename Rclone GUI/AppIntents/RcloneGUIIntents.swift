@@ -40,6 +40,31 @@ public struct RcloneGUIShortcuts: AppShortcutsProvider {
             shortTitle: "Ouvrir un remote",
             systemImageName: "externaldrive.fill"
         )
+        AppShortcut(
+            intent: RunPhotoSyncIntent(),
+            phrases: [
+                "Sauvegarder mes photos avec \(.applicationName)",
+                "Lancer la sauvegarde photos \(.applicationName)",
+            ],
+            shortTitle: "Sauvegarder mes photos",
+            systemImageName: "photo.on.rectangle.angled"
+        )
+        AppShortcut(
+            intent: PauseTransfersIntent(),
+            phrases: [
+                "Mettre en pause les transferts \(.applicationName)",
+            ],
+            shortTitle: "Pause des transferts",
+            systemImageName: "pause.circle.fill"
+        )
+        AppShortcut(
+            intent: ResumeTransfersIntent(),
+            phrases: [
+                "Reprendre les transferts \(.applicationName)",
+            ],
+            shortTitle: "Reprendre les transferts",
+            systemImageName: "play.circle.fill"
+        )
     }
 }
 
