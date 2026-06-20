@@ -59,6 +59,11 @@ final class VLCPlayerModel: NSObject, ObservableObject {
     }
 
     func load(url: URL, startAtSeconds: Double?) {
+        loadStartedAt = Date()
+        let sizeText = sizeBytes > 0
+            ? ByteCountFormatter.string(fromByteCount: sizeBytes, countStyle: .file)
+            : "?"
+        plog("▶︎ VLC load — fichier=\(sizeText) network-caching=8000ms url=\(url.scheme ?? "")")
         let media = VLCMedia(url: url)
         player.media = media
         player.play()
@@ -70,6 +75,43 @@ final class VLCPlayerModel: NSObject, ObservableObject {
     }
 
     private var resumeTargetSeconds: Double?
+
+    // MARK: - Télémétrie (diagnostic saccades / débit)
+    /// Taille du fichier distant (octets) pour calculer le bitrate moyen requis.
+    var sizeBytes: Int64 = 0
+    private var loadStartedAt: Date?
+    private var firstFrameAt: Date?
+    private var bufferingStartedAt: Date?
+    private var stallCount = 0
+    private var totalStallSeconds: Double = 0
+    private var lastStatLogAt: Date?
+    private var lastKeepUpPos: Double?
+    private var lastKeepUpWall: Date?
+
+    private func plog(_ message: String) {
+        Task { await LogService.shared.log(.info, category: "player", message: message) }
+    }
+
+    private func stateName(_ s: VLCMediaPlayerState) -> String {
+        switch s {
+        case .stopped: return "stopped"
+        case .opening: return "opening"
+        case .buffering: return "buffering"
+        case .ended: return "ended"
+        case .error: return "error"
+        case .playing: return "playing"
+        case .paused: return "paused"
+        case .esAdded: return "esAdded"
+        @unknown default: return "?"
+        }
+    }
+
+    /// Bitrate moyen requis = taille×8 / durée. Le débit réseau doit le dépasser
+    /// pour une lecture fluide.
+    private func avgBitrateMbps() -> Double? {
+        guard sizeBytes > 0, durationSeconds > 1 else { return nil }
+        return Double(sizeBytes) * 8 / durationSeconds / 1_000_000
+    }
 
     func togglePlayPause() {
         if player.isPlaying { player.pause() } else { player.play() }
@@ -148,6 +190,39 @@ final class VLCPlayerModel: NSObject, ObservableObject {
             // Durée connue mais cible hors plage → on abandonne la reprise.
             resumeTargetSeconds = nil
         }
+
+        logPeriodicStats()
+    }
+
+    /// Toutes les ~3 s : « % temps réel » (la position avance-t-elle aussi vite
+    /// que l'horloge ?), bitrate moyen requis, et stats réseau VLC (débit réseau
+    /// vs demux + images perdues) → distingue « lien trop lent » de « décodage ».
+    private func logPeriodicStats() {
+        let now = Date()
+        if let last = lastStatLogAt, now.timeIntervalSince(last) < 3 { return }
+
+        var keepUp = "?"
+        if let lp = lastKeepUpPos, let lw = lastKeepUpWall {
+            let posDelta = positionSeconds - lp
+            let wallDelta = now.timeIntervalSince(lw)
+            if wallDelta > 0.1 {
+                keepUp = String(format: "%.0f%%", max(0, posDelta / wallDelta) * 100)
+            }
+        }
+        lastKeepUpPos = positionSeconds
+        lastKeepUpWall = now
+        lastStatLogAt = now
+
+        var line = "VLC 📊 pos=\(Int(positionSeconds))/\(Int(durationSeconds))s tempsRéel=\(keepUp) état=\(stateName(player.state))"
+        if let br = avgBitrateMbps() { line += " bitrateMoyen=\(String(format: "%.1f", br))Mbit/s" }
+        if let stats = player.media?.statistics {
+            // input = débit réseau, demux = débit consommé par la lecture.
+            // input < demux durablement → le lien ne soutient pas le fichier.
+            let inMbps = Double(stats.inputBitrate) * 8 / 1_000_000
+            let demuxMbps = Double(stats.demuxBitrate) * 8 / 1_000_000
+            line += " | réseau=\(String(format: "%.1f", inMbps))Mbit/s demux=\(String(format: "%.1f", demuxMbps))Mbit/s lus=\(stats.readBytes / 1_048_576)Mo imgPerdues=\(stats.lostPictures)"
+        }
+        plog(line)
     }
 }
 
@@ -156,20 +231,36 @@ final class VLCPlayerModel: NSObject, ObservableObject {
 extension VLCPlayerModel: VLCMediaPlayerDelegate {
     func mediaPlayerStateChanged(_ aNotification: Notification) {
         let state = player.state
+        plog("VLC état → \(stateName(state)) @\(Int(positionSeconds))s (stalls=\(stallCount), totalStall=\(String(format: "%.1f", totalStallSeconds))s)")
         switch state {
         case .buffering, .opening:
+            // Un re-buffering en cours de lecture = stall. On chronomètre.
+            if state == .buffering, bufferingStartedAt == nil {
+                bufferingStartedAt = Date()
+                if firstFrameAt != nil { stallCount += 1 }  // re-buffer après le 1er frame
+            }
             isBuffering = true
         case .playing:
             isBuffering = false
             isPlaying = true
             failed = false
+            if firstFrameAt == nil {
+                firstFrameAt = Date()
+                let ttf = loadStartedAt.map { Date().timeIntervalSince($0) } ?? 0
+                plog("VLC ⏱️ 1re image après \(String(format: "%.1f", ttf))s ; bitrate moyen=\(avgBitrateMbps().map { String(format: "%.1f Mbit/s", $0) } ?? "?")")
+            }
+            if let s = bufferingStartedAt {
+                let dur = Date().timeIntervalSince(s)
+                totalStallSeconds += dur
+                bufferingStartedAt = nil
+                plog("VLC ⚠️ fin re-buffering après \(String(format: "%.1f", dur))s (stall #\(stallCount))")
+            }
             refreshTracks()
-            // La reprise est appliquée dans refreshTime() une fois la durée
-            // connue (le demuxer est alors prêt à seek).
         case .paused:
             isPlaying = false
         case .stopped:
             isPlaying = false
+            plog("VLC ⏹️ stop — bilan : stalls=\(stallCount), tempsBuffering=\(String(format: "%.1f", totalStallSeconds))s")
         case .ended:
             isPlaying = false
             onEnded?()
@@ -177,6 +268,7 @@ extension VLCPlayerModel: VLCMediaPlayerDelegate {
             failed = true
             isBuffering = false
             isPlaying = false
+            plog("VLC ❌ erreur de lecture @\(Int(positionSeconds))s")
         default:
             // .esAdded et autres : mettre à jour les pistes au cas où.
             refreshTracks()
@@ -228,6 +320,7 @@ struct EmbeddedVLCPlayerView: View {
     let remote: String
     let path: String
     let subtitles: [SidecarSubtitle]
+    var sizeHint: Int64 = 0
 
     var hasNext: Bool = false
     var hasPrevious: Bool = false
@@ -273,6 +366,7 @@ struct EmbeddedVLCPlayerView: View {
             // La session audio est possédée par MediaPlayerHost (évite une
             // course de désactivation lors des enchaînements de playlist).
             let resume = PlaybackProgressStore.resumePosition(remote: remote, path: path)
+            model.sizeBytes = sizeHint
             model.load(url: streamURL, startAtSeconds: resume)
             model.onEnded = {
                 PlaybackProgressStore.clear(remote: remote, path: path)
