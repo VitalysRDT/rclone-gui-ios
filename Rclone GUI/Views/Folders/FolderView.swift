@@ -14,6 +14,7 @@ import UniformTypeIdentifiers
 
 struct FolderView: View {
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var audioPlayer: AudioPlaybackCoordinator
 
     let remote: String
     let path: String
@@ -686,6 +687,18 @@ struct FolderView: View {
             } else {
                 previewTarget = entry
             }
+        } else if MediaFormat.isAudio(entry.name),
+                  MediaFormat.engine(for: entry.name) == .avFoundation {
+            // Audio AVFoundation → mini-lecteur persistant (survit à la
+            // navigation). La file = toutes les pistes audio AVFoundation du
+            // dossier, dans l'ordre affiché. Le VLC-audio (opus/wma…) et la
+            // vidéo gardent le lecteur plein écran.
+            let tracks = displayedEntries.filter {
+                !$0.isDirectory && MediaFormat.isAudio($0.name)
+                    && MediaFormat.engine(for: $0.name) == .avFoundation
+            }
+            Task { await audioPlayer.play(remote: remote, entry: entry, queue: tracks) }
+            openingEntryID = nil
         } else if EntryActionsMenu.isMediaFile(entry.name) {
             playTarget = entry
         } else {

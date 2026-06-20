@@ -12,10 +12,12 @@
 //
 
 import Foundation
+import CoreGraphics
 
 #if os(iOS)
 import MediaPlayer
 import AVFoundation
+import UIKit
 
 @MainActor
 final class NowPlayingService {
@@ -23,6 +25,10 @@ final class NowPlayingService {
     private init() {}
 
     private var commandsConfigured = false
+
+    // Pochette courante (réappliquée à chaque updateNowPlaying pour survivre au
+    // remplacement complet de la fiche). Remise à zéro à chaque nouvelle session.
+    private var artwork: MPMediaItemArtwork?
 
     // Callbacks fournis par le lecteur actif.
     private var onPlay: (() -> Void)?
@@ -37,6 +43,7 @@ final class NowPlayingService {
     /// mute switch. Le `mode` s'adapte au contenu : `.moviePlayback` pour la
     /// vidéo (traitement adapté au film), `.default` pour l'audio pur (musique).
     func beginPlaybackSession(isVideo: Bool = true) {
+        artwork = nil
         let session = AVAudioSession.sharedInstance()
         let mode: AVAudioSession.Mode = isVideo ? .moviePlayback : .default
         try? session.setCategory(.playback, mode: mode, options: [])
@@ -123,7 +130,8 @@ final class NowPlayingService {
         center.changePlaybackPositionCommand.isEnabled = true
     }
 
-    /// Met à jour la fiche Now Playing (titre, durée, position, état).
+    /// Met à jour la fiche Now Playing (titre, durée, position, état). Réapplique
+    /// la pochette stockée pour qu'elle survive au remplacement de la fiche.
     func updateNowPlaying(title: String, durationSeconds: Double, elapsedSeconds: Double, rate: Float) {
         var info: [String: Any] = [:]
         info[MPMediaItemPropertyTitle] = title
@@ -134,10 +142,27 @@ final class NowPlayingService {
             info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = max(0, elapsedSeconds)
         }
         info[MPNowPlayingInfoPropertyPlaybackRate] = rate
+        if let artwork {
+            info[MPMediaItemPropertyArtwork] = artwork
+        }
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+    }
+
+    /// Définit la pochette affichée sur l'écran verrouillé / centre de contrôle.
+    func setNowPlayingArtwork(_ image: CGImage?) {
+        if let image {
+            let ui = UIImage(cgImage: image)
+            artwork = MPMediaItemArtwork(boundsSize: ui.size) { _ in ui }
+        } else {
+            artwork = nil
+        }
+        var info = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [:]
+        info[MPMediaItemPropertyArtwork] = artwork
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
     }
 
     func clearNowPlaying() {
+        artwork = nil
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
     }
 }
@@ -161,6 +186,7 @@ final class NowPlayingService {
         onSeek: @escaping (Double) -> Void
     ) {}
     func updateNowPlaying(title: String, durationSeconds: Double, elapsedSeconds: Double, rate: Float) {}
+    func setNowPlayingArtwork(_ image: CGImage?) {}
     func clearNowPlaying() {}
 }
 
