@@ -157,10 +157,19 @@ public actor RemoteService {
             throw error
         }
         let ms = Int(Date().timeIntervalSince(started) * 1000)
+        // Log diagnostique : on liste les NOMS exacts renvoyés par rclone (📁
+        // pour les dossiers) afin de distinguer une staleness serveur (le
+        // nouveau dossier est absent de la réponse rclone) d'un bug d'affichage
+        // (présent dans la réponse mais pas à l'écran). Plafonné pour les gros
+        // dossiers.
+        let names = output.list.map { ($0.isDir ? "📁" : "· ") + $0.name }
+        let preview = names.count <= 40
+            ? names.joined(separator: ", ")
+            : names.prefix(40).joined(separator: ", ") + " …(+\(names.count - 40))"
         await LogService.shared.log(
             .info,
             category: "list",
-            message: "operations/list ok remote=\(remote) path=\(path) entries=\(output.list.count) in \(ms)ms"
+            message: "operations/list ok remote=\(remote) path=\(path.isEmpty ? "/" : path) entries=\(output.list.count) in \(ms)ms · [\(preview)]"
         )
 
         return output.list.map { raw in
