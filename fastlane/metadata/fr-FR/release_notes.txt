@@ -1,10 +1,8 @@
-Nouveautés de la version 1.8 :
-- Transferts Pro : file d'attente avec nombre de transferts simultanés réglable, et réordonnancement par glisser-déposer.
-- Pause et reprise transfert par transfert (plus seulement tout d'un coup), avec priorités et indicateur de file.
-- Reprise automatique après une coupure réseau ou un redémarrage de l'app.
-- Réglages réseau : limite de débit distincte en Wi-Fi et en cellulaire, et option « pause en cellulaire ».
-- Logs de transfert exportables pour diagnostiquer un envoi ou un téléchargement.
-- Création de dossier directement depuis le navigateur de fichiers.
-- Nouvel écran « Historique des versions » dans les Réglages.
-- Vue galerie : vignettes mieux alignées (fini les chevauchements sur petit écran).
-- Corrections de stabilité et de fiabilité des transferts.
+Nouveautés de la version 1.9 :
+- Audio en arrière-plan : musique, podcasts et livres audio continuent quand l'app passe en fond ou que l'écran se verrouille, avec les contrôles sur l'écran verrouillé.
+- Mini-lecteur audio persistant : une barre « en cours de lecture » avec pochette reste visible pendant la navigation ; touchez-la pour le lecteur plein écran (pochette, barre de progression, file de lecture).
+- Visionneuse photo : ouvrez une image en plein écran et faites défiler vos photos d'un glissement, avec zoom et partage.
+- Picture-in-Picture amélioré pour la vidéo : fenêtre flottante quand vous quittez l'app.
+- Flows & automatisations : synchro photo, sauvegarde de dossier, pause/reprise des transferts depuis Raccourcis et Siri — 100 % en local.
+- Nouveaux réglages de lecture : audio en arrière-plan, PiP automatique et vitesse de lecture par défaut.
+- Corrections de stabilité et finitions.

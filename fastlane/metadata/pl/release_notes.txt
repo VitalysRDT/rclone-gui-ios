@@ -1,10 +1,8 @@
-Nowości w wersji 1.8:
-- Transfery Pro: kolejka z regulowaną liczbą jednoczesnych transferów oraz zmiana kolejności metodą przeciągnij i upuść.
-- Wstrzymuj i wznawiaj każdy transfer osobno (już nie tylko wszystkie naraz), z priorytetami i wskaźnikiem kolejki.
-- Automatyczne wznawianie po przerwaniu połączenia lub ponownym uruchomieniu aplikacji.
-- Ustawienia sieci: osobny limit prędkości dla Wi-Fi i sieci komórkowej oraz opcja „wstrzymaj w sieci komórkowej".
-- Eksportowalne dzienniki transferów do diagnozowania wysyłania lub pobierania.
-- Tworzenie folderu bezpośrednio z przeglądarki plików.
-- Nowy ekran „Historia wersji" w Ustawieniach.
-- Widok galerii: lepiej wyrównane miniatury (koniec z nakładaniem się na małych ekranach).
-- Poprawki stabilności i niezawodności transferów.
+Nowości w wersji 1.9:
+- Dźwięk w tle: muzyka, podcasty i audiobooki grają dalej, gdy aplikacja przechodzi w tło lub ekran się blokuje, ze sterowaniem na ekranie blokady.
+- Trwały miniodtwarzacz audio: pasek „odtwarzane teraz" z okładką pozostaje widoczny podczas przeglądania; dotknij go, aby otworzyć odtwarzacz pełnoekranowy (okładka, pasek postępu, kolejka odtwarzania).
+- Przeglądarka zdjęć: otwórz obraz na pełnym ekranie i przesuwaj między zdjęciami, z powiększeniem i udostępnianiem.
+- Ulepszony Picture-in-Picture dla wideo: pływające okno po wyjściu z aplikacji.
+- Flows i automatyzacje: synchronizacja zdjęć, kopia zapasowa folderu, wstrzymywanie/wznawianie transferów ze Skrótów i Siri — w pełni na urządzeniu.
+- Nowe ustawienia odtwarzania: dźwięk w tle, automatyczny PiP i domyślna prędkość odtwarzania.
+- Poprawki stabilności i dopracowanie.

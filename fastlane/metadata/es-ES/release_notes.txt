@@ -1,10 +1,8 @@
-Novedades de la versión 1.8:
-- Transferencias Pro: cola con número ajustable de transferencias simultáneas y reordenación arrastrando y soltando.
-- Pausa y reanuda cada transferencia individualmente (ya no solo todas a la vez), con prioridades e indicador de cola.
-- Reanudación automática tras un corte de red o un reinicio de la app.
-- Ajustes de red: límite de velocidad distinto para Wi-Fi y datos móviles, y opción «pausar con datos móviles».
-- Registros de transferencia exportables para diagnosticar una subida o una descarga.
-- Crea carpetas directamente desde el explorador de archivos.
-- Nueva pantalla «Historial de versiones» en los Ajustes.
-- Vista de galería: miniaturas mejor alineadas (se acabaron las superposiciones en pantallas pequeñas).
-- Correcciones de estabilidad y fiabilidad de las transferencias.
+Novedades de la versión 1.9:
+- Audio en segundo plano: la música, los pódcasts y los audiolibros siguen sonando cuando la app pasa a segundo plano o se bloquea la pantalla, con controles en la pantalla de bloqueo.
+- Minirreproductor de audio persistente: una barra de "reproducción en curso" con carátula permanece visible mientras navegas; tócala para el reproductor a pantalla completa (carátula, barra de progreso, lista de reproducción).
+- Visor de fotos: abre una imagen a pantalla completa y desliza para pasar tus fotos, con zoom y opción de compartir.
+- Picture-in-Picture mejorado para vídeo: ventana flotante al salir de la app.
+- Flows y automatizaciones: sincronización de fotos, copia de seguridad de carpetas, pausar/reanudar transferencias desde Atajos y Siri, 100 % en el dispositivo.
+- Nuevos ajustes de reproducción: audio en segundo plano, PiP automático y velocidad de reproducción predeterminada.
+- Correcciones de estabilidad y mejoras.
