@@ -59,6 +59,14 @@ public actor MediaCacheService {
             try? evictIfNeeded(reservingBytes: sizeHint)
         }
 
+        // Le téléchargement bypasse le throttle d'activité utilisateur : sinon
+        // l'UserActivityMonitor le bride à 512 Ko/s dès qu'on touche l'écran (un
+        // gros fichier mettrait des heures) ET le va-et-vient core/bwlimit ajoute
+        // des RPC lentes qui font ramer l'app. Le streaming partage le process
+        // rclone, donc on évite toute contention superflue pendant le download.
+        await TransferQueue.shared.incrementActivityBypass()
+        defer { Task { await TransferQueue.shared.decrementActivityBypass() } }
+
         // Run rclone copyfile to land the file locally. Source = "<remote>:" with `path`,
         // destination = the cache parent dir (as local fs) with the cache filename.
         let jobID = try await TransferService.shared.copyFileAsync(
@@ -165,7 +173,10 @@ public actor MediaCacheService {
 
     private func waitForJob(jobID: Int) async throws {
         while !Task.isCancelled {
-            try await Task.sleep(for: .milliseconds(500))
+            // 2 s (et non 500 ms) : pendant un gros download rclone est saturé,
+            // chaque job/status met 1–4 s et un poll trop fréquent monopolise le
+            // bridge RPC → l'app rame. 2 s suffit largement pour un transfert long.
+            try await Task.sleep(for: .seconds(2))
             let info = try await TransferService.shared.jobStatus(jobID: jobID)
             if info.finished {
                 if info.success { return }
