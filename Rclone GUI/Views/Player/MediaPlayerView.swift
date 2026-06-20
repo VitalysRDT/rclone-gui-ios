@@ -28,6 +28,10 @@ struct MediaPlayerView: UIViewControllerRepresentable {
     let remote: String
     let path: String
     var sizeHint: Int64 = 0
+    /// PiP éligible uniquement pour la vidéo (une piste vidéo est requise).
+    /// Décidé par présence d'une piste vidéo (via MediaFormat), pas par la
+    /// taille du fichier — un petit clip mérite le PiP, un gros WAV non.
+    var allowsPiP: Bool = true
     /// Appelé en fin de lecture (enchaînement playlist).
     var onEnded: (() -> Void)?
 
@@ -41,9 +45,11 @@ struct MediaPlayerView: UIViewControllerRepresentable {
         let controller = AVPlayerViewController()
         controller.player = player
 
-        let isPiPEligible = sizeHint == 0 || sizeHint >= 5_000_000
-        controller.allowsPictureInPicturePlayback = isPiPEligible
-        controller.canStartPictureInPictureAutomaticallyFromInline = isPiPEligible
+        controller.allowsPictureInPicturePlayback = allowsPiP
+        // Auto-PiP au passage en arrière-plan (nécessite le mode audio dans
+        // UIBackgroundModes, désormais déclaré) — seulement pour la vidéo, et
+        // si l'utilisateur n'a pas désactivé le PiP auto dans les réglages.
+        controller.canStartPictureInPictureAutomaticallyFromInline = allowsPiP && PlaybackDefaults.autoPiP
         controller.entersFullScreenWhenPlaybackBegins = true
         controller.exitsFullScreenWhenPlaybackEnds = false
         controller.modalPresentationStyle = .fullScreen
@@ -180,6 +186,9 @@ struct MediaPlayerView: View {
     let remote: String
     let path: String
     var sizeHint: Int64 = 0
+    /// Inutilisé sur macOS (VideoPlayer n'expose pas de PiP) — présent pour
+    /// l'unité d'API avec la variante iOS.
+    var allowsPiP: Bool = true
     var onEnded: (() -> Void)?
 
     @State private var player: AVPlayer?
@@ -307,6 +316,7 @@ struct MediaPlayerHost: View {
                 remote: remote,
                 path: entry.pathInRemote,
                 sizeHint: entry.size,
+                allowsPiP: MediaFormat.isVideo(entry.name),
                 onEnded: { advanceOrClose() }
             )
             .ignoresSafeArea()
@@ -337,7 +347,7 @@ struct MediaPlayerHost: View {
         // de changer éventuellement de moteur (évite des handlers VLC périmés
         // qui survivraient à une bascule VLC → AVPlayer en playlist).
         NowPlayingService.shared.resetRemoteCommands()
-        NowPlayingService.shared.beginPlaybackSession()
+        NowPlayingService.shared.beginPlaybackSession(isVideo: MediaFormat.isVideo(entry.name))
         do {
             let s = try await RcloneStreamingService.shared.session(
                 remote: remote,

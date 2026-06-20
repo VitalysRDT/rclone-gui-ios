@@ -721,7 +721,7 @@ const Hero = () => {
     <section className="hero" id="top">
       <div className="wrap">
         <img className="icon" src="icon.png" alt="Rclone GUI"/>
-        <div><span className="pill"><Icon name="bolt.fill" size={14}/>{t('v1.8 · ESSAI GRATUIT','v1.8 · FREE TRIAL')}</span></div>
+        <div><span className="pill"><Icon name="bolt.fill" size={14}/>{t('v1.9 · ESSAI GRATUIT','v1.9 · FREE TRIAL')}</span></div>
         <h1 className="title">{ML(t('Tous vos clouds.\nChiffrés.','Every cloud.\nEncrypted.'))}</h1>
         <p className="sub">{t('Parcourez 80+ services cloud — y compris vos remotes rclone chiffrés — directement dans Fichiers. iPhone, iPad & Mac.','Browse 80+ cloud services — including your encrypted rclone crypt remotes — right inside Files. iPhone, iPad & Mac.')}</p>
         <div className="cta-row">
@@ -999,7 +999,16 @@ const FreeMonth = () => {
 };
 
 const VERSIONS = [
-  { v:'1.8', current:true, date:{ fr:'Juin 2026', en:'June 2026' }, items:[
+  { v:'1.9', current:true, date:{ fr:'Juillet 2026', en:'July 2026' }, items:[
+    { fr:'Audio en arrière-plan : la musique, les podcasts et les livres audio continuent quand l\'app passe en fond ou que l\'écran se verrouille, avec les contrôles sur l\'écran verrouillé.', en:'Background audio: music, podcasts and audiobooks keep playing when the app goes to the background or the screen locks, with lock-screen controls.' },
+    { fr:'Mini-lecteur audio persistant : une barre « en cours de lecture » avec pochette reste visible pendant que vous naviguez ; tapez-la pour le lecteur plein écran (grande pochette, scrubber, file de lecture).', en:'Persistent audio mini-player: a "now playing" bar with artwork stays visible while you browse; tap it for the full-screen player (large artwork, scrubber, play queue).' },
+    { fr:'Visionneuse photo : ouvrez une image en plein écran et faites défiler vos photos d\'un glissement, avec zoom (pincer / double-tap) et partage.', en:'Photo viewer: open an image full-screen and swipe through your photos, with pinch / double-tap zoom and sharing.' },
+    { fr:'Picture-in-Picture amélioré pour la vidéo : fenêtre flottante quand vous quittez l\'app, proposé pour toutes les vidéos.', en:'Improved Picture-in-Picture for video: floating window when you leave the app, offered for every video.' },
+    { fr:'Flows & automatisations : lancez la synchro photo, sauvegardez un dossier ou mettez les transferts en pause/reprise depuis Raccourcis et Siri — 100 % en local.', en:'Flows & automations: run photo sync, back up a folder, or pause/resume transfers from Shortcuts and Siri — fully on-device.' },
+    { fr:'Nouveaux réglages de lecture : audio en arrière-plan, PiP automatique et vitesse de lecture par défaut.', en:'New playback settings: background audio, automatic PiP and default playback speed.' },
+    { fr:'Stabilité et finitions.', en:'Stability and polish.' },
+  ] },
+  { v:'1.8', date:{ fr:'Juin 2026', en:'June 2026' }, items:[
     { fr:'Transferts Pro : file d\'attente avec nombre de transferts simultanés réglable, et réordonnancement par glisser-déposer.', en:'Pro Transfers: a queue with an adjustable number of simultaneous transfers, plus drag-and-drop reordering.' },
     { fr:'Mettez en pause et reprenez chaque transfert individuellement (plus seulement tout d\'un coup), avec indicateur de file et priorités.', en:'Pause and resume each transfer individually (not just all at once), with a queue indicator and priorities.' },
     { fr:'Reprise automatique : les transferts repartent seuls après une coupure réseau ou un redémarrage de l\'app.', en:'Automatic resume: transfers pick back up on their own after a network drop or an app restart.' },
@@ -1108,12 +1117,12 @@ const Prerelease = ({ lang }) => {
         <div className="pr-card">
           <div className="pr-left">
             <span className="pr-badge"><span className="pr-dot"/>{t('PRÉ-RELEASE','PRE-RELEASE')}</span>
-            <h2 className="pr-title">{t('Flows','Flows')}<span className="pr-when"> · {t('prochaine version','next release')}</span></h2>
-            <p className="pr-sub">{t('Transferts Pro est désormais public dans la 1.8. La prochaine étape : Flows. Accès anticipé via TestFlight, avant la sortie publique sur l\'App Store.','Pro Transfers is now public in 1.8. Next up: Flows. Early access via TestFlight, before it ships publicly on the App Store.')}</p>
+            <h2 className="pr-title">{t('Lecteur média pro','Pro media player')}<span className="pr-when"> · {t('version 1.9','version 1.9')}</span></h2>
+            <p className="pr-sub">{t('La 1.9 apporte un vrai lecteur audio (arrière-plan + mini-lecteur), une visionneuse photo et les Flows. Accès anticipé via TestFlight, avant la sortie publique du 1ᵉʳ juillet sur l\'App Store.','1.9 brings a real audio player (background + mini-player), a photo viewer and Flows. Early access via TestFlight, before the July 1 public release on the App Store.')}</p>
             <ul className="pr-list">
-              <li><Icon name="check.circle" size={18}/>{t('Flows : automatisations 100 % locales de vos sauvegardes (Raccourcis + App Intents).','Flows: 100% local automations for your backups (Shortcuts + App Intents).')}</li>
-              <li><Icon name="check.circle" size={18}/>{t('Live Activity « santé du backup » en direct sur l\'écran verrouillé.','A "backup health" Live Activity, live on your Lock Screen.')}</li>
-              <li><Icon name="check.circle" size={18}/>{t('Votre retour façonne directement la version finale.','Your feedback directly shapes the final release.')}</li>
+              <li><Icon name="check.circle" size={18}/>{t('Audio en arrière-plan + mini-lecteur persistant avec pochette et file de lecture.','Background audio + a persistent mini-player with artwork and a play queue.')}</li>
+              <li><Icon name="check.circle" size={18}/>{t('Visionneuse photo : swipe entre les images, zoom et partage.','Photo viewer: swipe between images, zoom and share.')}</li>
+              <li><Icon name="check.circle" size={18}/>{t('Flows : automatisations 100 % locales (Raccourcis + App Intents).','Flows: 100% local automations (Shortcuts + App Intents).')}</li>
             </ul>
           </div>
           <div className="pr-right">

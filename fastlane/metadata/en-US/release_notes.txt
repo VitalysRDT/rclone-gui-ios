@@ -1,10 +1,8 @@
-What's new in 1.8:
-- Pro Transfers: a queue with an adjustable number of simultaneous transfers, plus drag-and-drop reordering.
-- Pause and resume each transfer individually (not just all at once), with priorities and a queue indicator.
-- Automatic resume after a network drop or an app restart.
-- Network settings: separate speed limits for Wi-Fi and cellular, plus a "pause on cellular" option.
-- Exportable transfer logs to diagnose an upload or a download.
-- Create a folder right from the file browser.
-- New "Version history" screen in Settings.
-- Gallery view: better-aligned thumbnails (no more overlapping on small screens).
-- Stability and transfer reliability fixes.
+What's new in 1.9:
+- Background audio: music, podcasts and audiobooks keep playing when the app goes to the background or the screen locks, with lock-screen controls.
+- Persistent audio mini-player: a "now playing" bar with artwork stays visible while you browse; tap it for the full-screen player (artwork, scrubber, play queue).
+- Photo viewer: open an image full-screen and swipe through your photos, with zoom and sharing.
+- Improved Picture-in-Picture for video: floating window when you leave the app.
+- Flows & automations: photo sync, folder backup, pause/resume transfers from Shortcuts and Siri — fully on-device.
+- New playback settings: background audio, automatic PiP and default playback speed.
+- Stability fixes and polish.

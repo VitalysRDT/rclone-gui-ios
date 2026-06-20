@@ -79,6 +79,27 @@ struct ChangelogView: View {
     // Historique aligné sur rclone.rougetet.com (le plus récent en premier).
     private static let releases: [Release] = [
         Release(
+            version: "1.9", dateFR: "Juillet 2026", dateEN: "July 2026",
+            itemsFR: [
+                "Audio en arrière-plan : la musique, les podcasts et les livres audio continuent quand l'app passe en fond ou que l'écran se verrouille, avec les contrôles sur l'écran verrouillé.",
+                "Mini-lecteur audio persistant : une barre « en cours de lecture » avec pochette reste visible pendant que vous naviguez ; tapez-la pour le lecteur plein écran (grande pochette, scrubber, file de lecture).",
+                "Visionneuse photo : ouvrez une image en plein écran et faites défiler vos photos d'un glissement, avec zoom (pincer / double-tap) et partage.",
+                "Picture-in-Picture amélioré pour la vidéo : fenêtre flottante quand vous quittez l'app, proposé pour toutes les vidéos.",
+                "Flows & automatisations : lancez la synchro photo, sauvegardez un dossier ou mettez les transferts en pause/reprise depuis Raccourcis et Siri — 100 % en local.",
+                "Nouveaux réglages de lecture : audio en arrière-plan, PiP automatique et vitesse de lecture par défaut.",
+                "Stabilité et finitions.",
+            ],
+            itemsEN: [
+                "Background audio: music, podcasts and audiobooks keep playing when the app goes to the background or the screen locks, with lock-screen controls.",
+                "Persistent audio mini-player: a \"now playing\" bar with artwork stays visible while you browse; tap it for the full-screen player (large artwork, scrubber, play queue).",
+                "Photo viewer: open an image full-screen and swipe through your photos, with pinch / double-tap zoom and sharing.",
+                "Improved Picture-in-Picture for video: floating window when you leave the app, offered for every video.",
+                "Flows & automations: run photo sync, back up a folder, or pause/resume transfers from Shortcuts and Siri — fully on-device.",
+                "New playback settings: background audio, automatic PiP and default playback speed.",
+                "Stability and polish.",
+            ]
+        ),
+        Release(
             version: "1.8", dateFR: "Juin 2026", dateEN: "June 2026",
             itemsFR: [
                 "Transferts Pro : file d'attente avec nombre de transferts simultanés réglable, et réordonnancement par glisser-déposer.",

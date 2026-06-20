@@ -1,10 +1,8 @@
-Neu in Version 1.8:
-- Pro-Übertragungen: Warteschlange mit einstellbarer Anzahl gleichzeitiger Übertragungen und Neuordnung per Drag & Drop.
-- Übertragungen einzeln anhalten und fortsetzen (nicht mehr nur alle auf einmal), mit Prioritäten und Warteschlangenanzeige.
-- Automatische Fortsetzung nach Netzwerkabbruch oder App-Neustart.
-- Netzwerkeinstellungen: getrennte Geschwindigkeitslimits für WLAN und Mobilfunk sowie Option „Im Mobilfunk pausieren".
-- Exportierbare Übertragungsprotokolle zur Diagnose von Uploads oder Downloads.
-- Ordner direkt im Dateibrowser erstellen.
-- Neuer Bildschirm „Versionsverlauf" in den Einstellungen.
-- Galerieansicht: besser ausgerichtete Miniaturen (keine Überlappungen mehr auf kleinen Bildschirmen).
-- Stabilitäts- und Zuverlässigkeitsverbesserungen bei Übertragungen.
+Neu in Version 1.9:
+- Audio im Hintergrund: Musik, Podcasts und Hörbücher laufen weiter, wenn die App in den Hintergrund wechselt oder der Bildschirm gesperrt wird – mit Steuerung auf dem Sperrbildschirm.
+- Dauerhafter Audio-Mini-Player: Eine „Aktuelle Wiedergabe"-Leiste mit Cover bleibt beim Navigieren sichtbar; tippen Sie darauf für den Vollbild-Player (Cover, Fortschrittsregler, Wiedergabeliste).
+- Foto-Viewer: Öffnen Sie ein Bild im Vollbild und wischen Sie durch Ihre Fotos, mit Zoom und Teilen.
+- Verbessertes Bild-in-Bild für Videos: schwebendes Fenster, wenn Sie die App verlassen.
+- Flows & Automationen: Fotosynchronisierung, Ordner-Backup, Übertragungen über Kurzbefehle und Siri pausieren/fortsetzen – komplett auf dem Gerät.
+- Neue Wiedergabe-Einstellungen: Audio im Hintergrund, automatisches Bild-in-Bild und Standard-Wiedergabegeschwindigkeit.
+- Stabilitätskorrekturen und Feinschliff.
