@@ -24,11 +24,12 @@ import VLCKitSPM
 /// VLCKit délivre ses callbacks de délégué sur le thread principal, donc les
 /// mutations de `@Published` y sont sûres.
 final class VLCPlayerModel: NSObject, ObservableObject {
-    // network-caching relevé à 8 s (défaut VLC = 1 s). Le flux arrive du bridge
-    // loopback alimenté en SFTP (débit variable) ; un buffer large absorbe la
-    // gigue et supprime les saccades sur les gros débits (ex. WEBRip 4K) — le
-    // décodage 4K HEVC est matériel (VideoToolbox), le goulot est le réseau.
-    let player = VLCMediaPlayer(options: ["--network-caching=8000"])
+    // network-caching = 2,5 s. NB mesuré : un buffer trop grand (8 s testé) FIGE
+    // le démarrage d'un MKV streamé (45 s avant la 1re image — VLC remplit tout le
+    // buffer en seekant l'index MKV via le bridge SFTP avant d'afficher). Pour ces
+    // fichiers la vraie réponse est « télécharger puis lire » (fichier local =
+    // zéro seek), pas un gros buffer.
+    let player = VLCMediaPlayer(options: ["--network-caching=2500"])
 
     @Published var isPlaying = false
     @Published var isBuffering = true
@@ -87,6 +88,7 @@ final class VLCPlayerModel: NSObject, ObservableObject {
     private var lastStatLogAt: Date?
     private var lastKeepUpPos: Double?
     private var lastKeepUpWall: Date?
+    private var lastReadBytes: Int = 0
 
     private func plog(_ message: String) {
         Task { await LogService.shared.log(.info, category: "player", message: message) }
@@ -199,7 +201,8 @@ final class VLCPlayerModel: NSObject, ObservableObject {
     /// vs demux + images perdues) → distingue « lien trop lent » de « décodage ».
     private func logPeriodicStats() {
         let now = Date()
-        if let last = lastStatLogAt, now.timeIntervalSince(last) < 3 { return }
+        let sinceLast = lastStatLogAt.map { now.timeIntervalSince($0) }
+        if let s = sinceLast, s < 3 { return }
 
         var keepUp = "?"
         if let lp = lastKeepUpPos, let lw = lastKeepUpWall {
@@ -216,11 +219,16 @@ final class VLCPlayerModel: NSObject, ObservableObject {
         var line = "VLC 📊 pos=\(Int(positionSeconds))/\(Int(durationSeconds))s tempsRéel=\(keepUp) état=\(stateName(player.state))"
         if let br = avgBitrateMbps() { line += " bitrateMoyen=\(String(format: "%.1f", br))Mbit/s" }
         if let stats = player.media?.statistics {
-            // input = débit réseau, demux = débit consommé par la lecture.
-            // input < demux durablement → le lien ne soutient pas le fichier.
-            let inMbps = Double(stats.inputBitrate) * 8 / 1_000_000
-            let demuxMbps = Double(stats.demuxBitrate) * 8 / 1_000_000
-            line += " | réseau=\(String(format: "%.1f", inMbps))Mbit/s demux=\(String(format: "%.1f", demuxMbps))Mbit/s lus=\(stats.readBytes / 1_048_576)Mo imgPerdues=\(stats.lostPictures)"
+            // Débit réseau RÉEL = delta des octets lus / temps (le champ
+            // inputBitrate de VLC renvoie 0 ici ; readBytes, lui, est fiable).
+            let read = Int(stats.readBytes)
+            var netStr = "?"
+            if let dt = sinceLast, dt > 0.1, read >= lastReadBytes {
+                let mbps = Double(read - lastReadBytes) * 8 / dt / 1_000_000
+                netStr = String(format: "%.1f", mbps)
+            }
+            lastReadBytes = read
+            line += " | réseau≈\(netStr)Mbit/s lus=\(read / 1_048_576)Mo imgPerdues=\(stats.lostPictures)"
         }
         plog(line)
     }
@@ -335,6 +343,14 @@ struct EmbeddedVLCPlayerView: View {
     @State private var scrubValue: Double = 0
     @State private var lastSavedSecond: Int = -1
     @State private var loadingSubtitle = false
+    // Télécharger-puis-lire : quand le streaming d'un MKV galère (seek-heavy en
+    // SFTP), on télécharge le fichier en séquentiel (rapide) et on relit en local
+    // (zéro seek). Auto-proposé après un buffering prolongé.
+    @State private var downloading = false
+    @State private var downloadError: String?
+    @State private var playingLocal = false
+    @State private var bufferingSince: Date?
+    @State private var offerLocalDownload = false
 
     private let speeds: [Float] = [0.5, 1.0, 1.25, 1.5, 2.0]
 
@@ -348,16 +364,15 @@ struct EmbeddedVLCPlayerView: View {
                     withAnimation(.easeInOut(duration: 0.2)) { showControls.toggle() }
                 }
 
-            if model.isBuffering && !model.failed {
-                ProgressView()
-                    .progressViewStyle(.circular)
-                    .tint(.white)
-                    .scaleEffect(1.4)
+            if downloading {
+                downloadingOverlay
+            } else if model.isBuffering && !model.failed {
+                bufferingOverlay
             }
 
-            if model.failed {
+            if model.failed && !downloading {
                 failureOverlay
-            } else if showControls {
+            } else if showControls && !downloading {
                 controlsOverlay
                     .transition(.opacity)
             }
@@ -392,6 +407,18 @@ struct EmbeddedVLCPlayerView: View {
                 withAnimation(.easeInOut(duration: 0.3)) { showControls = false }
             }
         }
+        .task(id: model.isBuffering) {
+            // Buffering qui s'éternise (streaming MKV seek-heavy) → on propose
+            // « Télécharger pour lire » après 12 s. Réinitialisé dès que ça joue.
+            guard model.isBuffering, !playingLocal, !downloading else {
+                offerLocalDownload = false
+                return
+            }
+            try? await Task.sleep(for: .seconds(12))
+            if !Task.isCancelled, model.isBuffering, !playingLocal, !downloading {
+                withAnimation { offerLocalDownload = true }
+            }
+        }
         .onDisappear {
             PlaybackProgressStore.save(
                 remote: remote, path: path,
@@ -404,6 +431,97 @@ struct EmbeddedVLCPlayerView: View {
         #if os(iOS)
         .statusBarHidden(!showControls)
         #endif
+    }
+
+    // MARK: Télécharger pour lire
+
+    private var bufferingOverlay: some View {
+        VStack(spacing: 16) {
+            ProgressView()
+                .progressViewStyle(.circular)
+                .tint(.white)
+                .scaleEffect(1.4)
+            if offerLocalDownload {
+                VStack(spacing: 10) {
+                    Text("La lecture en streaming a du mal sur ce fichier.")
+                        .font(.system(size: 14))
+                        .foregroundStyle(.white.opacity(0.85))
+                        .multilineTextAlignment(.center)
+                    Button { downloadAndPlayLocal() } label: {
+                        Label("Télécharger pour lire", systemImage: "arrow.down.circle.fill")
+                            .font(.system(size: 15, weight: .semibold))
+                            .padding(.horizontal, 18)
+                            .padding(.vertical, 10)
+                            .background(RG.accent, in: Capsule())
+                            .foregroundStyle(.white)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 32)
+                .transition(.opacity)
+            }
+        }
+    }
+
+    private var downloadingOverlay: some View {
+        VStack(spacing: 14) {
+            ProgressView()
+                .progressViewStyle(.circular)
+                .tint(.white)
+                .scaleEffect(1.4)
+            Text("Téléchargement pour une lecture fluide…")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(.white)
+            Text("La lecture locale démarre sans saccade dès que c'est prêt. Pour un gros fichier 4K, ça peut prendre quelques minutes.")
+                .font(.system(size: 12))
+                .foregroundStyle(.white.opacity(0.7))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 36)
+            if let downloadError {
+                Text(downloadError)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.red)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 36)
+            }
+            Button { onClose?() } label: {
+                Text("Fermer (le téléchargement continue en arrière-plan)")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.white.opacity(0.85))
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 4)
+        }
+    }
+
+    /// Télécharge le fichier en local (transfert séquentiel rapide) puis bascule
+    /// la lecture sur le fichier local — zéro seek, démux fluide. Réutilise le
+    /// même VLCPlayerModel (la session de streaming est lâchée au changement de
+    /// média). Le cache LRU MediaCache gère la rétention.
+    private func downloadAndPlayLocal() {
+        guard !downloading else { return }
+        downloading = true
+        downloadError = nil
+        offerLocalDownload = false
+        Task {
+            do {
+                let url = try await MediaCacheService.shared.localPlayableURL(
+                    remote: remote, path: path, sizeHint: sizeHint, policy: .reuseIfCached
+                )
+                await MainActor.run {
+                    downloading = false
+                    playingLocal = true
+                    let resume = PlaybackProgressStore.resumePosition(remote: remote, path: path)
+                    model.sizeBytes = sizeHint
+                    model.load(url: url, startAtSeconds: resume)
+                }
+            } catch {
+                await MainActor.run {
+                    downloading = false
+                    downloadError = error.localizedDescription
+                }
+            }
+        }
     }
 
     // MARK: Controls
