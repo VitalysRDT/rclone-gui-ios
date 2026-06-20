@@ -24,7 +24,11 @@ import VLCKitSPM
 /// VLCKit délivre ses callbacks de délégué sur le thread principal, donc les
 /// mutations de `@Published` y sont sûres.
 final class VLCPlayerModel: NSObject, ObservableObject {
-    let player = VLCMediaPlayer()
+    // network-caching relevé à 3 s (défaut VLC = 1 s). Le flux arrive du bridge
+    // loopback alimenté en SFTP (débit variable) ; un buffer plus large absorbe
+    // la gigue et supprime les saccades sur les gros débits (ex. WEBRip 4K) —
+    // le décodage 4K HEVC est matériel (VideoToolbox), le goulot est le réseau.
+    let player = VLCMediaPlayer(options: ["--network-caching=3000"])
 
     @Published var isPlaying = false
     @Published var isBuffering = true
