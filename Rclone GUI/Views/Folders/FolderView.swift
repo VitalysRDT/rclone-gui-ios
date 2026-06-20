@@ -235,7 +235,7 @@ struct FolderView: View {
                 activeTransferByPath = computeActiveTransferByPath()
             }
             .refreshable {
-                await load()
+                await load(forceFresh: true)
             }
             .safeAreaInset(edge: .bottom) {
                 if selectionMode {
@@ -912,7 +912,13 @@ struct FolderView: View {
         return (path as NSString).lastPathComponent
     }
 
-    private func load() async {
+    private func load(forceFresh: Bool = false) async {
+        // Pull-to-refresh explicite : on vide d'abord le cache d'Fs rclone pour
+        // forcer un listing réellement frais (un changement fait ailleurs n'est
+        // sinon pas garanti d'apparaître si le backend cache ses répertoires).
+        if forceFresh {
+            await RemoteService.shared.invalidateListingCache()
+        }
         loadState = .loading
         do {
             entries = try await RemoteService.shared.list(remote: remote, path: path)
