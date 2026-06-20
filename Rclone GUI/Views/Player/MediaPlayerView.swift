@@ -284,7 +284,15 @@ struct MediaPlayerHost: View {
             }
         }
         .task(id: index) { await prepare() }
+        .onAppear {
+            // CRITIQUE : le streaming passe par le même process rclone, donc le
+            // throttle d'activité utilisateur (512 Ko/s) étranglerait le flux et
+            // ferait tourner la vidéo en boucle de buffering. On bypass le
+            // throttle pendant toute la lecture (comme l'écran Transferts).
+            TransferQueue.shared.incrementActivityBypass()
+        }
         .onDisappear {
+            TransferQueue.shared.decrementActivityBypass()
             stopCurrentSession()
             NowPlayingService.shared.endPlaybackSession()
         }
