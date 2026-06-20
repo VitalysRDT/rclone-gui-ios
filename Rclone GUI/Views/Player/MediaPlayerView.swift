@@ -60,7 +60,7 @@ struct MediaPlayerView: UIViewControllerRepresentable {
             item.extendedLanguageTag = "und"
             player.currentItem?.externalMetadata = [item]
         }
-        player.currentItem?.preferredForwardBufferDuration = 2.0
+        player.currentItem?.preferredForwardBufferDuration = 30.0
 
         context.coordinator.attach(to: player)
         player.play()
@@ -199,7 +199,7 @@ struct MediaPlayerView: View {
             .onAppear {
                 let p = AVPlayer(url: url)
                 p.automaticallyWaitsToMinimizeStalling = true
-                p.currentItem?.preferredForwardBufferDuration = 2.0
+                p.currentItem?.preferredForwardBufferDuration = 30.0
                 player = p
                 if let resume = PlaybackProgressStore.resumePosition(remote: remote, path: path), resume > 1 {
                     // Attendre que l'item soit prêt avant de seek, sinon
