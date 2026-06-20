@@ -92,6 +92,7 @@ struct MediaPlayerView: UIViewControllerRepresentable {
         private var player: AVPlayer?
         private var timeObserver: Any?
         private var endObserver: NSObjectProtocol?
+        private var diagObservers: [NSObjectProtocol] = []
         private var didResume = false
         private var lastSavedSecond = -1
 
@@ -124,6 +125,24 @@ struct MediaPlayerView: UIViewControllerRepresentable {
                     PlaybackProgressStore.clear(remote: self.remote, path: self.path)
                     self.onEnded?()
                 }
+
+                // Télémétrie : stalls de lecture + access log (débit observé vs
+                // indiqué, nombre de stalls, octets transférés) → diagnostic des
+                // saccades sur les formats AVPlayer.
+                diagObservers.append(NotificationCenter.default.addObserver(
+                    forName: .AVPlayerItemPlaybackStalled, object: item, queue: .main
+                ) { [weak self] _ in
+                    let t = self?.player?.currentTime().seconds ?? 0
+                    Task { await LogService.shared.log(.info, category: "player",
+                        message: "AVPlayer ⚠️ stall @\(Int(t))s") }
+                })
+                diagObservers.append(NotificationCenter.default.addObserver(
+                    forName: .AVPlayerItemNewAccessLogEntry, object: item, queue: .main
+                ) { [weak self] _ in
+                    guard let e = self?.player?.currentItem?.accessLog()?.events.last else { return }
+                    Task { await LogService.shared.log(.info, category: "player",
+                        message: "AVPlayer 📊 débitObservé=\(String(format: "%.1f", e.observedBitrate / 1_000_000))Mbit/s indiqué=\(String(format: "%.1f", e.indicatedBitrate / 1_000_000))Mbit/s stalls=\(e.numberOfStalls) transféré=\(e.numberOfBytesTransferred / 1_048_576)Mo") }
+                })
             }
         }
 
@@ -166,6 +185,8 @@ struct MediaPlayerView: UIViewControllerRepresentable {
                 NotificationCenter.default.removeObserver(endObserver)
             }
             endObserver = nil
+            for o in diagObservers { NotificationCenter.default.removeObserver(o) }
+            diagObservers.removeAll()
             // Sauvegarde finale.
             if let player, let item = player.currentItem {
                 let elapsed = player.currentTime().seconds
@@ -308,6 +329,7 @@ struct MediaPlayerHost: View {
                 remote: remote,
                 path: entry.pathInRemote,
                 subtitles: subtitles,
+                sizeHint: entry.size,
                 hasNext: hasNext,
                 hasPrevious: hasPrevious,
                 onNext: hasNext ? { advance(by: 1) } : nil,
