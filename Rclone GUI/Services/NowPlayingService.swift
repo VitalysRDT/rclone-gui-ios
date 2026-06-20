@@ -46,14 +46,23 @@ final class NowPlayingService {
         artwork = nil
         let session = AVAudioSession.sharedInstance()
         let mode: AVAudioSession.Mode = isVideo ? .moviePlayback : .default
+        // setCategory est rapide et doit être posé AVANT play() (détermine le
+        // comportement du switch silencieux) → on le garde synchrone.
         try? session.setCategory(.playback, mode: mode, options: [])
-        try? session.setActive(true, options: [])
+        // setActive fait un IPC bloquant avec mediaserverd → hors du main thread
+        // pour ne pas figer l'UI (cf. avertissement AVAudioSession_iOS.mm:975).
+        Task.detached {
+            try? AVAudioSession.sharedInstance().setActive(true, options: [])
+        }
     }
 
     func endPlaybackSession() {
         removeRemoteCommands()
         clearNowPlaying()
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        // Désactivation hors du main thread (IPC bloquant — même raison que begin).
+        Task.detached {
+            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        }
     }
 
     /// Comme `removeRemoteCommands` mais sans désactiver la session audio :
