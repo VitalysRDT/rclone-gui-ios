@@ -18,6 +18,7 @@ struct MainTabView: View {
     /// navigation. La mini-barre est ajoutée en safeAreaInset bas (au-dessus de
     /// la TabView sur iOS, sous le contenu sur macOS).
     @StateObject private var audioPlayer = AudioPlaybackCoordinator()
+    @Environment(\.scenePhase) private var scenePhase
     // Explicit navigation path for the Files tab so a debug screenshot launch
     // (`--demo-screen folder`) can deep-link into a folder. Empty in normal use,
     // where NavigationLink(value:) drives the stack exactly as before.
@@ -85,6 +86,13 @@ struct MainTabView: View {
             .environmentObject(audioPlayer)
             .safeAreaInset(edge: .bottom) {
                 AudioMiniBar().environmentObject(audioPlayer)
+            }
+            .onChange(of: scenePhase) { _, phase in
+                // Réglage « audio en arrière-plan » désactivé → on met en pause
+                // le mini-lecteur au passage en fond.
+                if phase == .background, !PlaybackDefaults.backgroundAudio {
+                    audioPlayer.pause()
+                }
             }
     }
 

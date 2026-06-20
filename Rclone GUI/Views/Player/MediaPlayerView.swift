@@ -47,8 +47,9 @@ struct MediaPlayerView: UIViewControllerRepresentable {
 
         controller.allowsPictureInPicturePlayback = allowsPiP
         // Auto-PiP au passage en arrière-plan (nécessite le mode audio dans
-        // UIBackgroundModes, désormais déclaré) — seulement pour la vidéo.
-        controller.canStartPictureInPictureAutomaticallyFromInline = allowsPiP
+        // UIBackgroundModes, désormais déclaré) — seulement pour la vidéo, et
+        // si l'utilisateur n'a pas désactivé le PiP auto dans les réglages.
+        controller.canStartPictureInPictureAutomaticallyFromInline = allowsPiP && PlaybackDefaults.autoPiP
         controller.entersFullScreenWhenPlaybackBegins = true
         controller.exitsFullScreenWhenPlaybackEnds = false
         controller.modalPresentationStyle = .fullScreen

@@ -43,6 +43,8 @@ final class AudioPlaybackCoordinator: ObservableObject {
     /// Jeton anti-course : invalide une extraction de pochette si on a changé de
     /// piste entretemps.
     private var loadToken = 0
+    /// Vitesse de lecture courante (réglage utilisateur, appliquée à chaque play).
+    private var playbackRate: Float = 1.0
 
     // MARK: - API publique
 
@@ -57,16 +59,16 @@ final class AudioPlaybackCoordinator: ObservableObject {
     }
 
     func togglePlayPause() {
-        guard let player else { return }
-        if isPlaying {
-            player.pause(); isPlaying = false
-        } else {
-            player.play(); isPlaying = true
-        }
-        updateNowPlaying()
+        if isPlaying { pause() } else { resume() }
     }
 
-    func resume() { player?.play(); isPlaying = true; updateNowPlaying() }
+    func resume() {
+        guard let player else { return }
+        player.play()
+        player.rate = playbackRate
+        isPlaying = true
+        updateNowPlaying()
+    }
     func pause() { player?.pause(); isPlaying = false; updateNowPlaying() }
 
     func next() async {
@@ -144,15 +146,18 @@ final class AudioPlaybackCoordinator: ObservableObject {
             let p = AVPlayer(url: s.url)
             p.automaticallyWaitsToMinimizeStalling = true
             self.player = p
+            self.playbackRate = Float(PlaybackDefaults.rate)
             attachObservers(to: p)
             configureRemoteCommands()
             p.play()
+            p.rate = playbackRate
             isPlaying = true
             isLoading = false
 
             if let resume = PlaybackProgressStore.resumePosition(remote: remote, path: entry.pathInRemote),
                resume > 1 {
                 await p.seek(to: CMTime(seconds: resume, preferredTimescale: 600))
+                p.rate = playbackRate
             }
             updateNowPlaying()
             await loadArtwork(from: s.url, token: token)
@@ -241,7 +246,7 @@ final class AudioPlaybackCoordinator: ObservableObject {
             title: title,
             durationSeconds: duration,
             elapsedSeconds: elapsed,
-            rate: isPlaying ? 1 : 0
+            rate: isPlaying ? playbackRate : 0
         )
     }
 
