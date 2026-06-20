@@ -85,6 +85,17 @@ public actor RemoteService {
         }
     }
 
+    /// Force rclone à recréer ses objets `Fs` (vide le cache d'Fs global via
+    /// `fscache/clear`). À appeler sur un pull-to-refresh EXPLICITE pour
+    /// garantir le listing le plus frais possible : certains backends gardent
+    /// un cache de répertoires en mémoire sur l'Fs (ex. Drive) et ne reflètent
+    /// pas immédiatement un changement fait ailleurs. Best-effort (no-op si la
+    /// RC n'existe pas). N'interrompt PAS un flux média en cours : le serve
+    /// loopback garde sa propre référence forte d'Fs.
+    public func invalidateListingCache() async {
+        _ = try? await RcloneCore.shared.rpcRaw("fscache/clear", "{}")
+    }
+
     // MARK: List folder
 
     /// List the entries inside `<remote>:<path>` via `operations/list`.
