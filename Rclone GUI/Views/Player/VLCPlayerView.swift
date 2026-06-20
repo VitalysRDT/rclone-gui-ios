@@ -156,6 +156,13 @@ final class VLCPlayerModel: NSObject, ObservableObject {
         player.stop()
     }
 
+    /// Arrête le flux en cours SANS retirer le delegate, pour pouvoir recharger
+    /// ensuite sur le fichier local. À appeler avant un téléchargement afin de
+    /// libérer rclone (sinon stream + download saturent le même process).
+    func haltForDownload() {
+        player.stop()
+    }
+
     private func refreshTracks() {
         let subIDs = (player.videoSubTitlesIndexes as? [NSNumber])?.map { $0.int32Value } ?? []
         let subNames = player.videoSubTitlesNames.map { String(describing: $0) }
@@ -503,6 +510,8 @@ struct EmbeddedVLCPlayerView: View {
         downloading = true
         downloadError = nil
         offerLocalDownload = false
+        // Libère rclone : on arrête le flux pour qu'il ne fasse QUE le download.
+        model.haltForDownload()
         Task {
             do {
                 let url = try await MediaCacheService.shared.localPlayableURL(
