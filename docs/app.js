@@ -3018,7 +3018,7 @@ const Hero = () => {
   }, /*#__PURE__*/React.createElement(Icon, {
     name: "bolt.fill",
     size: 14
-  }), t('v1.8 · ESSAI GRATUIT', 'v1.8 · FREE TRIAL'))), /*#__PURE__*/React.createElement("h1", {
+  }), t('v1.9 · ESSAI GRATUIT', 'v1.9 · FREE TRIAL'))), /*#__PURE__*/React.createElement("h1", {
     className: "title"
   }, ML(t('Tous vos clouds.\nChiffrés.', 'Every cloud.\nEncrypted.'))), /*#__PURE__*/React.createElement("p", {
     className: "sub"
@@ -3489,8 +3489,36 @@ const FreeMonth = () => {
   }, s.n), /*#__PURE__*/React.createElement("h5", null, s.h), /*#__PURE__*/React.createElement("p", null, s.p)))))));
 };
 const VERSIONS = [{
-  v: '1.8',
+  v: '1.9',
   current: true,
+  date: {
+    fr: 'Juillet 2026',
+    en: 'July 2026'
+  },
+  items: [{
+    fr: 'Audio en arrière-plan : la musique, les podcasts et les livres audio continuent quand l\'app passe en fond ou que l\'écran se verrouille, avec les contrôles sur l\'écran verrouillé.',
+    en: 'Background audio: music, podcasts and audiobooks keep playing when the app goes to the background or the screen locks, with lock-screen controls.'
+  }, {
+    fr: 'Mini-lecteur audio persistant : une barre « en cours de lecture » avec pochette reste visible pendant que vous naviguez ; tapez-la pour le lecteur plein écran (grande pochette, scrubber, file de lecture).',
+    en: 'Persistent audio mini-player: a "now playing" bar with artwork stays visible while you browse; tap it for the full-screen player (large artwork, scrubber, play queue).'
+  }, {
+    fr: 'Visionneuse photo : ouvrez une image en plein écran et faites défiler vos photos d\'un glissement, avec zoom (pincer / double-tap) et partage.',
+    en: 'Photo viewer: open an image full-screen and swipe through your photos, with pinch / double-tap zoom and sharing.'
+  }, {
+    fr: 'Picture-in-Picture amélioré pour la vidéo : fenêtre flottante quand vous quittez l\'app, proposé pour toutes les vidéos.',
+    en: 'Improved Picture-in-Picture for video: floating window when you leave the app, offered for every video.'
+  }, {
+    fr: 'Flows & automatisations : lancez la synchro photo, sauvegardez un dossier ou mettez les transferts en pause/reprise depuis Raccourcis et Siri — 100 % en local.',
+    en: 'Flows & automations: run photo sync, back up a folder, or pause/resume transfers from Shortcuts and Siri — fully on-device.'
+  }, {
+    fr: 'Nouveaux réglages de lecture : audio en arrière-plan, PiP automatique et vitesse de lecture par défaut.',
+    en: 'New playback settings: background audio, automatic PiP and default playback speed.'
+  }, {
+    fr: 'Stabilité et finitions.',
+    en: 'Stability and polish.'
+  }]
+}, {
+  v: '1.8',
   date: {
     fr: 'Juin 2026',
     en: 'June 2026'
@@ -3741,22 +3769,22 @@ const Prerelease = ({
     className: "pr-dot"
   }), t('PRÉ-RELEASE', 'PRE-RELEASE')), /*#__PURE__*/React.createElement("h2", {
     className: "pr-title"
-  }, t('Flows', 'Flows'), /*#__PURE__*/React.createElement("span", {
+  }, t('Lecteur média pro', 'Pro media player'), /*#__PURE__*/React.createElement("span", {
     className: "pr-when"
-  }, " · ", t('prochaine version', 'next release'))), /*#__PURE__*/React.createElement("p", {
+  }, " · ", t('version 1.9', 'version 1.9'))), /*#__PURE__*/React.createElement("p", {
     className: "pr-sub"
-  }, t('Transferts Pro est désormais public dans la 1.8. La prochaine étape : Flows. Accès anticipé via TestFlight, avant la sortie publique sur l\'App Store.', 'Pro Transfers is now public in 1.8. Next up: Flows. Early access via TestFlight, before it ships publicly on the App Store.')), /*#__PURE__*/React.createElement("ul", {
+  }, t('La 1.9 apporte un vrai lecteur audio (arrière-plan + mini-lecteur), une visionneuse photo et les Flows. Accès anticipé via TestFlight, avant la sortie publique du 1ᵉʳ juillet sur l\'App Store.', '1.9 brings a real audio player (background + mini-player), a photo viewer and Flows. Early access via TestFlight, before the July 1 public release on the App Store.')), /*#__PURE__*/React.createElement("ul", {
     className: "pr-list"
   }, /*#__PURE__*/React.createElement("li", null, /*#__PURE__*/React.createElement(Icon, {
     name: "check.circle",
     size: 18
-  }), t('Flows : automatisations 100 % locales de vos sauvegardes (Raccourcis + App Intents).', 'Flows: 100% local automations for your backups (Shortcuts + App Intents).')), /*#__PURE__*/React.createElement("li", null, /*#__PURE__*/React.createElement(Icon, {
+  }), t('Audio en arrière-plan + mini-lecteur persistant avec pochette et file de lecture.', 'Background audio + a persistent mini-player with artwork and a play queue.')), /*#__PURE__*/React.createElement("li", null, /*#__PURE__*/React.createElement(Icon, {
     name: "check.circle",
     size: 18
-  }), t('Live Activity « santé du backup » en direct sur l\'écran verrouillé.', 'A "backup health" Live Activity, live on your Lock Screen.')), /*#__PURE__*/React.createElement("li", null, /*#__PURE__*/React.createElement(Icon, {
+  }), t('Visionneuse photo : swipe entre les images, zoom et partage.', 'Photo viewer: swipe between images, zoom and share.')), /*#__PURE__*/React.createElement("li", null, /*#__PURE__*/React.createElement(Icon, {
     name: "check.circle",
     size: 18
-  }), t('Votre retour façonne directement la version finale.', 'Your feedback directly shapes the final release.')))), /*#__PURE__*/React.createElement("div", {
+  }), t('Flows : automatisations 100 % locales (Raccourcis + App Intents).', 'Flows: 100% local automations (Shortcuts + App Intents).')))), /*#__PURE__*/React.createElement("div", {
     className: "pr-right"
   }, /*#__PURE__*/React.createElement("div", {
     className: "pr-price"

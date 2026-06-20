@@ -88,6 +88,17 @@ struct SettingsView: View {
                         tint: .purple
                     )
                 }
+
+                NavigationLink {
+                    PlaybackSettingsView()
+                } label: {
+                    SettingsNavigationRow(
+                        icon: "play.rectangle.on.rectangle",
+                        title: "Lecture",
+                        subtitle: "Audio en fond, PiP automatique, vitesse",
+                        tint: .pink
+                    )
+                }
             }
 
             Section("Stockage") {

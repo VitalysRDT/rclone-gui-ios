@@ -14,6 +14,7 @@ import UniformTypeIdentifiers
 
 struct FolderView: View {
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var audioPlayer: AudioPlaybackCoordinator
 
     let remote: String
     let path: String
@@ -27,6 +28,7 @@ struct FolderView: View {
     @State private var deleteTarget: RemoteEntryDTO?
     @State private var playTarget: RemoteEntryDTO?
     @State private var previewTarget: RemoteEntryDTO?
+    @State private var galleryTarget: ImageGalleryContext?
     @State private var externalOpenTarget: RemoteEntryDTO?
     @State private var moveTarget: RemoteEntryDTO?
     @State private var downloadTarget: RemoteEntryDTO?
@@ -266,6 +268,11 @@ struct FolderView: View {
                     entry: entry,
                     playlist: displayedEntries.filter { !$0.isDirectory && MediaFormat.isMedia($0.name) }
                 )
+            }
+            .rgFullScreenCover(item: $galleryTarget, onDismiss: {
+                openingEntryID = nil
+            }) { ctx in
+                ImageGalleryView(context: ctx)
             }
             .sheet(item: $previewTarget, onDismiss: {
                 openingEntryID = nil
@@ -663,10 +670,36 @@ struct FolderView: View {
         openingEntryID = row.id
         playTarget = nil
         previewTarget = nil
+        galleryTarget = nil
         externalOpenTarget = nil
 
         let entry = row.entry
-        if EntryActionsMenu.isMediaFile(entry.name) {
+        if MediaFormat.isImage(entry.name) {
+            // Image → visionneuse plein écran avec swipe entre toutes les images
+            // du dossier (ordre affiché). Repli sur QuickLook si introuvable.
+            let images = displayedEntries.filter {
+                !$0.isDirectory && MediaFormat.isImage($0.name)
+            }
+            if let start = images.firstIndex(of: entry) {
+                galleryTarget = ImageGalleryContext(
+                    remote: remote, entries: images, startIndex: start
+                )
+            } else {
+                previewTarget = entry
+            }
+        } else if MediaFormat.isAudio(entry.name),
+                  MediaFormat.engine(for: entry.name) == .avFoundation {
+            // Audio AVFoundation → mini-lecteur persistant (survit à la
+            // navigation). La file = toutes les pistes audio AVFoundation du
+            // dossier, dans l'ordre affiché. Le VLC-audio (opus/wma…) et la
+            // vidéo gardent le lecteur plein écran.
+            let tracks = displayedEntries.filter {
+                !$0.isDirectory && MediaFormat.isAudio($0.name)
+                    && MediaFormat.engine(for: $0.name) == .avFoundation
+            }
+            Task { await audioPlayer.play(remote: remote, entry: entry, queue: tracks) }
+            openingEntryID = nil
+        } else if EntryActionsMenu.isMediaFile(entry.name) {
             playTarget = entry
         } else {
             previewTarget = entry

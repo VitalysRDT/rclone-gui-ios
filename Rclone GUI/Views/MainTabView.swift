@@ -14,6 +14,11 @@ import UIKit
 
 struct MainTabView: View {
     @State private var selection: Tab
+    /// Lecteur audio persistant : possède l'AVPlayer audio, survit à la
+    /// navigation. La mini-barre est ajoutée en safeAreaInset bas (au-dessus de
+    /// la TabView sur iOS, sous le contenu sur macOS).
+    @StateObject private var audioPlayer = AudioPlaybackCoordinator()
+    @Environment(\.scenePhase) private var scenePhase
     // Explicit navigation path for the Files tab so a debug screenshot launch
     // (`--demo-screen folder`) can deep-link into a folder. Empty in normal use,
     // where NavigationLink(value:) drives the stack exactly as before.
@@ -77,6 +82,22 @@ struct MainTabView: View {
     }
 
     var body: some View {
+        rootContent
+            .environmentObject(audioPlayer)
+            .safeAreaInset(edge: .bottom) {
+                AudioMiniBar().environmentObject(audioPlayer)
+            }
+            .onChange(of: scenePhase) { _, phase in
+                // Réglage « audio en arrière-plan » désactivé → on met en pause
+                // le mini-lecteur au passage en fond.
+                if phase == .background, !PlaybackDefaults.backgroundAudio {
+                    audioPlayer.pause()
+                }
+            }
+    }
+
+    @ViewBuilder
+    private var rootContent: some View {
         #if os(macOS)
         NavigationSplitView {
             List(selection: $selection) {
