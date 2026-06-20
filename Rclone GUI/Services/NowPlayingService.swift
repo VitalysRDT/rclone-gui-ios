@@ -32,10 +32,14 @@ final class NowPlayingService {
     private var onSeek: ((Double) -> Void)?
 
     /// Active la session audio en lecture (autorise l'arrière-plan + ignore
-    /// le switch silencieux pour la vidéo).
-    func beginPlaybackSession() {
+    /// le switch silencieux). La catégorie `.playback` continue à jouer écran
+    /// verrouillé / app en fond (requiert UIBackgroundModes=audio) et ignore le
+    /// mute switch. Le `mode` s'adapte au contenu : `.moviePlayback` pour la
+    /// vidéo (traitement adapté au film), `.default` pour l'audio pur (musique).
+    func beginPlaybackSession(isVideo: Bool = true) {
         let session = AVAudioSession.sharedInstance()
-        try? session.setCategory(.playback, mode: .moviePlayback, options: [])
+        let mode: AVAudioSession.Mode = isVideo ? .moviePlayback : .default
+        try? session.setCategory(.playback, mode: mode, options: [])
         try? session.setActive(true, options: [])
     }
 
@@ -146,7 +150,7 @@ final class NowPlayingService {
     static let shared = NowPlayingService()
     private init() {}
 
-    func beginPlaybackSession() {}
+    func beginPlaybackSession(isVideo: Bool = true) {}
     func endPlaybackSession() {}
     func resetRemoteCommands() {}
     func configureRemoteCommands(

@@ -337,7 +337,7 @@ struct MediaPlayerHost: View {
         // de changer éventuellement de moteur (évite des handlers VLC périmés
         // qui survivraient à une bascule VLC → AVPlayer en playlist).
         NowPlayingService.shared.resetRemoteCommands()
-        NowPlayingService.shared.beginPlaybackSession()
+        NowPlayingService.shared.beginPlaybackSession(isVideo: MediaFormat.isVideo(entry.name))
         do {
             let s = try await RcloneStreamingService.shared.session(
                 remote: remote,
