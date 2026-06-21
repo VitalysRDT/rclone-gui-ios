@@ -116,10 +116,16 @@ public actor RcloneCore {
 
     // MARK: - Convenience
 
-    /// `core/version` → `version` field.
+    /// `core/version` → `version` field. Mis en cache : la version ne change
+    /// JAMAIS pendant un run, et `liveSession` l'appelle comme sonde de vivacité
+    /// avant CHAQUE vignette → c'était un RPC CGo par miniature (rafale au scroll
+    /// d'une grille). Une fois connue, on la renvoie sans appel.
+    private var cachedVersion: String?
     public func version() async throws -> String {
+        if let cachedVersion { return cachedVersion }
         struct Response: Decodable { let version: String }
         let resp: Response = try await rpc("core/version")
+        cachedVersion = resp.version
         return resp.version
     }
 
