@@ -46,24 +46,38 @@ public actor RcloneCore {
 
     // MARK: - Raw RPC
 
+    /// Méthodes RPC à HAUTE FRÉQUENCE (polling) : leurs traces `→`/`←` noyaient
+    /// les logs ET coûtaient deux hops sur l'actor `LogService` + une allocation
+    /// de string à CHAQUE poll (500 ms job/status, 800 ms core/stats, bascule
+    /// bwlimit…), soit une charge CPU/énergie permanente pendant un transfert.
+    /// On saute la trace verbeuse pour elles — les erreurs restent loggées.
+    private static let quietPollingMethods: Set<String> = [
+        "job/status", "core/stats", "core/bwlimit", "core/version",
+    ]
+
     /// Send a raw RPC call. Lazily initializes the engine on first use.
     public func rpcRaw(_ method: String, _ inputJSON: String = "{}") async throws -> String {
         try await ensureInit()
         let started = Date()
-        let inputPreview = inputJSON.count > 200 ? String(inputJSON.prefix(200)) + "…" : inputJSON
-        await LogService.shared.log(
-            .debug,
-            category: "rpc",
-            message: "→ \(method) input=\(inputPreview)"
-        )
-        do {
-            let result = try await engine.rpcRaw(method: method, inputJSON: inputJSON)
-            let ms = Int(Date().timeIntervalSince(started) * 1000)
+        let verbose = !Self.quietPollingMethods.contains(method)
+        if verbose {
+            let inputPreview = inputJSON.count > 200 ? String(inputJSON.prefix(200)) + "…" : inputJSON
             await LogService.shared.log(
                 .debug,
                 category: "rpc",
-                message: "← \(method) ok in \(ms)ms (\(result.count) bytes)"
+                message: "→ \(method) input=\(inputPreview)"
             )
+        }
+        do {
+            let result = try await engine.rpcRaw(method: method, inputJSON: inputJSON)
+            if verbose {
+                let ms = Int(Date().timeIntervalSince(started) * 1000)
+                await LogService.shared.log(
+                    .debug,
+                    category: "rpc",
+                    message: "← \(method) ok in \(ms)ms (\(result.count) bytes)"
+                )
+            }
             return result
         } catch {
             let ms = Int(Date().timeIntervalSince(started) * 1000)

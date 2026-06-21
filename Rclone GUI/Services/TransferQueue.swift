@@ -48,6 +48,7 @@ public final class TransferQueue {
         self.modelContext = modelContext
         Task { await replayInterrupted() }
         startStatsPolling()
+        startEnergyObservers()
     }
 
     // MARK: - Enqueue API
@@ -978,18 +979,24 @@ public final class TransferQueue {
     /// d'activité change. Throttle vers 1MB/s pendant la nav, restaure
     /// le ceiling utilisateur après inactivité.
     public func applyThrottleForUserActivity(isActive: Bool, userPreferredBytes: Int64) async {
+        // Y a-t-il quelque chose à throttler ? Si AUCUN transfert ne tourne et
+        // qu'il n'y a pas de cap média, toucher au bwlimit pendant la simple
+        // navigation ne sert à rien et générait une rafale de core/bwlimit
+        // (off↔512K↔1M à chaque tap) — pur gaspillage CPU/énergie. On s'abstient.
+        let hasThrottleableWork = mediaDownloadCapBytes > 0 || anyRunningTransfer()
+
         let shouldThrottle = isActive
+            && hasThrottleableWork
             && !isPausedGlobally
             && userActivityBypassCount == 0
-            // Ne throttle que si la valeur normale est >1MB/s (sinon useless)
+            // Ne throttle que si la valeur normale est >512KB/s (sinon useless)
             && (userPreferredBytes == 0 || userPreferredBytes > Self.userActivityThrottleBytes)
 
-        // Limite effective : 512 Ko/s pendant l'interaction, sinon le ceiling
-        // utilisateur — MAIS plafonné par le cap « téléchargement vidéo » s'il est
-        // actif (sinon le download repasse plein débit à l'inactivité → fige l'app).
-        let target = shouldThrottle
-            ? Self.userActivityThrottleBytes
-            : clampToMediaCap(userPreferredBytes)
+        // Limite effective : 512 Ko/s pendant l'interaction, sinon le plafond
+        // « intelligent » (réduit sous pression thermique / mode éco) — lui-même
+        // borné par le cap « téléchargement vidéo » s'il est actif.
+        let ceiling = clampToMediaCap(smartCeiling(userPreferredBytes))
+        let target = shouldThrottle ? Self.userActivityThrottleBytes : ceiling
 
         guard target != lastAppliedBwlimit else { return }
 
@@ -1009,12 +1016,62 @@ public final class TransferQueue {
     }
 
     private func reevaluateUserActivityThrottle() async {
-        // Réajuste après changement de bypass count : on relit la prefs
-        // depuis UserDefaults et on aligne sur l'état actif courant.
+        // Réajuste après changement de bypass count / pression énergie : on relit
+        // la prefs depuis UserDefaults et on aligne sur l'état actif courant.
         let mbps = UserDefaults.standard.double(forKey: "transfer.bandwidthLimitMBps")
         let bytes = Int64(mbps * 1024 * 1024)
         let isActive = UserActivityMonitor.shared.isUserActive
         await applyThrottleForUserActivity(isActive: isActive, userPreferredBytes: bytes)
+    }
+
+    /// Y a-t-il au moins un transfert `.running` ? Borné à 1 (fetchCount) pour
+    /// rester quasi gratuit même appelé sur chaque évènement d'activité.
+    private func anyRunningTransfer() -> Bool {
+        guard let modelContext else { return false }
+        var descriptor = FetchDescriptor<Transfer>(
+            predicate: #Predicate { $0.statusRaw == "running" }
+        )
+        descriptor.fetchLimit = 1
+        return ((try? modelContext.fetchCount(descriptor)) ?? 0) > 0
+    }
+
+    /// Plafond « intelligent » du débit : réduit la limite sous pression
+    /// thermique ou en mode économie d'énergie pour rester fluide et économe.
+    /// Ne fait que BAISSER une limite (jamais l'augmenter) et seulement sous
+    /// pression réelle — au repos thermique, renvoie la préférence inchangée.
+    /// `bytes == 0` = illimité côté utilisateur ; renvoie alors le cap s'il y en a un.
+    private func smartCeiling(_ userPreferredBytes: Int64) -> Int64 {
+        let info = ProcessInfo.processInfo
+        var cap: Int64 = 0   // 0 = aucune contrainte
+        if info.isLowPowerModeEnabled { cap = 2 * 1_048_576 }              // 2 MB/s en mode éco
+        switch info.thermalState {
+        case .serious:  cap = cap == 0 ? 1_048_576 : min(cap, 1_048_576)   // 1 MB/s si ça chauffe
+        case .critical: cap = cap == 0 ? 524_288 : min(cap, 524_288)       // 0,5 MB/s si critique
+        default: break
+        }
+        guard cap > 0 else { return userPreferredBytes }
+        return userPreferredBytes == 0 ? cap : min(userPreferredBytes, cap)
+    }
+
+    /// Réagit aux changements d'état thermique / mode éco pour relever ou
+    /// rabaisser le plafond intelligent sans attendre la prochaine interaction.
+    private var energyObserversInstalled = false
+    private func startEnergyObservers() {
+        guard !energyObserversInstalled else { return }
+        energyObserversInstalled = true
+        let names: [Notification.Name] = [
+            ProcessInfo.thermalStateDidChangeNotification,
+            .NSProcessInfoPowerStateDidChange,
+        ]
+        for name in names {
+            NotificationCenter.default.addObserver(
+                forName: name, object: nil, queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    await self?.reevaluateUserActivityThrottle()
+                }
+            }
+        }
     }
 
     /// Cold-start handler: re-applies the persisted pause/bwlimit state to
@@ -1210,21 +1267,24 @@ public final class TransferQueue {
         guard statsTask == nil else { return }
         statsTask = Task { [weak self] in
             while !Task.isCancelled {
-                await self?.tickStats()
-                try? await Task.sleep(for: .milliseconds(800))
+                let hadWork = await self?.tickStats() ?? false
+                // Réveil rapide (800 ms) seulement quand un transfert tourne ;
+                // sinon backoff à 3 s → ~3,75× moins de réveils au repos (énergie).
+                try? await Task.sleep(for: hadWork ? .milliseconds(800) : .seconds(3))
             }
         }
     }
 
-    private func tickStats() async {
-        guard let modelContext else { return }
+    @discardableResult
+    private func tickStats() async -> Bool {
+        guard let modelContext else { return false }
         let descriptor = FetchDescriptor<Transfer>(
             predicate: #Predicate { $0.statusRaw == "running" }
         )
         guard let running = try? modelContext.fetch(descriptor), !running.isEmpty else {
-            return
+            return false
         }
-        guard let stats = try? await TransferService.shared.coreStats() else { return }
+        guard let stats = try? await TransferService.shared.coreStats() else { return false }
 
         // core/stats reports per-file under `transferring`, keyed by the destination basename.
         // We do best-effort matching. Dirty flag : on évite save() si rien
@@ -1247,6 +1307,7 @@ public final class TransferQueue {
         if didMutate || batchesChanged {
             try? modelContext.save()
         }
+        return true
     }
 
     private func statMatchesTransfer(_ stat: CoreStatsDTO.Transferring, transfer: Transfer) -> Bool {
