@@ -57,11 +57,35 @@ public final class FileProviderManager {
                 message: "Domaine FileProvider enregistré : \(Self.domainIdentifier.rawValue)"
             )
         } catch {
+            // L'ajout a échoué — typiquement un domaine ORPHELIN laissé par une
+            // réinstallation Xcode (⇧⌘K + réinstall) : iOS garde une entrée
+            // incohérente et le domaine n'apparaît PLUS dans Fichiers, tandis que
+            // `add` est rejeté. On s'auto-répare : remove puis add, puis on
+            // réécrit le manifest + signale la racine pour que Fichiers ré-énumère.
             await LogService.shared.log(
-                .debug,
+                .error,
                 category: "fileprovider",
-                message: "Enregistrement FileProvider ignoré/échoué : \(error.localizedDescription)"
+                message: "Enregistrement FileProvider échoué (\(error.localizedDescription)) → récupération remove+add"
             )
+            do {
+                try? await NSFileProviderManager.remove(domain)
+                try await NSFileProviderManager.add(domain)
+                if let remotes = try? await RemoteService.shared.listRemoteSummaries() {
+                    await writeRemotesManifest(remotes)
+                }
+                signalRefresh(remote: "", path: "")
+                await LogService.shared.log(
+                    .info,
+                    category: "fileprovider",
+                    message: "Domaine FileProvider récupéré (remove+add) : \(Self.domainIdentifier.rawValue)"
+                )
+            } catch {
+                await LogService.shared.log(
+                    .error,
+                    category: "fileprovider",
+                    message: "Récupération FileProvider échouée : \(error.localizedDescription). Essaie : Réglages → Logs → « Réinitialiser Fichiers », ou supprime+réinstalle l'app."
+                )
+            }
         }
         #endif
     }
