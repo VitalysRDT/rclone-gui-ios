@@ -29,7 +29,7 @@ public enum ThumbnailPolicy: String, CaseIterable, Sendable {
     case wifiOnly
     case never
 
-    public static let defaultsKey = "thumbnails.policy"
+    nonisolated public static let defaultsKey = "thumbnails.policy"
 
     public var label: String {
         switch self {
@@ -98,14 +98,21 @@ public actor ThumbnailService {
         switch Self.policy {
         case .never:
             return nil
-        case .wifiOnly where NetworkReachability.shared.isExpensive:
-            return nil
-        default:
+        case .wifiOnly:
+            if await NetworkReachability.shared.isExpensive { return nil }
+        case .always:
             break
         }
 
         await limiter.wait()
         defer { Task { await limiter.signal() } }
+
+        // ANNULATION AU SCROLL : SwiftUI annule la `.task` d'une cellule sortie de
+        // l'écran. Si on a attendu un permis du limiteur (3 max) pendant ce temps,
+        // on abandonne immédiatement → le permis repart aussitôt vers une cellule
+        // VISIBLE, au lieu de générer une vignette hors écran qui bouchait le
+        // limiteur et affamait les cellules regardées.
+        if Task.isCancelled { return nil }
 
         // Re-vérifie après l'attente (réentrance : une autre tâche a pu générer).
         if let cached = memCache[key] { return cached }
@@ -204,8 +211,21 @@ public actor ThumbnailService {
     nonisolated static func loadFromDisk(key: String) -> CGImageBox? {
         let url = cacheFileURL(key: key)
         guard FileManager.default.fileExists(atPath: url.path),
-              let source = CGImageSourceCreateWithURL(url as CFURL, nil),
-              let cg = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
+              let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
+            return nil
+        }
+        // DÉCODAGE EAGER, hors render thread. CGImageSourceCreateImageAtIndex(nil)
+        // renvoie un CGImage PARESSEUX : Core Animation le décode au 1er affichage
+        // SUR LE RENDER THREAD → à-coups au scroll. On force le décodage immédiat
+        // ici (on est déjà off-main) via Thumbnail + ShouldCacheImmediately. Le JPEG
+        // disque fait déjà ≤400 px, donc « thumbnail » renvoie l'image pleine décodée.
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxPixel,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+        ]
+        guard let cg = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {
             return nil
         }
         return CGImageBox(image: cg)
