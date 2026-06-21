@@ -371,6 +371,15 @@ struct EmbeddedVLCPlayerView: View {
 
             VLCDrawableRepresentable(model: model)
                 .ignoresSafeArea()
+
+            // Couche de tap plein écran : poser un .onTapGesture directement sur
+            // le UIViewRepresentable VLC n'est PAS fiable — le UIView hôte de VLC
+            // avale le touch, donc le tap ne montrait jamais les contrôles. Cette
+            // couche transparente (au-dessus de la vidéo, SOUS les contrôles)
+            // capte le tap de façon fiable.
+            Color.clear
+                .contentShape(Rectangle())
+                .ignoresSafeArea()
                 .onTapGesture {
                     withAnimation(.easeInOut(duration: 0.2)) { showControls.toggle() }
                 }
