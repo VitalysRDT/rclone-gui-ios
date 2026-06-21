@@ -1165,6 +1165,7 @@ public final class TransferQueue {
                 if status.finished {
                     let finalKind = transfer.kind
                     let finalSrc = transfer.sourcePath
+                    var deleteAfterCompletion = false
                     if status.success {
                         transfer.bytesTransferred = max(transfer.bytesTransferred, transfer.bytesTotal)
                         transfer.status = .completed
@@ -1175,12 +1176,19 @@ public final class TransferQueue {
                                 success: true,
                                 error: nil
                             )
+                            // Anti-explosion SwiftData : 1 ligne Transfer par photo
+                            // (18k+) saturait la table (full scans + @Query qui
+                            // matérialise des milliers de lignes). L'état est déjà
+                            // suivi par PhotoSyncAsset → on supprime la ligne terminée.
+                            if transfer.batchID == nil { deleteAfterCompletion = true }
                         }
-                        await LogService.shared.log(
-                            .info,
-                            category: "transfer",
-                            message: "✅ \(finalKind.rawValue) terminé : \(finalSrc)"
-                        )
+                        if !deleteAfterCompletion {
+                            await LogService.shared.log(
+                                .info,
+                                category: "transfer",
+                                message: "✅ \(finalKind.rawValue) terminé : \(finalSrc)"
+                            )
+                        }
                     } else if shouldAutoRetry(transfer) {
                         // Re-enqueue auto borné (coupures réseau transitoires).
                         let key = autoRetryKey(transfer)
@@ -1224,11 +1232,18 @@ public final class TransferQueue {
                             message: "❌ \(finalKind.rawValue) échoué : \(finalSrc) — \(status.error ?? "raison inconnue")"
                         )
                     }
-                    transfer.finishedAt = .now
+                    if deleteAfterCompletion {
+                        modelContext?.delete(transfer)
+                    } else {
+                        transfer.finishedAt = .now
+                    }
                     try? modelContext?.save()
                     break
                 }
-                try? modelContext?.save()
+                // Pas de save() ici : le chemin « non terminé » ne mute RIEN dans
+                // pollLoop (la progression est persistée par tickStats, qui a son
+                // propre dirty-flag). Sauver à chaque tick (500 ms/job) invalidait
+                // inutilement tous les @Query → re-render des vues. Dirty-flag de fait.
                 try await Task.sleep(for: .milliseconds(500))
             } catch is CancellationError {
                 break
