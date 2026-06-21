@@ -26,6 +26,32 @@ import RcloneKit
 public struct LibrcloneEngine: RcloneEngine {
     public nonisolated init() {}
 
+    /// BOUCLIER ANTI-FREEZE. Tous les appels CGo SYNCHRONES bloquants
+    /// (`RclonebridgeRPC`, `RclonebridgeInitialize`, `RclonebridgeDecryptConfig`)
+    /// passent par CETTE file dédiée, bornée à 4 exécutions simultanées.
+    ///
+    /// Sans elle, chaque appel partait sur `DispatchQueue.global` SANS borne : une
+    /// rafale (polling transferts + listings + photo-sync 18k + thumbnails +
+    /// bascules bwlimit) bloquait des dizaines de threads du pool GCD GLOBAL
+    /// (~64). Une fois le pool épuisé, le main actor ne trouvait plus de worker
+    /// pour ses propres tâches async → l'UI FIGEAIT.
+    ///
+    /// Avec un pool DÉDIÉ (jamais le global) plafonné à 4, l'épuisement du pool
+    /// global par du CGo est IMPOSSIBLE PAR CONSTRUCTION. N=4 (et non 1/serial) :
+    /// un backend lent (RPC 10 s) n'occupe qu'une lane et ne gèle pas les RPC
+    /// UI-critiques rapides sur les 3 autres. L'excédent attend dans la file
+    /// (sans créer de thread) → coût quasi nul.
+    // `nonisolated` : le projet est @MainActor par défaut, mais cette file doit
+    // être accessible depuis les méthodes `nonisolated` (rpcRaw…). OperationQueue
+    // est Sendable + thread-safe pour addOperation.
+    private nonisolated static let cgoQueue: OperationQueue = {
+        let queue = OperationQueue()
+        queue.maxConcurrentOperationCount = 4
+        queue.qualityOfService = .userInitiated
+        queue.name = "com.rougetet.rclone.cgo"
+        return queue
+    }()
+
     public nonisolated func setEnv(name: String, value: String) {
         RclonebridgeSetEnv(name, value)
     }
@@ -39,7 +65,7 @@ public struct LibrcloneEngine: RcloneEngine {
         // ms — on le pousse hors du main thread pour ne pas freezer l'UI
         // au tout premier RPC.
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            DispatchQueue.global(qos: .userInitiated).async {
+            Self.cgoQueue.addOperation {
                 RclonebridgeInitialize()
                 // Phase E2 — démarre la capture des logs internes rclone (slog)
                 // pour que Réglages → Logs montre l'activité réelle du moteur.
@@ -53,7 +79,7 @@ public struct LibrcloneEngine: RcloneEngine {
         // Même contrainte que rpcRaw : appel Go/cgo synchrone, on sort du
         // MainActor pour ne pas bloquer l'UI pendant le déchiffrement.
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<String, Error>) in
-            DispatchQueue.global(qos: .userInitiated).async {
+            Self.cgoQueue.addOperation {
                 guard let result = RclonebridgeDecryptConfig(path, password) else {
                     continuation.resume(throwing: RcloneError.rcloneError(
                         code: 0,
@@ -80,7 +106,7 @@ public struct LibrcloneEngine: RcloneEngine {
         // freezait l'UI + toutes les autres tâches Swift, donnant
         // l'illusion d'une app qui « tourne en rond ».
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<String, Error>) in
-            DispatchQueue.global(qos: .userInitiated).async {
+            Self.cgoQueue.addOperation {
                 guard let result = RclonebridgeRPC(method, inputJSON) else {
                     continuation.resume(throwing: RcloneError.rcloneError(
                         code: 0,
