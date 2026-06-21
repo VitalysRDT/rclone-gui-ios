@@ -240,6 +240,17 @@ public enum FileProviderBridge {
         )
     }
 
+    /// Clé userInfo marquant l'erreur « app principale non active » (relais sans
+    /// réponse). `fetchContents` s'en sert pour basculer sur un download DIRECT
+    /// dans l'extension (bridge + URLSession) au lieu d'échouer.
+    public static let appInactiveErrorKey = "fp.appInactive"
+
+    /// True si l'erreur du relais signifie « l'app principale n'a jamais répondu »
+    /// (suspendue/fermée) — cas où l'extension peut télécharger elle-même.
+    public static func errorMeansAppInactive(_ error: NSError) -> Bool {
+        (error.userInfo[appInactiveErrorKey] as? Bool) == true
+    }
+
     /// Délègue le téléchargement à l'app principale via App Group + Darwin notification.
     /// Une .appex iOS est limitée en mémoire (~256 Mo) et le combo Go runtime + librclone
     /// + déchiffrement crypt fait jetsam. L'app principale (1.5 Go RAM) gère ça sans souci.
@@ -330,7 +341,10 @@ public enum FileProviderBridge {
                 throw NSError(
                     domain: NSFileProviderErrorDomain,
                     code: NSFileProviderError.serverUnreachable.rawValue,
-                    userInfo: [NSLocalizedDescriptionKey: "Lancez Rclone GUI puis réessayez (l'app n'est pas active)."]
+                    userInfo: [
+                        NSLocalizedDescriptionKey: "Lancez Rclone GUI puis réessayez (l'app n'est pas active).",
+                        Self.appInactiveErrorKey: true,
+                    ]
                 )
             }
 
