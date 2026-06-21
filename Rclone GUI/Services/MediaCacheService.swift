@@ -25,6 +25,11 @@ public actor MediaCacheService {
     private static let maxSizeKey = "mediaCache.maxSizeBytes"
     private static let staleAfter: TimeInterval = 24 * 60 * 60
 
+    /// Plafond de débit appliqué pendant un téléchargement pour lecture (octets/s).
+    /// ~8 Mbit/s : laisse de la marge à rclone pour que l'app reste fluide (un
+    /// download plein débit le saturait et figeait l'UI). Ajustable.
+    static let mediaDownloadCapBytes: Int64 = 1_048_576
+
     public var maxSizeBytes: Int64 {
         let stored = UserDefaults.standard.object(forKey: Self.maxSizeKey) as? Int64
         return stored.flatMap { $0 > 0 ? $0 : nil } ?? Self.defaultMaxSizeBytes
@@ -59,12 +64,12 @@ public actor MediaCacheService {
             try? evictIfNeeded(reservingBytes: sizeHint)
         }
 
-        // IMPORTANT : on NE bypasse PAS le throttle d'activité ici. Le download
-        // partage le process rclone ; à plein débit il sature le bridge RPC et
-        // l'app FREEZE dès qu'on touche l'écran (la requête UI attend derrière le
-        // download). En laissant le throttle d'activité agir, le download CÈDE la
-        // bande passante dès qu'on interagit (bridé à 512 Ko/s le temps du geste,
-        // plein débit quand on regarde juste) → l'app reste fluide.
+        // Plafonne le débit du download le temps du transfert : un download plein
+        // débit sature le process rclone et FIGE l'app (même à l'inactivité, où le
+        // throttle d'activité repasse au ceiling utilisateur illimité). Le cap
+        // laisse de la marge → l'app reste fluide. Retiré à la fin (defer).
+        await TransferQueue.shared.setMediaDownloadCap(Self.mediaDownloadCapBytes)
+        defer { Task { await TransferQueue.shared.setMediaDownloadCap(0) } }
 
         // Run rclone copyfile to land the file locally. Source = "<remote>:" with `path`,
         // destination = the cache parent dir (as local fs) with the cache filename.
