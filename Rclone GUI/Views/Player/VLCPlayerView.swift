@@ -410,17 +410,21 @@ struct EmbeddedVLCPlayerView: View {
                 if let onNext { onNext() } else { onClose?() }
             }
             configureRemoteCommands()
-            // Download-then-play PAR DÉFAUT : streamer un MKV en SFTP est
-            // seek-heavy (45 s avant la 1re image, images perdues, saccades). On
-            // lit le fichier LOCAL — instantané s'il est déjà en cache, sinon on
-            // télécharge d'abord (transfert séquentiel, lecture ensuite fluide).
+            // STREAMING EN BUFFER PAR DÉFAUT : on lit le flux loopback par plages
+            // (network-caching), SANS télécharger tout le fichier. Le download
+            // complet (URLSession aspirant les 4,7 Go d'un coup) saturait le
+            // runtime Go de librclone et FIGEAIT l'app — les autres RPC traînaient
+            // derrière. Si le fichier est déjà en cache (« Télécharger pour lire »
+            // utilisé avant), on le relit en local — instantané. Sinon on streame ;
+            // « Télécharger pour lire » reste proposé en repli si un gros MKV 4K
+            // seek-heavy galère (auto-proposé après 12 s de buffering).
+            let resume = PlaybackProgressStore.resumePosition(remote: remote, path: path)
             let cached = MediaCacheService.cacheURL(remote: remote, path: path)
             if FileManager.default.fileExists(atPath: cached.path) {
-                let resume = PlaybackProgressStore.resumePosition(remote: remote, path: path)
                 playingLocal = true
                 model.load(url: cached, startAtSeconds: resume)
             } else {
-                downloadAndPlayLocal()
+                model.load(url: streamURL, startAtSeconds: resume)
             }
         }
         .onChange(of: model.positionSeconds) { _, newValue in
