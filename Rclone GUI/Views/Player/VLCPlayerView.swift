@@ -77,6 +77,9 @@ final class VLCPlayerModel: NSObject, ObservableObject {
         // le 1er calcul de stall sur le nouveau média).
         prevTickPosition = -1
         lastAdvanceAt = .distantPast
+        underrunDeficit = 0
+        underrunTriggered = false
+        lastSeekAt = .distantPast
         let sizeText = sizeBytes > 0
             ? ByteCountFormatter.string(fromByteCount: sizeBytes, countStyle: .file)
             : "?"
@@ -113,6 +116,16 @@ final class VLCPlayerModel: NSObject, ObservableObject {
     private var prevTickPosition: Double = -1
     private var lastAdvanceAt: Date = .distantPast
 
+    // Surveillance de santé du flux : si la lecture EN STREAMING n'arrive pas à
+    // tenir le temps réel de façon SOUTENUE (sous-alimentation SFTP qui dip sous
+    // le bitrate → saccade), on bascule vers le téléchargement local (lecture
+    // parfaite, seeks instantanés). Actif uniquement en streaming, armé une fois.
+    var monitorsStreamHealth = false
+    var onSustainedUnderrun: (() -> Void)?
+    private var underrunDeficit: Double = 0
+    private var underrunTriggered = false
+    private var lastSeekAt: Date = .distantPast
+
     private func plog(_ message: String) {
         Task { await LogService.shared.log(.info, category: "player", message: message) }
     }
@@ -146,6 +159,7 @@ final class VLCPlayerModel: NSObject, ObservableObject {
 
     func seek(toSeconds seconds: Double) {
         guard seconds.isFinite, seconds >= 0 else { return }
+        lastSeekAt = Date()   // grâce : le re-remplissage post-seek ne compte pas comme underrun
         player.time = VLCTime(int: Int32(seconds * 1000))
     }
 
@@ -249,6 +263,7 @@ final class VLCPlayerModel: NSObject, ObservableObject {
             let wallDelta = now.timeIntervalSince(lw)
             if wallDelta > 0.1 {
                 keepUp = String(format: "%.0f%%", max(0, posDelta / wallDelta) * 100)
+                evaluateStreamHealth(posDelta: posDelta, wallDelta: wallDelta, now: now)
             }
         }
         lastKeepUpPos = positionSeconds
@@ -270,6 +285,31 @@ final class VLCPlayerModel: NSObject, ObservableObject {
             line += " | réseau≈\(netStr)Mbit/s lus=\(read / 1_048_576)Mo imgPerdues=\(stats.lostPictures)"
         }
         plog(line)
+    }
+
+    /// Accumule le « retard » de la lecture streaming vs le temps réel. Quand le
+    /// flux SFTP ne suit pas durablement (déficit cumulé >4 s = saccade visible),
+    /// déclenche UNE fois la bascule vers le téléchargement local. Les pics de
+    /// rattrapage réduisent le déficit (amorti) : un flux qui récupère vite ne
+    /// déclenche pas. Grâce de 8 s après la 1re image et 4 s après chaque seek
+    /// (le re-remplissage est normal et ne doit pas compter).
+    private func evaluateStreamHealth(posDelta: Double, wallDelta: Double, now: Date) {
+        guard monitorsStreamHealth, !underrunTriggered, firstFrameAt != nil else { return }
+        let sinceFirstFrame = firstFrameAt.map { now.timeIntervalSince($0) } ?? 0
+        guard sinceFirstFrame > 8,
+              now.timeIntervalSince(lastSeekAt) > 4,
+              wallDelta < 10, posDelta >= -0.5 else { return }
+        if posDelta < wallDelta {
+            underrunDeficit += (wallDelta - posDelta)                        // tombé en retard
+        } else {
+            underrunDeficit = max(0, underrunDeficit - (posDelta - wallDelta) * 0.5)  // rattrape (amorti)
+        }
+        if underrunDeficit > 4.0 {
+            underrunTriggered = true
+            monitorsStreamHealth = false
+            plog("VLC ⚠️ flux insuffisant (déficit \(String(format: "%.1f", underrunDeficit))s) → bascule téléchargement local")
+            onSustainedUnderrun?()
+        }
     }
 }
 
@@ -453,6 +493,11 @@ struct EmbeddedVLCPlayerView: View {
                 playingLocal = true
                 model.load(url: cached, startAtSeconds: resume)
             } else {
+                // Streaming : on surveille la santé du flux. S'il ne tient pas le
+                // débit de façon soutenue (SFTP qui dip → saccade), bascule AUTO
+                // vers le téléchargement local capé (lecture parfaite, pas de freeze).
+                model.monitorsStreamHealth = true
+                model.onSustainedUnderrun = { downloadAndPlayLocal() }
                 model.load(url: streamURL, startAtSeconds: resume)
             }
         }
@@ -570,6 +615,7 @@ struct EmbeddedVLCPlayerView: View {
         downloading = true
         downloadError = nil
         offerLocalDownload = false
+        model.monitorsStreamHealth = false   // on quitte le streaming → coupe le moniteur
         // Libère rclone : on arrête le flux pour qu'il ne fasse QUE le download.
         model.haltForDownload()
         Task {
