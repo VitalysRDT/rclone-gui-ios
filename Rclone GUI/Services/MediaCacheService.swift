@@ -71,20 +71,53 @@ public actor MediaCacheService {
         await TransferQueue.shared.setMediaDownloadCap(Self.mediaDownloadCapBytes)
         defer { Task { await TransferQueue.shared.setMediaDownloadCap(0) } }
 
-        // Run rclone copyfile to land the file locally. Source = "<remote>:" with `path`,
-        // destination = the cache parent dir (as local fs) with the cache filename.
-        let jobID = try await TransferService.shared.copyFileAsync(
-            srcFs: "\(remote):",
-            srcPath: path,
-            dstFs: cacheURL.deletingLastPathComponent().path,
-            dstPath: cacheURL.lastPathComponent
-        )
-
-        try await waitForJob(jobID: jobID)
+        // PRÉFÉRÉ : télécharger via le bridge loopback HTTP + URLSession natif,
+        // PAS via operations/copyfile + polling job/status. Le copyfile + le poll
+        // saturent le pont RC de librclone et FIGENT l'app (cf. revue multi-IA) ;
+        // le bridge sert le fichier en un GET séquentiel et iOS gère l'écriture
+        // disque + la backpressure côté noyau → plus de contention RPC.
+        do {
+            try await downloadViaBridge(remote: remote, path: path, to: cacheURL)
+        } catch is BridgeUnavailable {
+            // Repli : copyfile RC classique si le bridge n'a pas pu démarrer.
+            let jobID = try await TransferService.shared.copyFileAsync(
+                srcFs: "\(remote):",
+                srcPath: path,
+                dstFs: cacheURL.deletingLastPathComponent().path,
+                dstPath: cacheURL.lastPathComponent
+            )
+            try await waitForJob(jobID: jobID)
+        }
         // Post-download : éviction au cas où le fichier réel est plus gros
         // que sizeHint (ou qu'il n'y avait pas de hint).
         try? evictIfNeeded(reservingBytes: 0)
         return cacheURL
+    }
+
+    private struct BridgeUnavailable: Error {}
+
+    /// Télécharge le fichier distant via le bridge loopback HTTP (déjà utilisé
+    /// pour le streaming) + URLSession natif. Remplace operations/copyfile + le
+    /// polling job/status, qui saturaient le pont RC de librclone et figeaient
+    /// l'app. Foreground (URLSession.background ne sait pas atteindre localhost).
+    private func downloadViaBridge(remote: String, path: String, to dest: URL) async throws {
+        guard let session = await RcloneStreamingService.shared.liveSession(
+            remote: remote, path: path
+        ) else {
+            throw BridgeUnavailable()
+        }
+        defer { Task { await RcloneStreamingService.shared.stop(session) } }
+
+        let (tempURL, response) = try await URLSession.shared.download(from: session.url)
+        if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+            throw RcloneError.rcloneError(
+                code: http.statusCode, method: "bridge/download",
+                message: "HTTP \(http.statusCode) en téléchargeant via le bridge"
+            )
+        }
+        let fm = FileManager.default
+        if fm.fileExists(atPath: dest.path) { try? fm.removeItem(at: dest) }
+        try fm.moveItem(at: tempURL, to: dest)
     }
 
     /// Supprime les fichiers les moins récemment accédés jusqu'à passer
