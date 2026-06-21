@@ -941,6 +941,27 @@ public final class TransferQueue {
     /// regarde explicitement les transferts (il veut voir le débit réel).
     private var userActivityBypassCount: Int = 0
     private var isThrottlingForUserActivity = false
+    /// Dernière limite réellement appliquée (octets/s) — évite les RPC bwlimit
+    /// redondantes ET permet de réappliquer quand le cap média change sans que
+    /// l'état de throttle d'activité bouge.
+    private var lastAppliedBwlimit: Int64 = -1
+    /// Plafond de débit pendant un téléchargement vidéo (0 = pas de cap). Sans
+    /// lui, à l'inactivité le download repasse plein débit (ceiling utilisateur),
+    /// sature le process rclone et fige l'app. Avec, il reste plafonné en continu.
+    private var mediaDownloadCapBytes: Int64 = 0
+
+    /// Plafonne une limite « débit utilisateur » par le cap média s'il est actif.
+    private func clampToMediaCap(_ bytes: Int64) -> Int64 {
+        guard mediaDownloadCapBytes > 0 else { return bytes }
+        if bytes == 0 { return mediaDownloadCapBytes }   // 0 = illimité côté user
+        return min(bytes, mediaDownloadCapBytes)
+    }
+
+    /// Active (bytes>0) ou retire (0) le plafond de débit « téléchargement vidéo ».
+    public func setMediaDownloadCap(_ bytes: Int64) async {
+        mediaDownloadCapBytes = max(0, bytes)
+        await reevaluateUserActivityThrottle()
+    }
 
     public func incrementActivityBypass() {
         userActivityBypassCount += 1
@@ -963,20 +984,19 @@ public final class TransferQueue {
             // Ne throttle que si la valeur normale est >1MB/s (sinon useless)
             && (userPreferredBytes == 0 || userPreferredBytes > Self.userActivityThrottleBytes)
 
-        guard shouldThrottle != isThrottlingForUserActivity else { return }
+        // Limite effective : 512 Ko/s pendant l'interaction, sinon le ceiling
+        // utilisateur — MAIS plafonné par le cap « téléchargement vidéo » s'il est
+        // actif (sinon le download repasse plein débit à l'inactivité → fige l'app).
+        let target = shouldThrottle
+            ? Self.userActivityThrottleBytes
+            : clampToMediaCap(userPreferredBytes)
+
+        guard target != lastAppliedBwlimit else { return }
 
         do {
-            if shouldThrottle {
-                try await TransferService.shared.setBandwidthLimit(
-                    bytesPerSecond: Self.userActivityThrottleBytes
-                )
-                isThrottlingForUserActivity = true
-            } else {
-                try await TransferService.shared.setBandwidthLimit(
-                    bytesPerSecond: userPreferredBytes
-                )
-                isThrottlingForUserActivity = false
-            }
+            try await TransferService.shared.setBandwidthLimit(bytesPerSecond: target)
+            lastAppliedBwlimit = target
+            isThrottlingForUserActivity = shouldThrottle
         } catch {
             // Best effort : si la RPC bwlimit fail, on log mais on n'altère
             // pas le flag pour qu'un retry futur tente à nouveau.
