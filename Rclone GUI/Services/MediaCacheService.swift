@@ -59,13 +59,12 @@ public actor MediaCacheService {
             try? evictIfNeeded(reservingBytes: sizeHint)
         }
 
-        // Le téléchargement bypasse le throttle d'activité utilisateur : sinon
-        // l'UserActivityMonitor le bride à 512 Ko/s dès qu'on touche l'écran (un
-        // gros fichier mettrait des heures) ET le va-et-vient core/bwlimit ajoute
-        // des RPC lentes qui font ramer l'app. Le streaming partage le process
-        // rclone, donc on évite toute contention superflue pendant le download.
-        await TransferQueue.shared.incrementActivityBypass()
-        defer { Task { await TransferQueue.shared.decrementActivityBypass() } }
+        // IMPORTANT : on NE bypasse PAS le throttle d'activité ici. Le download
+        // partage le process rclone ; à plein débit il sature le bridge RPC et
+        // l'app FREEZE dès qu'on touche l'écran (la requête UI attend derrière le
+        // download). En laissant le throttle d'activité agir, le download CÈDE la
+        // bande passante dès qu'on interagit (bridé à 512 Ko/s le temps du geste,
+        // plein débit quand on regarde juste) → l'app reste fluide.
 
         // Run rclone copyfile to land the file locally. Source = "<remote>:" with `path`,
         // destination = the cache parent dir (as local fs) with the cache filename.
