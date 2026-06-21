@@ -547,6 +547,11 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
     private func heartbeatTick() async {
         guard isEnabled, configuredRemote != nil else { return }
         guard !isSyncing else { return }
+        // Rien à relancer si l'utilisateur a mis la sync en pause, ou si la
+        // politique énergie/réseau la bloque : sans ce garde, le battement (15 s)
+        // appelait quand même runSync qui ne faisait que logguer « ignorée :
+        // pause » à chaque fois — réveils + logs inutiles (ex. 18 556 en attente).
+        guard !isPausedByUser, canStartNewWork else { return }
 
         // First, recycle any asset whose Transfer counterpart is terminal or
         // missing — these would otherwise inflate `active` and block the
@@ -2156,9 +2161,14 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
     private func scheduleVerification(for localIdentifier: String, paths: [String]) {
         guard let remote = configuredRemote, !paths.isEmpty else { return }
         Task.detached(priority: .utility) { [weak self] in
+            guard let self else { return }
+            // Copie locale immuable : évite que les closures @Sendable de
+            // MainActor.run capturent la liaison `self` (vue comme mutable en
+            // Swift 6, ce qui déclenche un warning de capture concurrente).
+            let service = self
             // 1) Snapshot du localHash sur MainActor (lecture SwiftData)
             let localHash: String? = await MainActor.run {
-                guard let modelContext = self?.modelContext else { return nil }
+                guard let modelContext = service.modelContext else { return nil }
                 let descriptor = FetchDescriptor<PhotoSyncAsset>(
                     predicate: #Predicate { $0.localIdentifier == localIdentifier }
                 )
@@ -2172,7 +2182,7 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
             )
             // 3) Write SwiftData (MainActor)
             await MainActor.run {
-                guard let self, let modelContext = self.modelContext else { return }
+                guard let modelContext = service.modelContext else { return }
                 let descriptor = FetchDescriptor<PhotoSyncAsset>(
                     predicate: #Predicate { $0.localIdentifier == localIdentifier }
                 )
