@@ -207,29 +207,47 @@ public final class RcloneFileProvider: NSObject, NSFileProviderReplicatedExtensi
 
         Task {
             do {
-                // Délégation IPC vers l'app principale (Go runtime + crypt jetsam-able
-                // dans une .appex iOS limitée à ~256 Mo).
-                try await FileProviderBridge.requestFetchViaMainApp(
-                    requestID: requestID,
-                    remote: decoded.remote,
-                    path: decoded.path,
-                    destination: sharedDestination,
-                    progress: progress
-                )
-
-                // App principale a ecrit dans sharedDestination. On bouge le fichier
-                // vers Apple-managed tempDir avant de rendre la main a iOS.
-                try FileManager.default.createDirectory(
-                    at: appleDestination.deletingLastPathComponent(),
-                    withIntermediateDirectories: true
-                )
-                try? FileManager.default.removeItem(at: appleDestination)
+                var fileAlreadyAtApple = false
                 do {
-                    try FileManager.default.moveItem(at: sharedDestination, to: appleDestination)
-                } catch {
-                    // Volumes potentiellement differents : fallback copy + remove.
-                    try FileManager.default.copyItem(at: sharedDestination, to: appleDestination)
-                    try? FileManager.default.removeItem(at: sharedDestination)
+                    // Délégation IPC vers l'app principale (Go runtime + crypt jetsam-able
+                    // dans une .appex iOS limitée à ~256 Mo) — chemin préféré.
+                    try await FileProviderBridge.requestFetchViaMainApp(
+                        requestID: requestID,
+                        remote: decoded.remote,
+                        path: decoded.path,
+                        destination: sharedDestination,
+                        progress: progress
+                    )
+                } catch let relayError as NSError where FileProviderBridge.errorMeansAppInactive(relayError) {
+                    // App suspendue/fermée : elle ne répond pas au relais. L'extension
+                    // télécharge ALORS elle-même via le bridge loopback + URLSession
+                    // (streaming, faible mémoire) → Fichiers marche sans ouvrir l'app.
+                    FileProviderBridge.appendDiagnostic("relay app inactive → direct bridge download id=\(requestID)")
+                    try await RcloneProviderClient.shared.downloadViaBridge(
+                        remote: decoded.remote,
+                        path: decoded.path,
+                        to: appleDestination,
+                        progress: progress
+                    )
+                    fileAlreadyAtApple = true
+                }
+
+                if !fileAlreadyAtApple {
+                    // Chemin relais : l'app principale a ecrit dans sharedDestination.
+                    // On bouge le fichier vers Apple-managed tempDir avant de rendre
+                    // la main a iOS.
+                    try FileManager.default.createDirectory(
+                        at: appleDestination.deletingLastPathComponent(),
+                        withIntermediateDirectories: true
+                    )
+                    try? FileManager.default.removeItem(at: appleDestination)
+                    do {
+                        try FileManager.default.moveItem(at: sharedDestination, to: appleDestination)
+                    } catch {
+                        // Volumes potentiellement differents : fallback copy + remove.
+                        try FileManager.default.copyItem(at: sharedDestination, to: appleDestination)
+                        try? FileManager.default.removeItem(at: sharedDestination)
+                    }
                 }
 
                 let downloadedSize = (try? FileManager.default

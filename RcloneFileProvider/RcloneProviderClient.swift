@@ -140,6 +140,37 @@ actor RcloneProviderClient {
         return result
     }
 
+    /// Téléchargement LÉGER directement dans l'extension via le bridge loopback
+    /// (`RclonebridgeStartFileHTTP`) + URLSession en streaming. Bien plus économe
+    /// en mémoire que `download(...)` (operations/copyfile + transfer manager
+    /// rclone), qui faisait jetsam dans l'.appex. Utilisé en repli quand l'app
+    /// principale n'est pas active pour assurer le relais → Fichiers fonctionne
+    /// sans avoir à ouvrir l'app.
+    func downloadViaBridge(remote: String, path: String, to localURL: URL, progress: Progress?) async throws {
+        try await ensureInitialized()
+        #if canImport(RcloneKit)
+        FileProviderBridge.appendDiagnostic("downloadViaBridge start remote=\(remote)")
+        let raw = RclonebridgeStartFileHTTP(remote, path)
+        guard let data = raw.data(using: .utf8),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let sessionID = object["id"] as? String,
+              let urlString = object["url"] as? String,
+              let url = URL(string: urlString),
+              !sessionID.isEmpty else {
+            throw providerError("Bridge StartFileHTTP a renvoyé une réponse invalide : \(raw)")
+        }
+        defer { RclonebridgeStopFileHTTP(sessionID) }
+        try FileManager.default.createDirectory(
+            at: localURL.deletingLastPathComponent(), withIntermediateDirectories: true
+        )
+        try? FileManager.default.removeItem(at: localURL)
+        try await ExtensionBridgeDownloader(dest: localURL, progress: progress).download(from: url)
+        FileProviderBridge.appendDiagnostic("downloadViaBridge done remote=\(remote)")
+        #else
+        throw providerError("RcloneKit indisponible pour le download direct")
+        #endif
+    }
+
     func upload(localURL: URL, remote: String, path: String) async throws -> FPRemoteEntry? {
         let jobID = try await copyFile(
             srcFs: localURL.deletingLastPathComponent().path,
@@ -329,5 +360,76 @@ actor RcloneProviderClient {
             code: NSFileProviderError.serverUnreachable.rawValue,
             userInfo: [NSLocalizedDescriptionKey: message]
         )
+    }
+}
+
+/// Télécharge un fichier depuis le bridge loopback via `URLSession` en streaming
+/// (faible mémoire — pas de buffering du fichier entier), met à jour le `Progress`
+/// et déplace le temp vers `dest` à la fin. Pendant du `BridgeFileDownloader`
+/// côté app, dupliqué ici car l'extension est une cible séparée.
+final class ExtensionBridgeDownloader: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
+    private let dest: URL
+    private let progress: Progress?
+    private var continuation: CheckedContinuation<Void, Error>?
+    private var session: URLSession?
+    private var moveError: Error?
+
+    init(dest: URL, progress: Progress?) {
+        self.dest = dest
+        self.progress = progress
+        super.init()
+    }
+
+    func download(from url: URL) async throws {
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+                self.continuation = cont
+                let config = URLSessionConfiguration.default
+                config.timeoutIntervalForRequest = 60
+                config.requestCachePolicy = .reloadIgnoringLocalCacheData
+                let session = URLSession(configuration: config, delegate: self, delegateQueue: nil)
+                self.session = session
+                session.downloadTask(with: url).resume()
+            }
+        } onCancel: {
+            self.session?.invalidateAndCancel()
+        }
+    }
+
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
+                    didWriteData bytesWritten: Int64, totalBytesWritten: Int64,
+                    totalBytesExpectedToWrite: Int64) {
+        guard let progress, totalBytesExpectedToWrite > 0 else { return }
+        progress.totalUnitCount = totalBytesExpectedToWrite
+        progress.completedUnitCount = totalBytesWritten
+    }
+
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
+                    didFinishDownloadingTo location: URL) {
+        let fm = FileManager.default
+        do {
+            try fm.createDirectory(at: dest.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try? fm.removeItem(at: dest)
+            try fm.moveItem(at: location, to: dest)
+        } catch {
+            moveError = error
+        }
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        session.finishTasksAndInvalidate()
+        let cont = continuation
+        continuation = nil
+        if let moveError { cont?.resume(throwing: moveError); return }
+        if let error { cont?.resume(throwing: error); return }
+        if let http = task.response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+            cont?.resume(throwing: NSError(
+                domain: NSFileProviderErrorDomain,
+                code: NSFileProviderError.serverUnreachable.rawValue,
+                userInfo: [NSLocalizedDescriptionKey: "HTTP \(http.statusCode) (download direct extension)"]
+            ))
+            return
+        }
+        cont?.resume(returning: ())
     }
 }
