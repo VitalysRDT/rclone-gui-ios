@@ -24,12 +24,16 @@ import VLCKitSPM
 /// VLCKit délivre ses callbacks de délégué sur le thread principal, donc les
 /// mutations de `@Published` y sont sûres.
 final class VLCPlayerModel: NSObject, ObservableObject {
-    // network-caching = 2,5 s. NB mesuré : un buffer trop grand (8 s testé) FIGE
-    // le démarrage d'un MKV streamé (45 s avant la 1re image — VLC remplit tout le
-    // buffer en seekant l'index MKV via le bridge SFTP avant d'afficher). Pour ces
-    // fichiers la vraie réponse est « télécharger puis lire » (fichier local =
-    // zéro seek), pas un gros buffer.
-    let player = VLCMediaPlayer(options: ["--network-caching=2500"])
+    // Buffer réseau modéré (2,5 s ; un buffer trop grand — 8 s testé — figeait le
+    // démarrage). avcodec-hw=videotoolbox FORCE le décodage MATÉRIEL : sinon VLC
+    // pouvait retomber en décodage logiciel de la 2160p → images perdues / glitchs
+    // même en lecture locale. VideoToolbox décode le HEVC/H.264 4K nativement sur
+    // iPhone (et macOS).
+    private static let networkCachingMs = 2500
+    let player = VLCMediaPlayer(options: [
+        "--network-caching=\(VLCPlayerModel.networkCachingMs)",
+        "--avcodec-hw=videotoolbox",
+    ])
 
     @Published var isPlaying = false
     @Published var isBuffering = true
@@ -64,7 +68,7 @@ final class VLCPlayerModel: NSObject, ObservableObject {
         let sizeText = sizeBytes > 0
             ? ByteCountFormatter.string(fromByteCount: sizeBytes, countStyle: .file)
             : "?"
-        plog("▶︎ VLC load — fichier=\(sizeText) network-caching=8000ms url=\(url.scheme ?? "")")
+        plog("▶︎ VLC load — fichier=\(sizeText) network-caching=\(VLCPlayerModel.networkCachingMs)ms hw=videotoolbox url=\(url.scheme ?? "")")
         let media = VLCMedia(url: url)
         player.media = media
         player.play()
