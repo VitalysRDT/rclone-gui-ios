@@ -215,6 +215,12 @@ public final class TransferQueue {
         batchID: String? = nil,
         sourceKind: TransferSourceKind = .localFolder
     ) async throws {
+        // Calcul de taille du dossier HORS main thread (peut parcourir des
+        // milliers de fichiers). Sans ça, le tap « Upload » d'un gros dossier
+        // figeait l'UI le temps de l'énumération récursive.
+        let bytesTotal = await Task.detached(priority: .utility) {
+            TransferQueue.directorySize(at: localFolder)
+        }.value
         let transfer = Transfer(
             kind: .upload,
             sourcePath: localFolder.path,
@@ -224,7 +230,7 @@ public final class TransferQueue {
             relativePath: localFolder.lastPathComponent,
             displayName: localFolder.lastPathComponent,
             sourceKind: sourceKind,
-            bytesTotal: directorySize(at: localFolder)
+            bytesTotal: bytesTotal
         )
         enqueueAndSchedule(transfer)
     }
@@ -1474,7 +1480,9 @@ public final class TransferQueue {
         return Int64(values?.fileSize ?? 0)
     }
 
-    private func directorySize(at url: URL) -> Int64 {
+    // `nonisolated static` : énumération récursive O(arbre) → doit tourner HORS
+    // du @MainActor (sinon hitch visible au tap « Upload » d'un gros dossier).
+    nonisolated static func directorySize(at url: URL) -> Int64 {
         let fm = FileManager.default
         guard let enumerator = fm.enumerator(at: url, includingPropertiesForKeys: [.fileSizeKey]) else { return 0 }
         var total: Int64 = 0
