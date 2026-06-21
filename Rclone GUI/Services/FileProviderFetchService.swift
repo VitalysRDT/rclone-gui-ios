@@ -195,28 +195,55 @@ public final class FileProviderFetchService {
                 to: statusURL
             )
 
-            let jobID = try await TransferService.shared.copyFileAsync(
-                srcFs: "\(pending.remote):",
-                srcPath: pending.path,
-                dstFs: parentDirectory.path,
-                dstPath: partialDestination.lastPathComponent
-            )
-            activeJobID = jobID
-            try await waitForJob(
-                jobID: jobID,
-                method: "operations/copyfile",
-                remotePath: pending.path,
-                partialURL: partialDestination,
-                statusURL: statusURL,
-                pendingURL: pendingURL
-            )
+            // PRÉFÉRÉ : bridge loopback + URLSession (chemin SANS freeze). Le
+            // copyfile + polling job/status toutes les 500 ms (core/stats +
+            // job/status) saturait le pont RC de librclone et FIGEAIT l'app — le
+            // même bug que côté lecteur, réglé en #71. La progression vient ici de
+            // didWriteData (local, zéro RPC). Repli copyfile si le bridge échoue.
+            if let bridge = await RcloneStreamingService.shared.liveSession(
+                remote: pending.remote, path: pending.path
+            ) {
+                defer { Task { await RcloneStreamingService.shared.stop(bridge) } }
+                let downloader = BridgeFileDownloader(dest: partialDestination) { written, total in
+                    // L'extension supprime le pending pour annuler → on ne réécrit
+                    // plus le statut dans ce cas. Hop MainActor : writeFetchStatus
+                    // construit un type isolé MainActor (AppGroupFetchStatus). On
+                    // passe par le singleton pour ne PAS capturer `self` (sinon
+                    // warning de concurrence → erreur Swift 6).
+                    guard FileManager.default.fileExists(atPath: pendingURL.path) else { return }
+                    Task { @MainActor in
+                        FileProviderFetchService.shared.writeFetchStatus(
+                            stage: "running", jobID: nil,
+                            bytesTransferred: written, bytesTotal: total,
+                            message: nil, to: statusURL
+                        )
+                    }
+                }
+                try await downloader.download(from: bridge.url)
+            } else {
+                let jobID = try await TransferService.shared.copyFileAsync(
+                    srcFs: "\(pending.remote):",
+                    srcPath: pending.path,
+                    dstFs: parentDirectory.path,
+                    dstPath: partialDestination.lastPathComponent
+                )
+                activeJobID = jobID
+                try await waitForJob(
+                    jobID: jobID,
+                    method: "operations/copyfile",
+                    remotePath: pending.path,
+                    partialURL: partialDestination,
+                    statusURL: statusURL,
+                    pendingURL: pendingURL
+                )
+            }
 
             try? FileManager.default.removeItem(at: destination)
             try FileManager.default.moveItem(at: partialDestination, to: destination)
             let finalSize = fileSize(at: destination)
             writeFetchStatus(
                 stage: "completed",
-                jobID: jobID,
+                jobID: activeJobID,
                 bytesTransferred: finalSize,
                 bytesTotal: finalSize,
                 message: nil,
@@ -406,5 +433,81 @@ public final class FileProviderFetchService {
     private func fileSize(at url: URL) -> Int64 {
         (try? FileManager.default
             .attributesOfItem(atPath: url.path)[.size] as? Int64) ?? 0
+    }
+}
+
+/// Télécharge un fichier depuis le bridge loopback via `URLSession` (chemin SANS
+/// saturation du pont RC de librclone), avec progression LOCALE (didWriteData,
+/// throttlée) et déplacement atomique vers `dest` à la fin. Remplace
+/// `operations/copyfile` + le polling `job/status`/`core/stats` qui figeait l'app.
+final class BridgeFileDownloader: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
+    private let dest: URL
+    private let onProgress: @Sendable (Int64, Int64) -> Void
+    private var continuation: CheckedContinuation<Void, Error>?
+    private var session: URLSession?
+    private var moveError: Error?
+    private var lastProgressAt = Date.distantPast
+
+    init(dest: URL, onProgress: @escaping @Sendable (Int64, Int64) -> Void) {
+        self.dest = dest
+        self.onProgress = onProgress
+        super.init()
+    }
+
+    func download(from url: URL) async throws {
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+                self.continuation = cont
+                let config = URLSessionConfiguration.default
+                config.timeoutIntervalForRequest = 60
+                config.requestCachePolicy = .reloadIgnoringLocalCacheData
+                let session = URLSession(configuration: config, delegate: self, delegateQueue: nil)
+                self.session = session
+                session.downloadTask(with: url).resume()
+            }
+        } onCancel: {
+            self.session?.invalidateAndCancel()
+        }
+    }
+
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
+                    didWriteData bytesWritten: Int64, totalBytesWritten: Int64,
+                    totalBytesExpectedToWrite: Int64) {
+        // Throttle : didWriteData arrive très souvent ; on ne réécrit le statut
+        // (fichier disque lu par l'extension) qu'au plus toutes les 0,5 s.
+        let now = Date()
+        if now.timeIntervalSince(lastProgressAt) >= 0.5 {
+            lastProgressAt = now
+            onProgress(totalBytesWritten, max(0, totalBytesExpectedToWrite))
+        }
+    }
+
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
+                    didFinishDownloadingTo location: URL) {
+        // location est supprimé au retour → on déplace SYNCHRONEMENT ici.
+        let fm = FileManager.default
+        do {
+            try fm.createDirectory(at: dest.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try? fm.removeItem(at: dest)
+            try fm.moveItem(at: location, to: dest)
+        } catch {
+            moveError = error
+        }
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        session.finishTasksAndInvalidate()
+        let cont = continuation
+        continuation = nil
+        if let moveError { cont?.resume(throwing: moveError); return }
+        if let error { cont?.resume(throwing: error); return }
+        if let http = task.response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+            cont?.resume(throwing: RcloneError.rcloneError(
+                code: http.statusCode, method: "bridge/download",
+                message: "HTTP \(http.statusCode) en téléchargeant via le bridge (FileProvider)"
+            ))
+            return
+        }
+        cont?.resume(returning: ())
     }
 }
