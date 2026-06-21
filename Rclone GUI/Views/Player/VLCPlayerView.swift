@@ -33,6 +33,14 @@ final class VLCPlayerModel: NSObject, ObservableObject {
     let player = VLCMediaPlayer(options: [
         "--network-caching=\(VLCPlayerModel.networkCachingMs)",
         "--avcodec-hw=videotoolbox",
+        // ANTI-IMAGES-PERDUES après un seek sur flux réseau (SFTP loopback) :
+        // la livraison par à-coups fait jitter l'horloge d'entrée → VLC croit
+        // être en retard EN PERMANENCE et drop les frames (imgPerdues=635 vu en
+        // prod alors que réseau≈5–14 Mbit/s pour 3,6 requis). clock-jitter=0
+        // neutralise cette compensation ; no-drop-late-frames empêche de jeter
+        // des images en réalité décodées à temps (VideoToolbox tient le 1080p).
+        "--clock-jitter=0",
+        "--no-drop-late-frames",
     ])
 
     @Published var isPlaying = false
@@ -65,6 +73,10 @@ final class VLCPlayerModel: NSObject, ObservableObject {
 
     func load(url: URL, startAtSeconds: Double?) {
         loadStartedAt = Date()
+        // Repart propre pour la détection d'avancée (sinon un ancien tick fausse
+        // le 1er calcul de stall sur le nouveau média).
+        prevTickPosition = -1
+        lastAdvanceAt = .distantPast
         let sizeText = sizeBytes > 0
             ? ByteCountFormatter.string(fromByteCount: sizeBytes, countStyle: .file)
             : "?"
@@ -93,6 +105,13 @@ final class VLCPlayerModel: NSObject, ObservableObject {
     private var lastKeepUpPos: Double?
     private var lastKeepUpWall: Date?
     private var lastReadBytes: Int = 0
+
+    // Détection de VRAI stall vs `.buffering` nominal : VLC repasse en
+    // `.buffering` même quand la vidéo DÉFILE (typiquement après un seek), ce qui
+    // collait la roue. On se fie à l'avancée RÉELLE de la position plutôt qu'à
+    // l'état nominal de VLC : la roue ne s'affiche que si la position est figée.
+    private var prevTickPosition: Double = -1
+    private var lastAdvanceAt: Date = .distantPast
 
     private func plog(_ message: String) {
         Task { await LogService.shared.log(.info, category: "player", message: message) }
@@ -186,6 +205,15 @@ final class VLCPlayerModel: NSObject, ObservableObject {
         //   `length`→ VLCTime  (non-optionnel)
         let ms = player.time.intValue
         positionSeconds = Double(ms) / 1000.0
+
+        // La position a-t-elle avancé depuis le dernier tick ? Si oui, la lecture
+        // PROGRESSE réellement → on lève la roue, même si VLC se dit `.buffering`.
+        if prevTickPosition >= 0, positionSeconds > prevTickPosition + 0.05 {
+            lastAdvanceAt = Date()
+            if isBuffering { isBuffering = false }
+        }
+        prevTickPosition = positionSeconds
+
         let lengthMs = player.media?.length.intValue ?? 0
         if lengthMs > 0 {
             durationSeconds = Double(lengthMs) / 1000.0
@@ -253,11 +281,12 @@ extension VLCPlayerModel: VLCMediaPlayerDelegate {
         plog("VLC état → \(stateName(state)) @\(Int(positionSeconds))s (stalls=\(stallCount), totalStall=\(String(format: "%.1f", totalStallSeconds))s)")
         switch state {
         case .buffering, .opening:
-            // VLC émet des notifications .buffering MÊME pendant une lecture
-            // normale (statut de remplissage du buffer) → si on montrait la roue
-            // à chaque .buffering, elle resterait collée en permanence. On ne la
-            // montre que si la lecture est réellement à l'arrêt (!isPlaying).
-            let stalled = !player.isPlaying
+            // VLC émet des .buffering MÊME quand la vidéo DÉFILE (remplissage de
+            // buffer, et surtout après un seek) → se fier à `!isPlaying` collait
+            // la roue alors que la position avançait. On ne montre la roue que sur
+            // un VRAI stall : pas en lecture ET position figée depuis >1,5 s.
+            let recentlyAdvanced = Date().timeIntervalSince(lastAdvanceAt) < 1.5
+            let stalled = !player.isPlaying && !recentlyAdvanced
             if state == .buffering, stalled, bufferingStartedAt == nil {
                 bufferingStartedAt = Date()
                 if firstFrameAt != nil { stallCount += 1 }  // vrai re-buffer après le 1er frame
