@@ -82,6 +82,12 @@ public final class TransferBatch {
 
 @Model
 public final class Transfer {
+    // Index SwiftData : sans eux, chaque predicate sur statusRaw/sourceKindRaw/
+    // batchID = full table scan qui grossit avec l'historique (polling 500/800 ms,
+    // scheduleNext, updateRunningBatches, photo-sync…). Le plus gros gain perf
+    // pour le moins de code.
+    #Index<Transfer>([\.statusRaw], [\.sourceKindRaw], [\.batchID], [\.startedAt])
+
     @Attribute(.unique) public var id: String
 
     /// Stored as raw String to keep SwiftData migration simple.

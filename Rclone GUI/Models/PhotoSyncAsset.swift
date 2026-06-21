@@ -19,6 +19,12 @@ public enum PhotoSyncStatus: String, Codable, Sendable, CaseIterable {
 
 @Model
 public final class PhotoSyncAsset {
+    // Index sur statusRaw : la bibliothèque fait 18k+ assets, et de nombreux
+    // fetch/fetchCount filtrent sur statusRaw (pending/exporting/enqueued…) →
+    // sans index, full scan de 18k lignes à chaque appel. localIdentifier est
+    // déjà indexé (.unique).
+    #Index<PhotoSyncAsset>([\.statusRaw])
+
     @Attribute(.unique) public var localIdentifier: String
     public var mediaType: String
     public var creationDate: Date?
