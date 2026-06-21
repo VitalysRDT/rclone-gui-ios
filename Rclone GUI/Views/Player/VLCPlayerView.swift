@@ -249,12 +249,16 @@ extension VLCPlayerModel: VLCMediaPlayerDelegate {
         plog("VLC état → \(stateName(state)) @\(Int(positionSeconds))s (stalls=\(stallCount), totalStall=\(String(format: "%.1f", totalStallSeconds))s)")
         switch state {
         case .buffering, .opening:
-            // Un re-buffering en cours de lecture = stall. On chronomètre.
-            if state == .buffering, bufferingStartedAt == nil {
+            // VLC émet des notifications .buffering MÊME pendant une lecture
+            // normale (statut de remplissage du buffer) → si on montrait la roue
+            // à chaque .buffering, elle resterait collée en permanence. On ne la
+            // montre que si la lecture est réellement à l'arrêt (!isPlaying).
+            let stalled = !player.isPlaying
+            if state == .buffering, stalled, bufferingStartedAt == nil {
                 bufferingStartedAt = Date()
-                if firstFrameAt != nil { stallCount += 1 }  // re-buffer après le 1er frame
+                if firstFrameAt != nil { stallCount += 1 }  // vrai re-buffer après le 1er frame
             }
-            isBuffering = true
+            isBuffering = stalled
         case .playing:
             isBuffering = false
             isPlaying = true
@@ -387,14 +391,24 @@ struct EmbeddedVLCPlayerView: View {
         .task {
             // La session audio est possédée par MediaPlayerHost (évite une
             // course de désactivation lors des enchaînements de playlist).
-            let resume = PlaybackProgressStore.resumePosition(remote: remote, path: path)
             model.sizeBytes = sizeHint
-            model.load(url: streamURL, startAtSeconds: resume)
             model.onEnded = {
                 PlaybackProgressStore.clear(remote: remote, path: path)
                 if let onNext { onNext() } else { onClose?() }
             }
             configureRemoteCommands()
+            // Download-then-play PAR DÉFAUT : streamer un MKV en SFTP est
+            // seek-heavy (45 s avant la 1re image, images perdues, saccades). On
+            // lit le fichier LOCAL — instantané s'il est déjà en cache, sinon on
+            // télécharge d'abord (transfert séquentiel, lecture ensuite fluide).
+            let cached = MediaCacheService.cacheURL(remote: remote, path: path)
+            if FileManager.default.fileExists(atPath: cached.path) {
+                let resume = PlaybackProgressStore.resumePosition(remote: remote, path: path)
+                playingLocal = true
+                model.load(url: cached, startAtSeconds: resume)
+            } else {
+                downloadAndPlayLocal()
+            }
         }
         .onChange(of: model.positionSeconds) { _, newValue in
             if !scrubbing { scrubValue = newValue }
