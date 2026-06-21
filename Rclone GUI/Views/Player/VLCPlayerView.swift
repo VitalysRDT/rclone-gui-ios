@@ -435,6 +435,10 @@ struct EmbeddedVLCPlayerView: View {
     @State private var playingLocal = false
     @State private var bufferingSince: Date?
     @State private var offerLocalDownload = false
+    // Cache progressif (download-ahead) : précharge ~1 min puis lit en LOCAL
+    // pendant que le reste se télécharge → fini les saccades SFTP, seeks instantanés.
+    @State private var progressive: ProgressiveMediaCache?
+    private static let prefillBytes: Int64 = 24 * 1024 * 1024   // ~1 min à ~3,2 Mbit/s
 
     private let speeds: [Float] = [0.5, 1.0, 1.25, 1.5, 2.0]
 
@@ -493,12 +497,9 @@ struct EmbeddedVLCPlayerView: View {
                 playingLocal = true
                 model.load(url: cached, startAtSeconds: resume)
             } else {
-                // Streaming : on surveille la santé du flux. S'il ne tient pas le
-                // débit de façon soutenue (SFTP qui dip → saccade), bascule AUTO
-                // vers le téléchargement local capé (lecture parfaite, pas de freeze).
-                model.monitorsStreamHealth = true
-                model.onSustainedUnderrun = { downloadAndPlayLocal() }
-                model.load(url: streamURL, startAtSeconds: resume)
+                // Download-ahead : précharge ~1 min puis lit en LOCAL pendant que
+                // le reste se télécharge. Élimine la saccade SFTP (données locales).
+                await startProgressiveAndPlay(resume: resume)
             }
         }
         .onChange(of: model.positionSeconds) { _, newValue in
@@ -537,6 +538,11 @@ struct EmbeddedVLCPlayerView: View {
                 position: model.positionSeconds, duration: model.durationSeconds
             )
             model.stop()
+            // Arrête le proxy de cache progressif : si le fichier est complet, le
+            // .partial devient le cache final (lecture instantanée la prochaine
+            // fois) ; sinon il est supprimé (jamais pris pour un cache complet).
+            progressive?.stop()
+            progressive = nil
             // La session audio (et les commandes distantes) sont fermées par
             // MediaPlayerHost à la sortie complète, pas ici.
         }
@@ -610,6 +616,45 @@ struct EmbeddedVLCPlayerView: View {
     /// la lecture sur le fichier local — zéro seek, démux fluide. Réutilise le
     /// même VLCPlayerModel (la session de streaming est lâchée au changement de
     /// média). Le cache LRU MediaCache gère la rétention.
+    /// Download-ahead : démarre le proxy de cache progressif, précharge ~1 min,
+    /// puis lit en LOCAL (depuis le proxy loopback) pendant que le téléchargement
+    /// continue → seeks instantanés dans la zone téléchargée, zéro saccade SFTP.
+    /// Repli sur le streaming direct (+ moniteur de santé) si le proxy échoue.
+    private func startProgressiveAndPlay(resume: Double?) async {
+        let cacheURL = MediaCacheService.cacheURL(remote: remote, path: path)
+        let fileName = (path as NSString).lastPathComponent
+        let cache = ProgressiveMediaCache(sourceURL: streamURL, finalURL: cacheURL, fileName: fileName)
+        do {
+            let proxyURL = try cache.start()
+            progressive = cache
+            downloading = true   // overlay « préchargement »
+            await cache.waitForPrefill(bytes: Self.prefillBytes)
+            if Task.isCancelled { return }   // vue fermée pendant le préchargement
+            if cache.isFailed {
+                cache.stop()
+                progressive = nil
+                downloading = false
+                fallbackToStreaming(resume: resume)
+                return
+            }
+            downloading = false
+            playingLocal = true   // on lit en local (proxy) → pas de moniteur stream
+            model.load(url: proxyURL, startAtSeconds: resume)
+        } catch {
+            progressive = nil
+            downloading = false
+            fallbackToStreaming(resume: resume)
+        }
+    }
+
+    /// Repli : streaming direct depuis le bridge + moniteur qui bascule au
+    /// téléchargement complet si le débit ne tient pas.
+    private func fallbackToStreaming(resume: Double?) {
+        model.monitorsStreamHealth = true
+        model.onSustainedUnderrun = { downloadAndPlayLocal() }
+        model.load(url: streamURL, startAtSeconds: resume)
+    }
+
     private func downloadAndPlayLocal() {
         guard !downloading else { return }
         downloading = true
