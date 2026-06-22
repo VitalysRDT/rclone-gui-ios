@@ -1,13 +1,13 @@
 {
-  "originHash" : "294b5443f2fd75dbed7a00528cc25cb27baf812b2346df53611fbd2af4f2803d",
+  "originHash" : "bd7b71cbb99159d545e54e854dec007a7b2145c792a1ccc4ed2f510f30308e6b",
   "pins" : [
     {
       "identity" : "vlckit-spm",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/tylerjonesio/vlckit-spm",
+      "location" : "https://github.com/virtualox/vlckit-spm",
       "state" : {
-        "revision" : "e932bbd488872fdb74f6654d28c2f291eae03daf",
-        "version" : "3.6.0"
+        "revision" : "1d19105c52515a1d52813923d88515947cdeb3d8",
+        "version" : "4.0.0-alpha.19"
       }
     }
   ],
