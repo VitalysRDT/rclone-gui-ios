@@ -1,8 +1,10 @@
 Novità della versione 1.9:
+- Lettore video ricostruito: avvio più rapido e riproduzione molto più robusta dei file 4K MKV/HEVC (nuovo motore VLCKit 4), audio senza fruscii e migliore selezione di tracce audio e sottotitoli.
+- Picture-in-Picture per i video: l'immagine continua in una finestra mobile quando esci dall'app; prima proseguiva solo l'audio.
+- "Apri in un'altra app" più affidabile (Infuse, VLC, nPlayer…): il file viene prima scaricato e poi condiviso tramite il foglio di condivisione di iOS, senza più errori di apertura del flusso.
 - Audio in background: musica, podcast e audiolibri continuano quando l'app passa in background o lo schermo si blocca, con i controlli nella schermata di blocco.
-- Mini-player audio persistente: una barra "in riproduzione" con copertina resta visibile mentre navighi; toccala per il player a schermo intero (copertina, barra di avanzamento, coda di riproduzione).
+- Mini-player audio persistente: una barra "in riproduzione" con copertina resta visibile mentre navighi; toccala per il player a schermo intero.
 - Visualizzatore foto: apri un'immagine a schermo intero e scorri tra le tue foto, con zoom e condivisione.
-- Picture-in-Picture migliorato per i video: finestra mobile quando esci dall'app.
-- Flows e automazioni: sincronizzazione foto, backup delle cartelle, metti in pausa/riprendi i trasferimenti da Comandi rapidi e Siri, tutto sul dispositivo.
+- Flows e automazioni: sincronizzazione foto, backup delle cartelle e pausa/ripresa dei trasferimenti da Comandi rapidi e Siri, tutto sul dispositivo.
 - Nuove impostazioni di riproduzione: audio in background, PiP automatico e velocità di riproduzione predefinita.
-- Correzioni di stabilità e rifiniture.
+- Prestazioni: app nettamente più fluida, con meno blocchi e navigazione, miniature e trasferimenti ottimizzati.
