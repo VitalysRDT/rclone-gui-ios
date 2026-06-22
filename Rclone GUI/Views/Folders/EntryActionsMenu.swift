@@ -47,23 +47,6 @@ struct EntryActionsMenu: View {
                           systemImage: Self.isMediaFile(entry.name) ? "play.circle" : "doc.viewfinder")
                 }
 
-                if Self.isVideoFile(entry.name) {
-                    Menu {
-                        Button {
-                            Task { await streamInExternalPlayer(scheme: .infuse) }
-                        } label: {
-                            Label("Infuse", systemImage: "play.tv")
-                        }
-                        Button {
-                            Task { await streamInExternalPlayer(scheme: .vlc) }
-                        } label: {
-                            Label("VLC", systemImage: "play.tv.fill")
-                        }
-                    } label: {
-                        Label("Lire dans une app externe", systemImage: "play.rectangle.on.rectangle")
-                    }
-                }
-
                 Button {
                     externalOpenTarget = entry
                 } label: {
@@ -199,65 +182,6 @@ struct EntryActionsMenu: View {
     // aussi le routage AVPlayer ↔ VLC du lecteur embarqué).
     static func isMediaFile(_ name: String) -> Bool { MediaFormat.isMedia(name) }
     static func isVideoFile(_ name: String) -> Bool { MediaFormat.isVideo(name) }
-
-    enum ExternalPlayerScheme {
-        case infuse
-        case vlc
-
-        func callbackURL(for streamURL: URL) -> URL? {
-            // Encode l'URL HTTP locale dans le scheme x-callback-url propre à
-            // chaque player. Infuse : infuse://x-callback-url/play?url=...
-            // VLC : vlc-x-callback://x-callback-url/stream?url=...
-            var components = URLComponents()
-            switch self {
-            case .infuse:
-                components.scheme = "infuse"
-                components.host = "x-callback-url"
-                components.path = "/play"
-            case .vlc:
-                components.scheme = "vlc-x-callback"
-                components.host = "x-callback-url"
-                components.path = "/stream"
-            }
-            components.queryItems = [URLQueryItem(name: "url", value: streamURL.absoluteString)]
-            return components.url
-        }
-    }
-
-    @MainActor
-    private func streamInExternalPlayer(scheme: ExternalPlayerScheme) async {
-        do {
-            let session = try await RcloneStreamingService.shared.session(
-                remote: remote,
-                path: entry.pathInRemote,
-                sizeHint: entry.size
-            )
-            guard let callbackURL = scheme.callbackURL(for: session.url) else {
-                await LogService.shared.log(
-                    .error,
-                    category: "streaming",
-                    message: "Impossible de construire l'URL callback pour \(entry.name)"
-                )
-                return
-            }
-            #if canImport(UIKit)
-            await UIApplication.shared.open(callbackURL)
-            #elseif canImport(AppKit)
-            NSWorkspace.shared.open(callbackURL)
-            #endif
-            await LogService.shared.log(
-                .info,
-                category: "streaming",
-                message: "Stream → \(callbackURL.scheme ?? "?") : \(remote):\(entry.pathInRemote)"
-            )
-        } catch {
-            await LogService.shared.log(
-                .error,
-                category: "streaming",
-                message: "Streaming externe échoué (\(remote):\(entry.pathInRemote)) : \(error.localizedDescription)"
-            )
-        }
-    }
 }
 
 // MARK: - Rename Sheet
