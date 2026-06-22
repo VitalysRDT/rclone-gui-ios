@@ -279,6 +279,9 @@ struct MediaPlayerHost: View {
     @State private var preparing = true
     @State private var error: String?
     @State private var engine: PlaybackEngine = .avFoundation
+    /// Cible d'« Ouvrir dans une autre app » : déclenche le download-then-share
+    /// fiable (cf. openExternal). Présenté en sheet par-dessus le lecteur.
+    @State private var externalOpenEntry: RemoteEntryDTO?
     @Environment(\.dismiss) private var dismiss
 
     init(remote: String, entry: RemoteEntryDTO, playlist: [RemoteEntryDTO]? = nil) {
@@ -317,6 +320,9 @@ struct MediaPlayerHost: View {
             stopCurrentSession()
             NowPlayingService.shared.endPlaybackSession()
         }
+        .sheet(item: $externalOpenEntry) { entry in
+            RemoteExternalOpenHost(remote: remote, entry: entry)
+        }
     }
 
     @ViewBuilder
@@ -334,7 +340,7 @@ struct MediaPlayerHost: View {
                 hasPrevious: hasPrevious,
                 onNext: hasNext ? { advance(by: 1) } : nil,
                 onPrevious: hasPrevious ? { advance(by: -1) } : nil,
-                onOpenExternal: { openExternal(session) },
+                onOpenExternal: { openExternal() },
                 onClose: { dismiss() }
             )
             .ignoresSafeArea()
@@ -405,13 +411,16 @@ struct MediaPlayerHost: View {
         }
     }
 
-    private func openExternal(_ session: StreamingSession) {
-        guard let callbackURL = EntryActionsMenu.ExternalPlayerScheme.vlc.callbackURL(for: session.url) else { return }
-        #if canImport(UIKit)
-        UIApplication.shared.open(callbackURL)
-        #elseif canImport(AppKit)
-        NSWorkspace.shared.open(callbackURL)
-        #endif
+    /// Ouverture dans une app tierce (Infuse, VLC, nPlayer…). On NE passe PLUS
+    /// par un handoff loopback `infuse://…?url=http://127.0.0.1:PORT/…` : dès
+    /// qu'iOS bascule vers l'app cible, rclone-gui est suspendu en arrière-plan
+    /// et son serveur HTTP local devient injoignable → l'app cible affiche
+    /// « Failed to open input stream in demuxing stream ». À la place on
+    /// télécharge le fichier en local PUIS on présente le partage iOS /
+    /// « Ouvrir dans » (RemoteExternalOpenHost) : l'app cible importe un vrai
+    /// fichier local et le lit. Fiable, sans dépendre du process de fond.
+    private func openExternal() {
+        externalOpenEntry = entry
     }
 
     // MARK: États de chargement / erreur
