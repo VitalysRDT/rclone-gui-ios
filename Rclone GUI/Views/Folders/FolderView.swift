@@ -77,6 +77,15 @@ struct FolderView: View {
     /// via .onChange(of: runningTransfers).
     @State private var activeTransferByPath: [String: Transfer] = [:]
 
+    // Pipeline tri/filtre MÉMOÏSÉ. displayedEntries/displayedRows étaient des `var`
+    // calculées → re-triées/re-filtrées (O(n log n)) à CHAQUE re-render du body,
+    // soit plusieurs fois/seconde pendant un transfert (le @Query runningTransfers
+    // invalide le body toutes les 500 ms) alors que entries/query/tri n'avaient pas
+    // bougé. On met le résultat en cache @State, recalculé SEULEMENT via load() et
+    // .onChange(of: query / sortMode / sortDescending).
+    @State private var displayedEntries: [RemoteEntryDTO] = []
+    @State private var displayedRows: [DisplayedEntry] = []
+
     // Mode d'affichage du navigateur : liste (défaut) ou grille. En grille,
     // « médias uniquement » filtre dossiers/autres fichiers (mode galerie).
     @AppStorage("browser.viewMode") private var viewModeRaw = "list"
@@ -118,7 +127,7 @@ struct FolderView: View {
         }
     }
 
-    private var displayedEntries: [RemoteEntryDTO] {
+    private func computeDisplayedEntries() -> [RemoteEntryDTO] {
         let filtered: [RemoteEntryDTO]
         if query.isEmpty {
             filtered = entries
@@ -155,9 +164,13 @@ struct FolderView: View {
             .map(\.entry)
     }
 
-    private var displayedRows: [DisplayedEntry] {
+    /// Recalcule le pipeline tri/filtre et remplit les caches @State. Appelé
+    /// après load() et sur changement de recherche/tri — PAS à chaque re-render.
+    private func recomputeDisplayed() {
+        let computed = computeDisplayedEntries()
+        displayedEntries = computed
         var countsByID: [String: Int] = [:]
-        return displayedEntries.enumerated().map { offset, entry in
+        displayedRows = computed.enumerated().map { offset, entry in
             let baseID = entry.id
             let duplicateIndex = countsByID[baseID, default: 0]
             countsByID[baseID] = duplicateIndex + 1
@@ -249,6 +262,11 @@ struct FolderView: View {
             .onChange(of: runningTransfers.count) { _, _ in
                 activeTransferByPath = computeActiveTransferByPath()
             }
+            // Recalcule le pipeline tri/filtre UNIQUEMENT sur ses vraies entrées
+            // (recherche, tri) — plus à chaque re-render du body.
+            .onChange(of: query) { _, _ in recomputeDisplayed() }
+            .onChange(of: sortMode) { _, _ in recomputeDisplayed() }
+            .onChange(of: sortDescending) { _, _ in recomputeDisplayed() }
             .sheet(item: $renameTarget) { entry in
                 RenameSheetView(
                     entry: entry,
@@ -922,6 +940,7 @@ struct FolderView: View {
         loadState = .loading
         do {
             entries = try await RemoteService.shared.list(remote: remote, path: path)
+            recomputeDisplayed()   // remplit les caches AVANT de passer en .loaded (pas de flicker)
             loadState = .loaded
             _ = try? SavedLocationStore.recordOpen(
                 remote: remote,
