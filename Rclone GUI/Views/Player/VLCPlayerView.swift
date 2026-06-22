@@ -24,12 +24,13 @@ import VLCKitSPM
 /// VLCKit délivre ses callbacks de délégué sur le thread principal, donc les
 /// mutations de `@Published` y sont sûres.
 final class VLCPlayerModel: NSObject, ObservableObject {
-    // Buffer réseau modéré (2,5 s ; un buffer trop grand — 8 s testé — figeait le
-    // démarrage). avcodec-hw=videotoolbox FORCE le décodage MATÉRIEL : sinon VLC
-    // pouvait retomber en décodage logiciel de la 2160p → images perdues / glitchs
-    // même en lecture locale. VideoToolbox décode le HEVC/H.264 4K nativement sur
-    // iPhone (et macOS).
-    private static let networkCachingMs = 2500
+    // Buffer réseau 2,5 s : petit volontairement pour une OUVERTURE RAPIDE (un
+    // buffer plus gros = VLC attend de le remplir avant la 1re image). Le
+    // grésillement audio « plusieurs fois/seconde » n'est PAS un manque de débit
+    // (déficit=0, la vidéo tient) mais un artefact du pipeline audio → réglé par
+    // --no-audio-time-stretch, pas par le buffer. avcodec-hw=videotoolbox FORCE
+    // le décodage MATÉRIEL (sinon VLC retombe en soft sur la 2160p).
+    static let networkCachingMs = 2500
     let player = VLCMediaPlayer(options: [
         "--network-caching=\(VLCPlayerModel.networkCachingMs)",
         "--avcodec-hw=videotoolbox",
@@ -41,6 +42,11 @@ final class VLCPlayerModel: NSObject, ObservableObject {
         // des images en réalité décodées à temps (VideoToolbox tient le 1080p).
         "--clock-jitter=0",
         "--no-drop-late-frames",
+        // ANTI-GRÉSILLEMENT AUDIO (plusieurs clics/seconde) : le time-stretch
+        // audio (scaletempo, ON par défaut) ré-étire l'audio en PERMANENCE quand
+        // l'horloge micro-corrige sur un flux SFTP jittery → artefacts continus.
+        // On le désactive : VLC laisse le pitch tel quel au lieu d'artefacter.
+        "--no-audio-time-stretch",
     ])
 
     @Published var isPlaying = false
@@ -352,6 +358,7 @@ extension VLCPlayerModel: VLCMediaPlayerDelegate {
                 plog("VLC ⚠️ fin re-buffering après \(String(format: "%.1f", dur))s (stall #\(stallCount))")
             }
             refreshTracks()
+            plog("🔊 audio: \(audioTracks.count) piste(s) sél=id\(currentAudioID) · sous-titres: \(subtitleTracks.count) — VLC=[caching=\(Self.networkCachingMs)ms, hw=videotoolbox, clock-jitter=0, no-drop-late-frames, no-audio-time-stretch]")
         case .paused:
             isPlaying = false
         case .stopped:
@@ -621,9 +628,9 @@ struct EmbeddedVLCPlayerView: View {
     /// (saccade mesurée), bascule auto vers le téléchargement complet puis lecture
     /// locale (parfaite, seeks instantanés). Le plus robuste : aucun proxy maison.
     private func startStreaming(resume: Double?) {
-        plog("▶︎ STREAMING pur depuis le bridge — moniteur santé ON — url=\(streamURL.absoluteString) resume=\(Int(resume ?? 0))s sizeHint=\(sizeHint / 1_048_576)Mo")
-        model.monitorsStreamHealth = true
-        model.onSustainedUnderrun = { downloadAndPlayLocal() }
+        // MÉTHODE UNIQUE = streaming. Plus de bascule auto vers download (le réseau
+        // tient) ; le bouton « Télécharger pour lire » reste en secours manuel.
+        plog("▶︎ STREAMING (méthode unique) — buffer \(VLCPlayerModel.networkCachingMs)ms — resume=\(Int(resume ?? 0))s sizeHint=\(sizeHint / 1_048_576)Mo url=\(streamURL.absoluteString)")
         model.load(url: streamURL, startAtSeconds: resume)
     }
 
