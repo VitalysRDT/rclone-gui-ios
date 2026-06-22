@@ -71,6 +71,21 @@ final class VLCPlayerModel: NSObject, ObservableObject {
     /// Appelé quand la lecture atteint la fin (pour enchaîner la playlist).
     var onEnded: (() -> Void)?
 
+    // MARK: PiP (VLCKit 4.0)
+    /// True quand VLCKit a fourni le contrôleur de fenêtre PiP → PiP activable.
+    @Published var pipReady = false
+    /// Contrôleur de fenêtre PiP fourni par VLCKit (start/stop/invalidate).
+    private var pipWindow: (any VLCPictureInPictureWindowControlling)?
+
+    func setPiPWindow(_ controller: any VLCPictureInPictureWindowControlling) {
+        pipWindow = controller
+        pipReady = true
+    }
+    func startPiP() { pipWindow?.startPictureInPicture() }
+    func stopPiP() { pipWindow?.stopPictureInPicture() }
+    /// À appeler quand l'état de lecture change pour rafraîchir l'UI PiP.
+    func invalidatePiP() { pipWindow?.invalidatePlaybackState() }
+
     override init() {
         super.init()
         player.delegate = self
@@ -387,10 +402,11 @@ extension VLCPlayerModel: VLCMediaPlayerDelegate {
             isPlaying = false
             plog("VLC ❌ erreur de lecture @\(Int(positionSeconds))s")
         default:
-            // .esAdded et autres : mettre à jour les pistes au cas où.
+            // autres états : mettre à jour les pistes au cas où.
             refreshTracks()
         }
         rate = player.rate
+        invalidatePiP()   // l'UI PiP (play/pause/durée) suit l'état de lecture
     }
 
     func mediaPlayerTimeChanged(_ aNotification: Notification) {
@@ -398,34 +414,96 @@ extension VLCPlayerModel: VLCMediaPlayerDelegate {
     }
 }
 
-// MARK: - Drawable surface
+// MARK: - PiP media controller (VLCKit 4.0)
+
+/// Pont entre le PiP de VLCKit et le VLCMediaPlayer : VLCKit appelle ces méthodes
+/// pour piloter la lecture et afficher l'état dans la mini-fenêtre PiP.
+final class VLCPiPMediaController: NSObject, VLCPictureInPictureMediaControlling {
+    private weak var player: VLCMediaPlayer?
+    init(player: VLCMediaPlayer) { self.player = player; super.init() }
+    func play() { player?.play() }
+    func pause() { player?.pause() }
+    func seek(by offset: Int64, completion: @escaping () -> Void) {
+        if let player {
+            let target = Int64(player.time.intValue) + offset   // offset en ms
+            player.time = VLCTime(int: Int32(clamping: target))
+        }
+        completion()
+    }
+    func mediaLength() -> Int64 { Int64(player?.media?.length.intValue ?? 0) }
+    func mediaTime() -> Int64 { Int64(player?.time.intValue ?? 0) }
+    func isMediaSeekable() -> Bool { player?.isSeekable ?? false }
+    func isMediaPlaying() -> Bool { player?.isPlaying ?? false }
+}
+
+// MARK: - Drawable surface (conforme PiP VLCKit 4.0)
 
 #if canImport(UIKit)
 import UIKit
 
+/// Vue hôte du rendu VLC, conforme à VLCPictureInPictureDrawable → active le PiP
+/// natif de VLCKit 4.0 (VLCKit gère AVPictureInPictureController en interne).
+private final class VLCPiPDrawableUIView: UIView, VLCPictureInPictureDrawable {
+    let pipMediaController: VLCPiPMediaController
+    var onWindowReady: ((any VLCPictureInPictureWindowControlling) -> Void)?
+    init(player: VLCMediaPlayer) {
+        pipMediaController = VLCPiPMediaController(player: player)
+        super.init(frame: .zero)
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) non supporté") }
+    func mediaController() -> (any VLCPictureInPictureMediaControlling)! { pipMediaController }
+    func pictureInPictureReady() -> ((any VLCPictureInPictureWindowControlling)?) -> Void {
+        { [weak self] controller in
+            if let controller { self?.onWindowReady?(controller) }
+        }
+    }
+}
+
 private struct VLCDrawableRepresentable: UIViewRepresentable {
     let model: VLCPlayerModel
-    func makeUIView(context: Context) -> UIView {
-        let view = UIView()
+    func makeUIView(context: Context) -> VLCPiPDrawableUIView {
+        let view = VLCPiPDrawableUIView(player: model.player)
         view.backgroundColor = .black
+        view.onWindowReady = { [weak model] controller in
+            Task { @MainActor in model?.setPiPWindow(controller) }
+        }
         model.attach(to: view)
         return view
     }
-    func updateUIView(_ uiView: UIView, context: Context) {}
+    func updateUIView(_ uiView: VLCPiPDrawableUIView, context: Context) {}
 }
 #elseif canImport(AppKit)
 import AppKit
 
+private final class VLCPiPDrawableNSView: NSView, VLCPictureInPictureDrawable {
+    let pipMediaController: VLCPiPMediaController
+    var onWindowReady: ((any VLCPictureInPictureWindowControlling) -> Void)?
+    init(player: VLCMediaPlayer) {
+        pipMediaController = VLCPiPMediaController(player: player)
+        super.init(frame: .zero)
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) non supporté") }
+    func mediaController() -> (any VLCPictureInPictureMediaControlling)! { pipMediaController }
+    func pictureInPictureReady() -> ((any VLCPictureInPictureWindowControlling)?) -> Void {
+        { [weak self] controller in
+            if let controller { self?.onWindowReady?(controller) }
+        }
+    }
+}
+
 private struct VLCDrawableRepresentable: NSViewRepresentable {
     let model: VLCPlayerModel
-    func makeNSView(context: Context) -> NSView {
-        let view = NSView()
+    func makeNSView(context: Context) -> VLCPiPDrawableNSView {
+        let view = VLCPiPDrawableNSView(player: model.player)
         view.wantsLayer = true
         view.layer?.backgroundColor = NSColor.black.cgColor
+        view.onWindowReady = { [weak model] controller in
+            Task { @MainActor in model?.setPiPWindow(controller) }
+        }
         model.attach(to: view)
         return view
     }
-    func updateNSView(_ nsView: NSView, context: Context) {}
+    func updateNSView(_ nsView: VLCPiPDrawableNSView, context: Context) {}
 }
 #endif
 
@@ -568,6 +646,13 @@ struct EmbeddedVLCPlayerView: View {
         }
         #if os(iOS)
         .statusBarHidden(!showControls)
+        // AUTO-PiP en quittant l'app : quand l'app passe en arrière-plan pendant
+        // une lecture, on démarre le Picture-in-Picture → la VIDÉO continue en
+        // vignette flottante (avant : seul l'audio continuait). C'est la réponse
+        // exacte à « quand on quitte l'app on a l'audio mais pas la vidéo ».
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
+            if model.pipReady, model.isPlaying { model.startPiP() }
+        }
         #endif
     }
 
@@ -721,6 +806,16 @@ struct EmbeddedVLCPlayerView: View {
                 .lineLimit(1)
                 .truncationMode(.middle)
             Spacer()
+            if model.pipReady {
+                Button { model.startPiP() } label: {
+                    Image(systemName: "pip.enter")
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundStyle(.white)
+                        .frame(width: 38, height: 38)
+                        .background(.black.opacity(0.35), in: .circle)
+                }
+                .accessibilityLabel("Picture-in-Picture")
+            }
             trackMenus
         }
         .padding(.horizontal, 14)
