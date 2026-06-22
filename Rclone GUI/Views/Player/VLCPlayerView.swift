@@ -57,13 +57,16 @@ final class VLCPlayerModel: NSObject, ObservableObject {
     @Published var rate: Float = 1.0
 
     struct Track: Identifiable, Hashable {
-        let id: Int32
+        // VLCKit 4.0 : les pistes sont identifiées par un trackId String
+        // (ex. "audio/0"), plus par un index Int32 comme en 3.x.
+        let id: String
         let name: String
     }
     @Published var subtitleTracks: [Track] = []
     @Published var audioTracks: [Track] = []
-    @Published var currentSubtitleID: Int32 = -1
-    @Published var currentAudioID: Int32 = -1
+    /// trackId de la piste sélectionnée, nil = aucune (sous-titres désactivés).
+    @Published var currentSubtitleID: String?
+    @Published var currentAudioID: String?
 
     /// Appelé quand la lecture atteint la fin (pour enchaîner la playlist).
     var onEnded: (() -> Void)?
@@ -139,13 +142,12 @@ final class VLCPlayerModel: NSObject, ObservableObject {
     private func stateName(_ s: VLCMediaPlayerState) -> String {
         switch s {
         case .stopped: return "stopped"
+        case .stopping: return "stopping"
         case .opening: return "opening"
         case .buffering: return "buffering"
-        case .ended: return "ended"
         case .error: return "error"
         case .playing: return "playing"
         case .paused: return "paused"
-        case .esAdded: return "esAdded"
         @unknown default: return "?"
         }
     }
@@ -178,14 +180,21 @@ final class VLCPlayerModel: NSObject, ObservableObject {
         rate = newRate
     }
 
-    func selectSubtitle(id: Int32) {
-        player.currentVideoSubTitleIndex = id
-        currentSubtitleID = id
+    func selectSubtitle(id: String?) {
+        if let id, let track = player.textTracks.first(where: { $0.trackId == id }) {
+            track.isSelectedExclusively = true
+            currentSubtitleID = id
+        } else {
+            player.deselectAllTextTracks()   // id nil = sous-titres désactivés
+            currentSubtitleID = nil
+        }
     }
 
-    func selectAudio(id: Int32) {
-        player.currentAudioTrackIndex = id
-        currentAudioID = id
+    func selectAudio(id: String) {
+        if let track = player.audioTracks.first(where: { $0.trackId == id }) {
+            track.isSelectedExclusively = true
+            currentAudioID = id
+        }
     }
 
     /// Ajoute un sous-titre externe (fichier local) et le sélectionne.
@@ -207,15 +216,15 @@ final class VLCPlayerModel: NSObject, ObservableObject {
     }
 
     private func refreshTracks() {
-        let subIDs = (player.videoSubTitlesIndexes as? [NSNumber])?.map { $0.int32Value } ?? []
-        let subNames = player.videoSubTitlesNames.map { String(describing: $0) }
-        subtitleTracks = zip(subIDs, subNames).map { Track(id: $0.0, name: $0.1) }
-        currentSubtitleID = player.currentVideoSubTitleIndex
+        // VLCKit 4.0 : pistes via player.textTracks / audioTracks (VLCMediaPlayerTrack
+        // avec trackId/trackName/isSelected), au lieu des index 3.x.
+        let subs = player.textTracks
+        subtitleTracks = subs.map { Track(id: $0.trackId, name: $0.trackName) }
+        currentSubtitleID = subs.first(where: { $0.isSelected })?.trackId
 
-        let audIDs = (player.audioTrackIndexes as? [NSNumber])?.map { $0.int32Value } ?? []
-        let audNames = player.audioTrackNames.map { String(describing: $0) }
-        audioTracks = zip(audIDs, audNames).map { Track(id: $0.0, name: $0.1) }
-        currentAudioID = player.currentAudioTrackIndex
+        let auds = player.audioTracks
+        audioTracks = auds.map { Track(id: $0.trackId, name: $0.trackName) }
+        currentAudioID = auds.first(where: { $0.isSelected })?.trackId
     }
 
     private func refreshTime() {
@@ -326,8 +335,9 @@ final class VLCPlayerModel: NSObject, ObservableObject {
 // MARK: VLCMediaPlayerDelegate
 
 extension VLCPlayerModel: VLCMediaPlayerDelegate {
-    func mediaPlayerStateChanged(_ aNotification: Notification) {
-        let state = player.state
+    func mediaPlayerStateChanged(_ newState: VLCMediaPlayerState) {
+        // VLCKit 4.0 : le delegate reçoit l'état directement (avant : une Notification).
+        let state = newState
         plog("VLC état → \(stateName(state)) @\(Int(positionSeconds))s (stalls=\(stallCount), totalStall=\(String(format: "%.1f", totalStallSeconds))s)")
         switch state {
         case .buffering, .opening:
@@ -358,15 +368,19 @@ extension VLCPlayerModel: VLCMediaPlayerDelegate {
                 plog("VLC ⚠️ fin re-buffering après \(String(format: "%.1f", dur))s (stall #\(stallCount))")
             }
             refreshTracks()
-            plog("🔊 audio: \(audioTracks.count) piste(s) sél=id\(currentAudioID) · sous-titres: \(subtitleTracks.count) — VLC=[caching=\(Self.networkCachingMs)ms, hw=videotoolbox, clock-jitter=0, no-drop-late-frames, no-audio-time-stretch]")
+            plog("🔊 audio: \(audioTracks.count) piste(s) sél=\(currentAudioID ?? "-") · sous-titres: \(subtitleTracks.count) — VLC=[caching=\(Self.networkCachingMs)ms, hw=videotoolbox, clock-jitter=0, no-drop-late-frames, no-audio-time-stretch]")
         case .paused:
+            isPlaying = false
+        case .stopping:
             isPlaying = false
         case .stopped:
             isPlaying = false
             plog("VLC ⏹️ stop — bilan : stalls=\(stallCount), tempsBuffering=\(String(format: "%.1f", totalStallSeconds))s")
-        case .ended:
-            isPlaying = false
-            onEnded?()
+            // VLCKit 4.0 n'a plus d'état .ended : fin de média = .stopped en étant
+            // proche de la fin → on enchaîne la playlist.
+            if durationSeconds > 0, positionSeconds >= durationSeconds - 2 {
+                onEnded?()
+            }
         case .error:
             failed = true
             isBuffering = false
@@ -788,19 +802,17 @@ struct EmbeddedVLCPlayerView: View {
             // Sous-titres : sidecar + intégrés.
             Menu {
                 Button {
-                    model.selectSubtitle(id: -1)
+                    model.selectSubtitle(id: nil)
                 } label: {
-                    Label("Désactivés", systemImage: model.currentSubtitleID == -1 ? "checkmark" : "")
+                    Label("Désactivés", systemImage: model.currentSubtitleID == nil ? "checkmark" : "")
                 }
                 if !model.subtitleTracks.isEmpty {
                     Section("Pistes intégrées") {
                         ForEach(model.subtitleTracks) { track in
-                            if track.id != -1 {
-                                Button {
-                                    model.selectSubtitle(id: track.id)
-                                } label: {
-                                    Label(track.name, systemImage: model.currentSubtitleID == track.id ? "checkmark" : "")
-                                }
+                            Button {
+                                model.selectSubtitle(id: track.id)
+                            } label: {
+                                Label(track.name, systemImage: model.currentSubtitleID == track.id ? "checkmark" : "")
                             }
                         }
                     }
@@ -819,7 +831,7 @@ struct EmbeddedVLCPlayerView: View {
             } label: {
                 Image(systemName: "captions.bubble")
                     .font(.system(size: 17, weight: .medium))
-                    .foregroundStyle(model.currentSubtitleID != -1 ? Color.accentColor : .white)
+                    .foregroundStyle(model.currentSubtitleID != nil ? Color.accentColor : .white)
                     .frame(width: 38, height: 38)
                     .background(.black.opacity(0.35), in: .circle)
             }
