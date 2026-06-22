@@ -3492,21 +3492,27 @@ const VERSIONS = [{
   v: '1.9',
   current: true,
   date: {
-    fr: 'Juillet 2026',
-    en: 'July 2026'
+    fr: 'Juin 2026',
+    en: 'June 2026'
   },
   items: [{
+    fr: 'Lecteur vidéo refondu : ouverture plus rapide et lecture bien plus robuste des fichiers 4K MKV/HEVC (nouveau moteur VLCKit 4), audio sans grésillement et meilleure sélection des pistes audio et des sous-titres.',
+    en: 'Rebuilt video player: faster startup and far more robust playback of 4K MKV/HEVC files (new VLCKit 4 engine), crackle-free audio, and better audio-track and subtitle selection.'
+  }, {
+    fr: 'Picture-in-Picture vidéo : l\'image continue dans une fenêtre flottante quand vous quittez l\'app — avant, seul le son se poursuivait.',
+    en: 'Picture-in-Picture for video: the picture keeps playing in a floating window when you leave the app — previously only the sound continued.'
+  }, {
+    fr: '« Ouvrir dans une autre app » fiabilisé (Infuse, VLC, nPlayer…) : le fichier est d\'abord téléchargé puis transmis via le partage iOS, fini l\'erreur d\'ouverture du flux.',
+    en: 'More reliable "Open in another app" (Infuse, VLC, nPlayer…): the file is downloaded first, then handed off via the iOS share sheet — no more stream-opening errors.'
+  }, {
     fr: 'Audio en arrière-plan : la musique, les podcasts et les livres audio continuent quand l\'app passe en fond ou que l\'écran se verrouille, avec les contrôles sur l\'écran verrouillé.',
     en: 'Background audio: music, podcasts and audiobooks keep playing when the app goes to the background or the screen locks, with lock-screen controls.'
   }, {
-    fr: 'Mini-lecteur audio persistant : une barre « en cours de lecture » avec pochette reste visible pendant que vous naviguez ; tapez-la pour le lecteur plein écran (grande pochette, scrubber, file de lecture).',
+    fr: 'Mini-lecteur audio persistant : une barre « en cours de lecture » avec pochette reste visible pendant que vous naviguez ; touchez-la pour le lecteur plein écran (grande pochette, barre de progression, file de lecture).',
     en: 'Persistent audio mini-player: a "now playing" bar with artwork stays visible while you browse; tap it for the full-screen player (large artwork, scrubber, play queue).'
   }, {
     fr: 'Visionneuse photo : ouvrez une image en plein écran et faites défiler vos photos d\'un glissement, avec zoom (pincer / double-tap) et partage.',
     en: 'Photo viewer: open an image full-screen and swipe through your photos, with pinch / double-tap zoom and sharing.'
-  }, {
-    fr: 'Picture-in-Picture amélioré pour la vidéo : fenêtre flottante quand vous quittez l\'app, proposé pour toutes les vidéos.',
-    en: 'Improved Picture-in-Picture for video: floating window when you leave the app, offered for every video.'
   }, {
     fr: 'Flows & automatisations : lancez la synchro photo, sauvegardez un dossier ou mettez les transferts en pause/reprise depuis Raccourcis et Siri — 100 % en local.',
     en: 'Flows & automations: run photo sync, back up a folder, or pause/resume transfers from Shortcuts and Siri — fully on-device.'
@@ -3514,8 +3520,8 @@ const VERSIONS = [{
     fr: 'Nouveaux réglages de lecture : audio en arrière-plan, PiP automatique et vitesse de lecture par défaut.',
     en: 'New playback settings: background audio, automatic PiP and default playback speed.'
   }, {
-    fr: 'Stabilité et finitions.',
-    en: 'Stability and polish.'
+    fr: 'Performances : application nettement plus fluide — moins de gels, navigation, vignettes et transferts optimisés.',
+    en: 'Performance: a noticeably smoother app — fewer freezes, with optimized browsing, thumbnails and transfers.'
   }]
 }, {
   v: '1.8',
