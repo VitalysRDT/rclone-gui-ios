@@ -5,7 +5,6 @@
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>
-		<string>picture-in-picture</string>
 		<string>remote-notification</string>
 		<string>fetch</string>
 		<string>processing</string>
