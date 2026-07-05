@@ -243,20 +243,41 @@ public actor RcloneCore {
 
     private func ensureInit() async throws {
         guard !initialized else { return }
-        // Resolve the imported rclone.conf path. ConfigStore decrypts the
-        // ChaChaPoly envelope and writes a plaintext copy to Caches/.
+        // Resolve the config path used to boot librclone.
+        //
+        // • Config déjà importée → ConfigStore déchiffre l'enveloppe ChaChaPoly
+        //   et écrit une copie en clair dans Caches/.
+        // • AUCUNE config importée → on démarre le moteur sur une config VIDE
+        //   au lieu d'abandonner. Sinon un premier lancement est un blocage
+        //   œuf-et-poule : le catalogue STATIQUE `config/providers` et la
+        //   création du tout premier remote (config/create écrit dans ce
+        //   fichier runtime) exigent un moteur initialisé, alors même que le
+        //   seul moyen de créer un remote EST le wizard. Le remote créé est
+        //   ensuite re-chiffré dans le store (persistRuntimeConfigToStore),
+        //   ce qui crée le store pour la première fois.
+        //
+        // Une config chiffrée nativement par rclone (RCLONE_ENCRYPT_V0) lève
+        // toujours (configPasswordRequired) pour réclamer le mot de passe : elle
+        // ne doit surtout pas démarrer silencieusement « vide ».
         let confPath: String
-        do {
-            let confURL = try await ConfigStore.shared.writeDecryptedToTempFile()
-            confPath = confURL.path
-        } catch {
+        if await ConfigStore.shared.hasStoredConf() {
+            do {
+                let confURL = try await ConfigStore.shared.writeDecryptedToTempFile()
+                confPath = confURL.path
+            } catch {
+                await LogService.shared.log(
+                    .error,
+                    category: "engine",
+                    message: "ConfigStore.writeDecryptedToTempFile a échoué : \(error.localizedDescription)"
+                )
+                throw error
+            }
+        } else {
+            confPath = try Self.emptyRuntimeConfigPath()
             await LogService.shared.log(
-                .error,
+                .info,
                 category: "engine",
-                message: "ConfigStore.writeDecryptedToTempFile a échoué : \(error.localizedDescription)"
-            )
-            throw RcloneError.engineNotAvailable(
-                String(localized: "Aucune configuration rclone importée. Importe d'abord depuis Réglages.")
+                message: "Aucune config importée — moteur démarré sur une config vide (catalogue + création du 1er remote possibles)"
             )
         }
         // RCLONE_CONFIG is intentionally set even though rclone v1.68 does
@@ -299,6 +320,25 @@ public actor RcloneCore {
                 message: "config/listremotes : \(listRaw.prefix(400))"
             )
         }
+    }
+
+    /// Chemin d'un rclone.conf VIDE dans Caches/, créé s'il est absent. Sert à
+    /// démarrer le moteur avant tout import de configuration, pour que le
+    /// catalogue statique (`config/providers`) et la création du premier remote
+    /// fonctionnent. Ne clobbe jamais un fichier runtime existant (il peut déjà
+    /// contenir un remote créé plus tôt dans la session).
+    private static func emptyRuntimeConfigPath() throws -> String {
+        let caches = try FileManager.default.url(
+            for: .cachesDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: true
+        )
+        let confURL = caches.appending(path: "rclone.conf")
+        if !FileManager.default.fileExists(atPath: confURL.path) {
+            try Data().write(to: confURL, options: [.atomic, .completeFileProtection])
+        }
+        return confURL.path
     }
 
     /// Returns the engine's diagnostic JSON. Surfaced in Settings → Diagnostic
