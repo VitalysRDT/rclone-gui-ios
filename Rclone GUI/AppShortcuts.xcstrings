@@ -120,6 +120,64 @@
         }
       }
     },
+    "Mettre en pause les transferts ${applicationName}" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "de" : {
+          "stringSet" : {
+            "state" : "machine_translated",
+            "values" : [
+              "Übertragungen in ${applicationName} pausieren",
+              "${applicationName} Übertragungen pausieren"
+            ]
+          }
+        },
+        "es" : {
+          "stringSet" : {
+            "state" : "machine_translated",
+            "values" : [
+              "Pausar las transferencias en ${applicationName}",
+              "Pausar transferencias de ${applicationName}"
+            ]
+          }
+        },
+        "fr" : {
+          "stringSet" : {
+            "state" : "new",
+            "values" : [
+              "Mettre en pause les transferts ${applicationName}"
+            ]
+          }
+        },
+        "ja" : {
+          "stringSet" : {
+            "state" : "machine_translated",
+            "values" : [
+              "${applicationName}で転送を一時停止",
+              "${applicationName}の転送を一時停止"
+            ]
+          }
+        },
+        "pt-BR" : {
+          "stringSet" : {
+            "state" : "machine_translated",
+            "values" : [
+              "Pausar as transferências no ${applicationName}",
+              "Pausar transferências do ${applicationName}"
+            ]
+          }
+        },
+        "zh-Hans" : {
+          "stringSet" : {
+            "state" : "machine_translated",
+            "values" : [
+              "暂停${applicationName}的传输",
+              "在${applicationName}中暂停传输"
+            ]
+          }
+        }
+      }
+    },
     "Ouvrir un remote ${applicationName}" : {
       "extractionState" : "extracted_with_value",
       "localizations" : {
@@ -222,6 +280,123 @@
             "state" : "machine_translated",
             "values" : [
               "開啟 ${applicationName} 遠端"
+            ]
+          }
+        }
+      }
+    },
+    "Reprendre les transferts ${applicationName}" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "de" : {
+          "stringSet" : {
+            "state" : "machine_translated",
+            "values" : [
+              "Übertragungen in ${applicationName} fortsetzen",
+              "${applicationName} Übertragungen fortsetzen"
+            ]
+          }
+        },
+        "es" : {
+          "stringSet" : {
+            "state" : "machine_translated",
+            "values" : [
+              "Reanudar las transferencias en ${applicationName}",
+              "Reanudar transferencias de ${applicationName}"
+            ]
+          }
+        },
+        "fr" : {
+          "stringSet" : {
+            "state" : "new",
+            "values" : [
+              "Reprendre les transferts ${applicationName}"
+            ]
+          }
+        },
+        "ja" : {
+          "stringSet" : {
+            "state" : "machine_translated",
+            "values" : [
+              "${applicationName}で転送を再開",
+              "${applicationName}の転送を再開"
+            ]
+          }
+        },
+        "pt-BR" : {
+          "stringSet" : {
+            "state" : "machine_translated",
+            "values" : [
+              "Retomar as transferências no ${applicationName}",
+              "Retomar transferências do ${applicationName}"
+            ]
+          }
+        },
+        "zh-Hans" : {
+          "stringSet" : {
+            "state" : "machine_translated",
+            "values" : [
+              "恢复${applicationName}的传输",
+              "在${applicationName}中恢复传输"
+            ]
+          }
+        }
+      }
+    },
+    "Sauvegarder mes photos avec ${applicationName}" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "de" : {
+          "stringSet" : {
+            "state" : "machine_translated",
+            "values" : [
+              "Meine Fotos mit ${applicationName} sichern",
+              "Fotosicherung in ${applicationName} starten"
+            ]
+          }
+        },
+        "es" : {
+          "stringSet" : {
+            "state" : "machine_translated",
+            "values" : [
+              "Respaldar mis fotos con ${applicationName}",
+              "Iniciar la copia de seguridad de fotos en ${applicationName}"
+            ]
+          }
+        },
+        "fr" : {
+          "stringSet" : {
+            "state" : "new",
+            "values" : [
+              "Sauvegarder mes photos avec ${applicationName}",
+              "Lancer la sauvegarde photos ${applicationName}"
+            ]
+          }
+        },
+        "ja" : {
+          "stringSet" : {
+            "state" : "machine_translated",
+            "values" : [
+              "${applicationName}で写真をバックアップ",
+              "${applicationName}で写真のバックアップを開始"
+            ]
+          }
+        },
+        "pt-BR" : {
+          "stringSet" : {
+            "state" : "machine_translated",
+            "values" : [
+              "Fazer backup das minhas fotos com o ${applicationName}",
+              "Iniciar o backup de fotos no ${applicationName}"
+            ]
+          }
+        },
+        "zh-Hans" : {
+          "stringSet" : {
+            "state" : "machine_translated",
+            "values" : [
+              "用${applicationName}备份我的照片",
+              "在${applicationName}中开始照片备份"
             ]
           }
         }
