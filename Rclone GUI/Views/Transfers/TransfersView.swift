@@ -987,9 +987,9 @@ private struct TransferOverviewCard: View {
 
     private var metaText: String {
         let parts = [
-            "\(activeCount) actif\(activeCount > 1 ? "s" : "")",
-            "\(completedCount) terminé\(completedCount > 1 ? "s" : "")",
-            "\(failedCount) échec\(failedCount > 1 ? "s" : "")",
+            String(localized: "\(activeCount) actif\(activeCount > 1 ? "s" : "")"),
+            String(localized: "\(completedCount) terminé\(completedCount > 1 ? "s" : "")"),
+            String(localized: "\(failedCount) échec\(failedCount > 1 ? "s" : "")"),
         ]
         return parts.joined(separator: " · ")
     }
