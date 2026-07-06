@@ -1,0 +1,1 @@
+S3、Drive、Dropbox、Filen、Internxt、Drime、Storjなど70以上のクラウドに対応。iOSの「ファイル」App内でエンドツーエンド暗号化、PhotoSyncとオフラインストリーミングにも対応。

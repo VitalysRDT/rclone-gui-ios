@@ -1,0 +1,1 @@
+支持 S3、Drive、Dropbox、Filen、Internxt、Drime、Storj 等 70+ 云盘 — 在 iOS「文件」App 内端到端加密，支持 PhotoSync 照片同步与离线流媒体播放。
