@@ -1,0 +1,49 @@
+Rclone GUI ist ein nativer, quelloffener iOS-Client für rclone, das Referenztool zur Verwaltung deiner privaten Cloud-Speicher. Verbinde Amazon S3, Backblaze B2, Cloudflare R2, Storj, Wasabi, Dropbox, Google Drive, Microsoft OneDrive, pCloud, Mega, Box, Filen, Internxt, Drime, SFTP, WebDAV und über 70 weitere Dienste direkt von deinem iPhone aus, ohne Vermittler.
+
+PREMIUM-ABONNEMENT ERFORDERLICH
+Alle Funktionen von Rclone GUI (Remote-Verwaltung, Übertragungen, „Dateien"-Integration, PhotoSync, Crypt-Entschlüsselung, Streaming usw.) erfordern ein Premium-Abonnement.
+
+• 7 Tage kostenlos testen, danach 1,99 €/Monat oder 19,99 €/Jahr
+• Automatische Verlängerung, jederzeit kündbar unter Einstellungen → Apple-ID → Abonnements
+• Keine Funktion nutzbar ohne aktives Abonnement (abgesehen vom Onboarding)
+
+CRYPT-FIRST-VERSCHLÜSSELUNG (Premium)
+Die gesamte Oberfläche ist um die rclone-Verschlüsselung „crypt" herum aufgebaut: Deine verschlüsselten Remotes werden durch ein violettes Schloss-Symbol gekennzeichnet, Dateinamen werden in Echtzeit entschlüsselt, sodass du die echte Ordnerstruktur siehst, und Inhalte werden während der Wiedergabe entschlüsselt, ohne jemals unverschlüsselt über einen Drittanbieter-Server zu laufen. Das kryptografische Herzstück ist NaCl secretbox (XSalsa20-Poly1305), das lokal von rclone ausgeführt wird.
+
+INTEGRATION MIT DER „DATEIEN"-APP UNTER IOS (Premium)
+Eine File-Provider-Erweiterung stellt alle deine Remotes in Apples „Dateien"-App bereit, einschließlich Crypt-Remotes. Du kannst PDFs direkt aus „Dateien" öffnen, Dokumente per Drag & Drop zwischen Apps verschieben und deine Videos und Musik streamen, ohne sie vollständig herunterzuladen.
+
+INTELLIGENTE FOTO-SYNCHRONISATION (Premium)
+Synchronisiere deine neuen Fotos und Videos automatisch mit der Cloud deiner Wahl. Adaptives Throttling bei App-Nutzung, Ausführung im Hintergrund, sauberes Fortsetzen nach Netzwerkunterbrechungen.
+
+GEFÜHRTER EINRICHTUNGSASSISTENT (Premium)
+Ein Schritt-für-Schritt-Assistent deckt alle rclone-Backends ab: auf jeden Remote-Typ zugeschnittene Felder, Tutorials für OAuth (Drive, OneDrive, Dropbox), sofortige Validierung. Anleitungen zum Thema „Wo bekomme ich meine Zugangsdaten" und ein Remote-Auswahlmenü (für Crypt-Tresore, Alias, Union …) vereinfachen die Konfiguration zusätzlich. Importiere außerdem deine bestehende rclone.conf mit einem Klick, inklusive automatischer Migration der Geheimnisse in den iOS-Schlüsselbund.
+
+FÜR DEINE PRIVATSPHÄRE ENTWICKELT
+- Keine Analytics, keine Tracker, keine SDKs von Drittanbietern
+- Kein Backend-Server: Die App kommuniziert direkt mit deinen Cloud-Diensten
+- Face ID / Touch ID zum Sperren der Konfiguration
+- Konfiguration im Ruhezustand verschlüsselt (ChaCha20-Poly1305 + iOS-Schlüsselbund)
+- OAuth-Zugangsdaten im iOS-Schlüsselbund, niemals in UserDefaults
+- Strenges ATS, keine Netzwerkausnahmen
+
+FUNKTIONEN (alle im Premium-Abonnement enthalten)
+- Über 70 unterstützte rclone-Backends
+- Parallele Übertragungen, Pause, Fortsetzen, Warteschlange
+- Adaptives Bandbreiten-Throttling (Mobilfunk / WLAN)
+- Video- und Audio-Streaming mit Range Requests
+- Integrierte QuickLook-Vorschau
+- Suche, Sortierung und Filter in Ordnern
+- Detaillierte Übertragungsstatistiken
+- Lokale, exportierbare Logs für die Fehlerbehebung
+
+ABONNEMENTBEDINGUNGEN
+Das Rclone GUI Premium-Abonnement verlängert sich am Ende jedes Zeitraums automatisch (1,99 €/Monat oder 19,99 €/Jahr). Die Verlängerung wird innerhalb von 24 Stunden vor Ablauf über deine Apple-ID abgerechnet. Du kannst dein Abonnement jederzeit verwalten und die automatische Verlängerung deaktivieren, unter Einstellungen → Apple-ID → Abonnements.
+
+Nutzungsbedingungen: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+Datenschutzerklärung: https://vitalysrdt.github.io/rclone-gui-ios/privacy.html
+
+OPEN SOURCE
+Rclone GUI ist vollständig quelloffen: https://github.com/VitalysRDT/rclone-gui-ios
+
+Die App ist nicht mit Apple, Google, Amazon, Microsoft, Dropbox oder anderen Cloud-Anbietern verbunden. „rclone" ist eine Marke von Nick Craig-Wood (Autor von rclone).

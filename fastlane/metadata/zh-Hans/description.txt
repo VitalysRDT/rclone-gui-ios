@@ -1,0 +1,49 @@
+Rclone GUI 是一款原生开源的 iOS 客户端，基于 rclone 打造——管理个人云存储的首选工具。通过 iPhone 直接连接 Amazon S3、Backblaze B2、Cloudflare R2、Storj、Wasabi、Dropbox、Google Drive、Microsoft OneDrive、pCloud、Mega、Box、Filen、Internxt、Drime、SFTP、WebDAV 以及其他 70 多种服务，无需任何中间环节。
+
+需要 Premium 订阅
+Rclone GUI 的所有功能（远程管理、文件传输、"文件"应用集成、PhotoSync 照片同步、crypt 解密、流媒体播放等）均需要 Premium 订阅。
+
+• 7 天免费试用，之后 1.99欧元/月 或 19.99欧元/年
+• 自动续订，可随时在"设置 → Apple ID → 订阅"中取消
+• 若无有效订阅，除引导流程外，无法使用任何功能
+
+CRYPT 优先加密（Premium）
+整个界面围绕 rclone 的 "crypt" 加密功能设计：已加密的远程会用紫色锁形图标标识，文件名会被实时解密，让你看到真实的目录结构，内容则在播放/读取时即时解密，绝不会以明文形式经过任何第三方服务器。加密核心基于 NaCl secretbox（XSalsa20-Poly1305），完全在本地由 rclone 执行。
+
+iOS "文件" App 集成（Premium）
+一个 File Provider 扩展会将你的所有远程（包括 crypt 加密远程）展示在 Apple 的"文件"应用中。你可以直接从"文件"打开 PDF，在不同应用间拖放文档，还可以在不完整下载的情况下流式播放视频和音乐。
+
+智能照片同步（Premium）
+自动将新拍摄的照片和视频同步到你选择的云端。使用 App 时会自适应限速，支持后台执行，网络中断后可干净地恢复同步。
+
+引导式添加助手（Premium）
+循序渐进的向导涵盖所有 rclone 后端：针对每种远程类型显示合适的字段，提供 OAuth 授权教程（Drive、OneDrive、Dropbox），并进行即时校验。"在哪里获取凭据"说明卡片，以及远程选择器（适用于 crypt 加密库、alias、union 等），让配置过程更加简单。你还可以一键导入现有的 rclone.conf 文件，密钥会自动迁移到 iOS 钥匙串（Keychain）中。
+
+为隐私而设计
+- 无分析统计，无跟踪器，无第三方 SDK
+- 没有后端服务器：App 直接与你的云服务通信
+- 使用 Face ID / Touch ID 锁定配置
+- 静态配置数据加密存储（ChaCha20-Poly1305 + iOS 钥匙串）
+- OAuth 凭据存储在 iOS 钥匙串中，绝不写入 UserDefaults
+- 严格的 ATS（应用传输安全），无任何网络例外
+
+功能特性（均包含在 Premium 订阅中）
+- 支持 70 多种 rclone 后端
+- 并行传输、暂停、续传、任务队列
+- 自适应带宽限速（蜂窝网络 / Wi-Fi）
+- 支持 range 请求的视频和音频流媒体播放
+- 内置 QuickLook 预览
+- 文件夹内搜索、排序与筛选
+- 详细的传输统计信息
+- 可导出的本地调试日志
+
+订阅条款
+Rclone GUI Premium 订阅会在每个订阅周期结束时自动续订（1.99欧元/月 或 19.99欧元/年）。续订费用将在到期前 24 小时内从你的 Apple ID 账户扣款。你可以随时在"设置 → Apple ID → 订阅"中管理订阅并关闭自动续订。
+
+使用条款：https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+隐私政策：https://vitalysrdt.github.io/rclone-gui-ios/privacy.html
+
+开源
+Rclone GUI 完全开源：https://github.com/VitalysRDT/rclone-gui-ios
+
+本应用与 Apple、Google、Amazon、Microsoft、Dropbox 及其他云服务提供商均无关联。"rclone" 是 Nick Craig-Wood（rclone 作者）的商标。

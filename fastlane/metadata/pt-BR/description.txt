@@ -1,0 +1,49 @@
+Rclone GUI é um cliente iOS nativo e de código aberto para o rclone, a ferramenta de referência para gerenciar seus armazenamentos em nuvem pessoais. Conecte Amazon S3, Backblaze B2, Cloudflare R2, Storj, Wasabi, Dropbox, Google Drive, Microsoft OneDrive, pCloud, Mega, Box, Filen, Internxt, Drime, SFTP, WebDAV e mais de 70 outros serviços direto do seu iPhone, sem intermediários.
+
+ASSINATURA PREMIUM NECESSÁRIA
+Todos os recursos do Rclone GUI (gerenciamento de remotes, transferências, integração com o Arquivos, PhotoSync, descriptografia crypt, streaming etc.) exigem uma assinatura Premium.
+
+• Teste grátis de 7 dias, depois €1,99/mês ou €19,99/ano
+• Renovação automática, cancelável a qualquer momento em Ajustes → ID Apple → Assinaturas
+• Nenhum recurso disponível sem uma assinatura ativa (além do onboarding)
+
+CRIPTOGRAFIA CRYPT-FIRST (Premium)
+Toda a interface foi projetada em torno da criptografia "crypt" do rclone: seus remotes criptografados são identificados por um cadeado roxo, os nomes dos arquivos são descriptografados na hora para que você veja a árvore de pastas real, e o conteúdo é descriptografado durante a reprodução sem nunca trafegar em texto claro por um servidor terceiro. O núcleo criptográfico se baseia no NaCl secretbox (XSalsa20-Poly1305), executado localmente pelo rclone.
+
+INTEGRAÇÃO COM O APP ARQUIVOS DO IOS (Premium)
+Uma extensão File Provider expõe todos os seus remotes no app Arquivos da Apple, incluindo os remotes crypt. Você pode abrir um PDF diretamente pelo Arquivos, arrastar e soltar documentos entre apps, e fazer streaming dos seus vídeos e músicas sem precisar baixar o arquivo inteiro.
+
+SINCRONIZAÇÃO INTELIGENTE DE FOTOS (Premium)
+Sincronize automaticamente suas novas fotos e vídeos para a nuvem que você escolher. Throttle adaptativo enquanto você usa o app, execução em segundo plano, retomada tranquila após uma queda de conexão.
+
+ASSISTENTE DE CONFIGURAÇÃO GUIADA (Premium)
+Um assistente passo a passo cobre todos os backends do rclone: campos adaptados a cada tipo de remote, tutoriais para os OAuth (Drive, OneDrive, Dropbox), validação imediata. Guias de "onde conseguir suas credenciais" e um seletor de remote (para cofres crypt, alias, union...) facilitam ainda mais a configuração. Importe também o seu rclone.conf existente com um único toque, com migração automática dos segredos para o Chaveiro do iOS.
+
+PROJETADO PARA SUA PRIVACIDADE
+- Nenhuma análise de dados, nenhum rastreador, nenhum SDK de terceiros
+- Nenhum servidor backend: o app se comunica diretamente com os seus serviços de nuvem
+- Face ID / Touch ID para bloquear a configuração
+- Configuração criptografada em repouso (ChaCha20-Poly1305 + Chaveiro do iOS)
+- Credenciais OAuth no Chaveiro do iOS, nunca no UserDefaults
+- ATS estrito, nenhuma exceção de rede
+
+RECURSOS (todos incluídos na assinatura Premium)
+- Mais de 70 backends do rclone compatíveis
+- Transferências em paralelo, pausa, retomada, fila de espera
+- Throttling de banda adaptativo (dados móveis / Wi-Fi)
+- Streaming de vídeo e áudio com range requests
+- Pré-visualização QuickLook integrada
+- Busca, ordenação e filtros nas pastas
+- Estatísticas detalhadas de transferência
+- Logs locais exportáveis para depuração
+
+TERMOS DA ASSINATURA
+A assinatura Rclone GUI Premium é renovada automaticamente ao final de cada período (€1,99/mês ou €19,99/ano). A renovação é cobrada no seu ID Apple nas 24 horas anteriores ao vencimento. Você pode gerenciar sua assinatura e desativar a renovação automática a qualquer momento em Ajustes → ID Apple → Assinaturas.
+
+Termos de Uso: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+Política de Privacidade: https://vitalysrdt.github.io/rclone-gui-ios/privacy.html
+
+OPEN SOURCE
+Rclone GUI é totalmente open source: https://github.com/VitalysRDT/rclone-gui-ios
+
+O aplicativo não é afiliado à Apple, Google, Amazon, Microsoft, Dropbox nem aos demais provedores de nuvem. "rclone" é uma marca registrada de Nick Craig-Wood (autor do rclone).
