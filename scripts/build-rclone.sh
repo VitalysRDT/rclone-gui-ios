@@ -16,17 +16,24 @@
 #   - gomobile      (auto-installed if missing)
 #
 # Output:
-#   Frameworks/RcloneKit.xcframework  (two slices: ios-arm64 + macos-arm64)
+#   Frameworks/RcloneKit.xcframework  (ios-arm64 + macos-arm64 by default)
+#   Set BUILD_IOS_SIMULATOR=1 to add an ios-arm64-simulator slice too (needed to
+#   run the app in the iOS Simulator, e.g. for App Store screenshot automation).
+#   Off by default so Xcode Cloud archive builds (device/mac only) stay as fast
+#   as before.
 #
 # After running:
 #   1. Open "Rclone GUI.xcodeproj" in Xcode
 #   2. Drag Frameworks/RcloneKit.xcframework into the project navigator
 #   3. Target "Rclone GUI" → General → Frameworks, Libraries, and Embedded Content
 #      → ensure RcloneKit.xcframework is set to "Embed & Sign"
-#   4. Build (⌘B) for an iPhone AND for "My Mac". If RcloneCore.shared.version()
-#      returns a non-mock string on both, the binding is wired correctly.
+#   4. Build (⌘B) for an iPhone AND for "My Mac" (+ an iOS Simulator if built
+#      with BUILD_IOS_SIMULATOR=1). If RcloneCore.shared.version() returns a
+#      non-mock string on each, the binding is wired correctly.
 
 set -euo pipefail
+
+BUILD_IOS_SIMULATOR="${BUILD_IOS_SIMULATOR:-0}"
 
 # Drime / Internxt / Filen / Shade landed in rclone v1.73.0 (2026-01-30).
 # Default to the latest stable (v1.74.3) so they ship; override with an arg
@@ -282,8 +289,12 @@ wrap_slice() {
     # blamed on UIRequiredDeviceCapabilities) even though the binary's real
     # LC_BUILD_VERSION minos is correct. Force the framework's declared minimum
     # OS to match the slice's actual deployment target.
+    #
+    # target_triple may carry a trailing "-simulator" ABI suffix (e.g.
+    # "arm64-apple-ios17.0-simulator") — strip it so osver is a plain version
+    # number, not "17.0-simulator".
     local osver fw_plist
-    osver=$(printf '%s' "$target_triple" | sed -E 's/^.*-(ios|macos)//')
+    osver=$(printf '%s' "$target_triple" | sed -E 's/^.*-(ios|macos)//; s/-simulator$//')
     fw_plist=$(find "$framework_dir" -type f -name Info.plist | head -1)
     if [ -n "$fw_plist" ] && [ -n "$osver" ]; then
         if [ "$sdk" = "macosx" ]; then
@@ -320,6 +331,17 @@ gomobile bind \
     -tags="rclone_no_serve_dlna" \
     .
 
+if [ "$BUILD_IOS_SIMULATOR" = "1" ]; then
+    echo ""
+    echo "Running 'gomobile bind' for iossimulator/arm64 (5–15 min cold, 2–5 min warm)..."
+    echo ""
+    gomobile bind \
+        -target=iossimulator/arm64 \
+        -o "$STAGE_DIR/iossimulator/RcloneKit.xcframework" \
+        -tags="rclone_no_serve_dlna" \
+        .
+fi
+
 echo ""
 echo "Running 'gomobile bind' for macos/arm64 (5–15 min cold, 2–5 min warm)..."
 echo ""
@@ -339,8 +361,23 @@ MAC_FRAMEWORK=$(find "$STAGE_DIR/macos" -type d -name RcloneKit.framework | head
 IOS_DSYM="$STAGE_DIR/ios/RcloneKit.framework.dSYM"
 MAC_DSYM="$STAGE_DIR/macos/RcloneKit.framework.dSYM"
 
-wrap_slice "$IOS_FRAMEWORK" iphoneos "arm64-apple-ios${IOS_MIN}"     "$IOS_DSYM"
-wrap_slice "$MAC_FRAMEWORK" macosx   "arm64-apple-macos${MAC_MIN}"   "$MAC_DSYM"
+wrap_slice "$IOS_FRAMEWORK" iphoneos "arm64-apple-ios${IOS_MIN}"   "$IOS_DSYM"
+wrap_slice "$MAC_FRAMEWORK" macosx   "arm64-apple-macos${MAC_MIN}" "$MAC_DSYM"
+
+XCFRAMEWORK_ARGS=(
+    -framework "$IOS_FRAMEWORK" -debug-symbols "$IOS_DSYM"
+    -framework "$MAC_FRAMEWORK" -debug-symbols "$MAC_DSYM"
+)
+SLICE_DESC="ios-arm64 + macos-arm64"
+
+if [ "$BUILD_IOS_SIMULATOR" = "1" ]; then
+    SIM_FRAMEWORK=$(find "$STAGE_DIR/iossimulator" -type d -name RcloneKit.framework | head -1)
+    [ -d "$SIM_FRAMEWORK" ] || { echo "ERROR: iOS Simulator framework not produced by gomobile"; exit 1; }
+    SIM_DSYM="$STAGE_DIR/iossimulator/RcloneKit.framework.dSYM"
+    wrap_slice "$SIM_FRAMEWORK" iphonesimulator "arm64-apple-ios${IOS_MIN}-simulator" "$SIM_DSYM"
+    XCFRAMEWORK_ARGS+=(-framework "$SIM_FRAMEWORK" -debug-symbols "$SIM_DSYM")
+    SLICE_DESC="ios-arm64 + ios-arm64-simulator + macos-arm64"
+fi
 
 # --- Assemble the multi-slice xcframework ------------------------------------
 #
@@ -348,11 +385,8 @@ wrap_slice "$MAC_FRAMEWORK" macosx   "arm64-apple-macos${MAC_MIN}"   "$MAC_DSYM"
 # entry per slice) and wires DebugSymbolsPath for each via -debug-symbols, so we
 # no longer hand-patch the plist. The previous output is removed above.
 echo ""
-echo "Assembling 2-slice xcframework (ios-arm64 + macos-arm64)..."
-xcodebuild -create-xcframework \
-    -framework "$IOS_FRAMEWORK" -debug-symbols "$IOS_DSYM" \
-    -framework "$MAC_FRAMEWORK" -debug-symbols "$MAC_DSYM" \
-    -output "$XCFRAMEWORK"
+echo "Assembling xcframework ($SLICE_DESC)..."
+xcodebuild -create-xcframework "${XCFRAMEWORK_ARGS[@]}" -output "$XCFRAMEWORK"
 
 # --- Report ------------------------------------------------------------------
 
@@ -372,6 +406,7 @@ echo "Next:"
 echo "  1. Open Rclone GUI.xcodeproj in Xcode"
 echo "  2. Drag $XCFRAMEWORK into the project navigator (if not already referenced)"
 echo "  3. Target 'Rclone GUI' → Frameworks, Libraries, and Embedded Content → Embed & Sign"
-echo "  4. Build (⌘B) for an iPhone AND for 'My Mac'; verify RcloneCore.shared.version()"
-echo "     returns a real version string on both."
+echo "  4. Build (⌘B) for an iPhone AND for 'My Mac' (+ an iOS Simulator if built"
+echo "     with BUILD_IOS_SIMULATOR=1); verify RcloneCore.shared.version() returns"
+echo "     a real version string on each."
 echo ""
