@@ -1,10 +1,2 @@
-Novedades de la versión 1.9:
-- Reproductor de vídeo rediseñado: inicio más rápido y reproducción mucho más robusta de archivos 4K MKV/HEVC (nuevo motor VLCKit 4), audio sin chasquidos y mejor selección de pistas de audio y subtítulos.
-- Picture-in-Picture para vídeo: la imagen sigue reproduciéndose en una ventana flotante al salir de la app; antes solo continuaba el sonido.
-- "Abrir en otra app" más fiable (Infuse, VLC, nPlayer…): el archivo se descarga primero y luego se comparte mediante la hoja de compartir de iOS, sin errores al abrir el flujo.
-- Audio en segundo plano: la música, los pódcasts y los audiolibros siguen sonando cuando la app pasa a segundo plano o se bloquea la pantalla, con controles en la pantalla de bloqueo.
-- Minirreproductor de audio persistente: una barra de "reproducción en curso" con carátula permanece visible mientras navegas; tócala para el reproductor a pantalla completa.
-- Visor de fotos: abre una imagen a pantalla completa y desliza para pasar tus fotos, con zoom y opción de compartir.
-- Flows y automatizaciones: sincronización de fotos, copia de seguridad de carpetas y pausar/reanudar transferencias desde Atajos y Siri, 100 % en el dispositivo.
-- Nuevos ajustes de reproducción: audio en segundo plano, PiP automático y velocidad de reproducción predeterminada.
-- Rendimiento: app notablemente más fluida, con menos bloqueos y navegación, miniaturas y transferencias optimizadas.
+Novedades de la versión 1.9.1:
+- Corrección: en el primer inicio (especialmente en macOS), crear tu primer remoto con el asistente podía fallar con el error "Catálogo de rclone no disponible". Esto ya está solucionado: el asistente "Nuevo remoto" funciona desde el primer momento.
