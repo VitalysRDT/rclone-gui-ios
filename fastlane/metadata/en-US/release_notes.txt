@@ -1,10 +1,2 @@
-What's new in 1.9:
-- Rebuilt video player: faster startup and far more robust playback of 4K MKV/HEVC files (new VLCKit 4 engine), crackle-free audio, and better audio-track and subtitle selection.
-- Picture-in-Picture for video: the picture keeps playing in a floating window when you leave the app — previously only the sound continued.
-- More reliable "Open in another app" (Infuse, VLC, nPlayer…): the file is downloaded first, then handed off via the iOS share sheet — no more stream-opening errors.
-- Background audio: music, podcasts and audiobooks keep playing when the app goes to the background or the screen locks, with lock-screen controls.
-- Persistent audio mini-player: a "now playing" bar with artwork stays visible while you browse; tap it for the full-screen player.
-- Photo viewer: open an image full-screen and swipe through your photos, with zoom and sharing.
-- Flows & automations: photo sync, folder backup, and pause/resume transfers from Shortcuts and Siri — fully on-device.
-- New playback settings: background audio, automatic PiP and default playback speed.
-- Performance: a noticeably smoother app — fewer freezes, with optimized browsing, thumbnails and transfers.
+What's new in 1.9.1:
+- Fix: on first launch (especially on macOS), creating your very first remote through the wizard could fail with a "rclone catalog unavailable" error. This is now fixed — the "New remote" wizard works right away.

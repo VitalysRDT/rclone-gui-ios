@@ -1,10 +1,2 @@
-Nowości w wersji 1.9:
-- Przebudowany odtwarzacz wideo: szybsze uruchamianie i znacznie stabilniejsze odtwarzanie plików 4K MKV/HEVC (nowy silnik VLCKit 4), dźwięk bez trzasków oraz lepszy wybór ścieżek audio i napisów.
-- Picture-in-Picture dla wideo: obraz odtwarza się dalej w pływającym oknie po opuszczeniu aplikacji — wcześniej kontynuowany był tylko dźwięk.
-- Bardziej niezawodne „Otwórz w innej aplikacji" (Infuse, VLC, nPlayer…): plik jest najpierw pobierany, a następnie przekazywany przez arkusz udostępniania iOS — koniec z błędami otwierania strumienia.
-- Dźwięk w tle: muzyka, podcasty i audiobooki grają dalej, gdy aplikacja przechodzi w tło lub ekran się blokuje, ze sterowaniem na ekranie blokady.
-- Trwały miniodtwarzacz audio: pasek „odtwarzane teraz" z okładką pozostaje widoczny podczas przeglądania; dotknij go, aby otworzyć odtwarzacz pełnoekranowy.
-- Przeglądarka zdjęć: otwórz obraz na pełnym ekranie i przesuwaj między zdjęciami, z powiększeniem i udostępnianiem.
-- Flows i automatyzacje: synchronizacja zdjęć, kopia zapasowa folderu oraz wstrzymywanie/wznawianie transferów ze Skrótów i Siri — w pełni na urządzeniu.
-- Nowe ustawienia odtwarzania: dźwięk w tle, automatyczny PiP i domyślna prędkość odtwarzania.
-- Wydajność: zauważalnie płynniejsza aplikacja — mniej zacięć, zoptymalizowane przeglądanie, miniatury i transfery.
+Nowości w wersji 1.9.1:
+- Poprawka: przy pierwszym uruchomieniu (zwłaszcza na macOS) utworzenie pierwszego zdalnego zasobu w kreatorze mogło zakończyć się błędem „Katalog rclone niedostępny”. Zostało to naprawione — kreator „Nowy zdalny zasób” działa od razu poprawnie.
