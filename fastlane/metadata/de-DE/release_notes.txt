@@ -1,10 +1,2 @@
-Neu in Version 1.9:
-- Überarbeiteter Videoplayer: schnellerer Start und deutlich robustere Wiedergabe von 4K-MKV/HEVC-Dateien (neue VLCKit-4-Engine), knisterfreier Ton und bessere Auswahl von Audiospuren und Untertiteln.
-- Bild-in-Bild für Videos: Das Bild läuft in einem schwebenden Fenster weiter, wenn Sie die App verlassen – zuvor lief nur der Ton weiter.
-- Zuverlässigeres „In anderer App öffnen" (Infuse, VLC, nPlayer…): Die Datei wird zuerst heruntergeladen und dann über das iOS-Teilen-Menü übergeben – keine Fehler beim Öffnen des Streams mehr.
-- Audio im Hintergrund: Musik, Podcasts und Hörbücher laufen weiter, wenn die App in den Hintergrund wechselt oder der Bildschirm gesperrt wird – mit Steuerung auf dem Sperrbildschirm.
-- Dauerhafter Audio-Mini-Player: Eine „Aktuelle Wiedergabe"-Leiste mit Cover bleibt beim Navigieren sichtbar; tippen Sie darauf für den Vollbild-Player.
-- Foto-Viewer: Öffnen Sie ein Bild im Vollbild und wischen Sie durch Ihre Fotos, mit Zoom und Teilen.
-- Flows & Automationen: Fotosynchronisierung, Ordner-Backup sowie Übertragungen über Kurzbefehle und Siri pausieren/fortsetzen – komplett auf dem Gerät.
-- Neue Wiedergabe-Einstellungen: Audio im Hintergrund, automatisches Bild-in-Bild und Standard-Wiedergabegeschwindigkeit.
-- Leistung: spürbar flüssigere App – weniger Einfrieren, optimiertes Blättern, Vorschaubilder und Übertragungen.
+Neu in Version 1.9.1:
+- Fehlerbehebung: Beim ersten Start (insbesondere unter macOS) konnte das Anlegen des allerersten Remote über den Assistenten mit der Fehlermeldung „Rclone-Katalog nicht verfügbar" fehlschlagen. Das ist jetzt behoben – der Assistent „Neuer Remote" funktioniert von Anfang an.

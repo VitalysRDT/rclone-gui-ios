@@ -33,7 +33,7 @@ platform :ios do
   lane :upload_metadata do
     deliver(
       api_key: asc_key,
-      app_version: "1.9",    # cible explicitement la version 1.7
+      app_version: "1.9.1",    # cible explicitement la version 1.9.1
       skip_binary_upload: true,
       skip_screenshots: true,
       skip_metadata: false,
@@ -86,8 +86,8 @@ platform :ios do
   lane :ship do
     deliver(
       api_key: asc_key,
-      app_version: "1.9",
-      build_number: "122",
+      app_version: "1.9.1",
+      build_number: "122",   # TODO: mettre à jour avec le build Xcode Cloud réel avant de lancer ce lane
       skip_binary_upload: true,
       skip_screenshots: true,
       skip_metadata: false,
@@ -181,7 +181,7 @@ platform :mac do
     deliver(
       api_key: asc_key,
       platform: "osx",
-      app_version: "1.9",
+      app_version: "1.9.1",
       skip_binary_upload: true,
       skip_screenshots: true,
       skip_metadata: false,
@@ -197,7 +197,7 @@ platform :mac do
       api_key: asc_key,
       platform: "osx",
       screenshots_path: "./fastlane/screenshots-mac",
-      app_version: "1.9",
+      app_version: "1.9.1",
       skip_binary_upload: true,
       skip_metadata: true,
       skip_screenshots: false,
@@ -212,8 +212,8 @@ platform :mac do
     deliver(
       api_key: asc_key,
       platform: "osx",
-      app_version: "1.9",
-      build_number: "122",
+      app_version: "1.9.1",
+      build_number: "122",   # TODO: mettre à jour avec le build Xcode Cloud réel avant de lancer ce lane
       submit_for_review: true,
       automatic_release: false,
       skip_binary_upload: true,
