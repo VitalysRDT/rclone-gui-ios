@@ -52,6 +52,16 @@ public actor BiometricGate {
 
     /// Trigger a biometric prompt. Falls back to passcode if biometrics fail or are unavailable.
     public func authenticate(reason: BiometricReason) async -> BiometricResult {
+        #if DEBUG
+        // Simulators used for App Store screenshot automation have no enrolled
+        // Face ID / passcode, which would otherwise block every launch behind
+        // the system auth sheet. Skip only when the same --seed-demo flag that
+        // seeds fixture data (DemoSeeder.isRequested) is present.
+        if DemoSeeder.isRequested {
+            return .authenticated
+        }
+        #endif
+
         let context = LAContext()
         var nsError: NSError?
 
