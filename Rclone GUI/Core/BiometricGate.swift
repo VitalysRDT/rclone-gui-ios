@@ -57,7 +57,7 @@ public actor BiometricGate {
         // Face ID / passcode, which would otherwise block every launch behind
         // the system auth sheet. Skip only when the same --seed-demo flag that
         // seeds fixture data (DemoSeeder.isRequested) is present.
-        if DemoSeeder.isRequested {
+        if await DemoSeeder.isRequested {
             return .authenticated
         }
         #endif
