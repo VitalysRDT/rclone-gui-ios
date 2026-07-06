@@ -1,0 +1,2 @@
+Novidades da versão 1.9.1:
+- Correção: na primeira execução (especialmente no macOS), criar seu primeiro remote pelo assistente podia falhar com o erro "catálogo do rclone indisponível". Isso já foi corrigido — o assistente "Novo remote" funciona desde o primeiro uso.
