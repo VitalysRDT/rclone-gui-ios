@@ -61,6 +61,7 @@ platform :ios do
   lane :resubmit do
     deliver(
       api_key: asc_key,
+      build_number: "134",
       skip_binary_upload: true,
       skip_screenshots: true,
       skip_metadata: true,
@@ -213,7 +214,7 @@ platform :mac do
       api_key: asc_key,
       platform: "osx",
       app_version: "1.9.1",
-      build_number: "128",
+      build_number: "134",
       submit_for_review: true,
       automatic_release: false,
       skip_binary_upload: true,
