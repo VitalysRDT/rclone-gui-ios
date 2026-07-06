@@ -8,22 +8,22 @@ Alle Funktionen von Rclone GUI (Remote-Verwaltung, Übertragungen, „Dateien"-I
 • Keine Funktion nutzbar ohne aktives Abonnement (abgesehen vom Onboarding)
 
 CRYPT-FIRST-VERSCHLÜSSELUNG (Premium)
-Die gesamte Oberfläche ist um die rclone-Verschlüsselung „crypt" herum aufgebaut: Deine verschlüsselten Remotes werden durch ein violettes Schloss-Symbol gekennzeichnet, Dateinamen werden in Echtzeit entschlüsselt, sodass du die echte Ordnerstruktur siehst, und Inhalte werden während der Wiedergabe entschlüsselt, ohne jemals unverschlüsselt über einen Drittanbieter-Server zu laufen. Das kryptografische Herzstück ist NaCl secretbox (XSalsa20-Poly1305), das lokal von rclone ausgeführt wird.
+Die Oberfläche basiert auf der rclone-Verschlüsselung „crypt": Verschlüsselte Remotes tragen ein violettes Schloss-Symbol, Dateinamen werden live entschlüsselt für die echte Ordnerstruktur, und Inhalte werden bei der Wiedergabe entschlüsselt, ohne je im Klartext über einen Drittserver zu laufen. Kern ist NaCl secretbox (XSalsa20-Poly1305), lokal von rclone ausgeführt.
 
 INTEGRATION MIT DER „DATEIEN"-APP UNTER IOS (Premium)
-Eine File-Provider-Erweiterung stellt alle deine Remotes in Apples „Dateien"-App bereit, einschließlich Crypt-Remotes. Du kannst PDFs direkt aus „Dateien" öffnen, Dokumente per Drag & Drop zwischen Apps verschieben und deine Videos und Musik streamen, ohne sie vollständig herunterzuladen.
+Eine File-Provider-Erweiterung zeigt alle Remotes, auch Crypt-Remotes, in Apples „Dateien"-App. Öffne PDFs direkt aus „Dateien", verschiebe Dokumente per Drag & Drop zwischen Apps und streame Videos und Musik ohne vollständigen Download.
 
 INTELLIGENTE FOTO-SYNCHRONISATION (Premium)
-Synchronisiere deine neuen Fotos und Videos automatisch mit der Cloud deiner Wahl. Adaptives Throttling bei App-Nutzung, Ausführung im Hintergrund, sauberes Fortsetzen nach Netzwerkunterbrechungen.
+Synchronisiere neue Fotos und Videos automatisch mit der Cloud deiner Wahl. Adaptives Throttling bei App-Nutzung, Hintergrundausführung, sauberes Fortsetzen nach Netzwerkunterbrechungen.
 
 GEFÜHRTER EINRICHTUNGSASSISTENT (Premium)
-Ein Schritt-für-Schritt-Assistent deckt alle rclone-Backends ab: auf jeden Remote-Typ zugeschnittene Felder, Tutorials für OAuth (Drive, OneDrive, Dropbox), sofortige Validierung. Anleitungen zum Thema „Wo bekomme ich meine Zugangsdaten" und ein Remote-Auswahlmenü (für Crypt-Tresore, Alias, Union …) vereinfachen die Konfiguration zusätzlich. Importiere außerdem deine bestehende rclone.conf mit einem Klick, inklusive automatischer Migration der Geheimnisse in den iOS-Schlüsselbund.
+Ein Schritt-für-Schritt-Assistent deckt alle rclone-Backends ab: passende Felder je Remote-Typ, OAuth-Tutorials (Drive, OneDrive, Dropbox), sofortige Validierung. Anleitungen zu Zugangsdaten und ein Remote-Auswahlmenü (Crypt-Tresore, Alias, Union …) vereinfachen die Konfiguration. Importiere bestehende rclone.conf mit einem Klick, inklusive automatischer Migration in den iOS-Schlüsselbund.
 
 FÜR DEINE PRIVATSPHÄRE ENTWICKELT
 - Keine Analytics, keine Tracker, keine SDKs von Drittanbietern
-- Kein Backend-Server: Die App kommuniziert direkt mit deinen Cloud-Diensten
+- Kein Backend-Server: direkte Kommunikation mit deinen Cloud-Diensten
 - Face ID / Touch ID zum Sperren der Konfiguration
-- Konfiguration im Ruhezustand verschlüsselt (ChaCha20-Poly1305 + iOS-Schlüsselbund)
+- Konfiguration verschlüsselt im Ruhezustand (ChaCha20-Poly1305 + iOS-Schlüsselbund)
 - OAuth-Zugangsdaten im iOS-Schlüsselbund, niemals in UserDefaults
 - Strenges ATS, keine Netzwerkausnahmen
 
@@ -38,7 +38,7 @@ FUNKTIONEN (alle im Premium-Abonnement enthalten)
 - Lokale, exportierbare Logs für die Fehlerbehebung
 
 ABONNEMENTBEDINGUNGEN
-Das Rclone GUI Premium-Abonnement verlängert sich am Ende jedes Zeitraums automatisch (1,99 €/Monat oder 19,99 €/Jahr). Die Verlängerung wird innerhalb von 24 Stunden vor Ablauf über deine Apple-ID abgerechnet. Du kannst dein Abonnement jederzeit verwalten und die automatische Verlängerung deaktivieren, unter Einstellungen → Apple-ID → Abonnements.
+Das Rclone GUI Premium-Abonnement verlängert sich automatisch am Ende jedes Zeitraums (1,99 €/Monat oder 19,99 €/Jahr). Die Verlängerung wird innerhalb von 24 Stunden vor Ablauf über deine Apple-ID abgerechnet. Verwalte dein Abonnement und deaktiviere die automatische Verlängerung jederzeit unter Einstellungen → Apple-ID → Abonnements.
 
 Nutzungsbedingungen: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
 Datenschutzerklärung: https://vitalysrdt.github.io/rclone-gui-ios/privacy.html
