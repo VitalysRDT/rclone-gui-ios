@@ -113,6 +113,20 @@ public final class TransferQueue {
 
         if entry.isDirectory {
             try FileManager.default.createDirectory(at: destinationURL, withIntermediateDirectories: true)
+            // Pré-calcul de la taille du dossier via operations/size pour avoir
+            // un bytesTotal déterminé dès l'enqueue → la barre de progression
+            // s'affiche immédiatement. Échec non bloquant : 0 → barre indéterminée.
+            var folderBytesTotal: Int64 = 0
+            do {
+                let sizing = try await RemoteService.shared.size(remote: remote, path: entry.pathInRemote)
+                folderBytesTotal = max(sizing.bytes, 0)
+            } catch {
+                await LogService.shared.log(
+                    .info,
+                    category: "transfer",
+                    message: "operations/size échec pour \(remote):\(entry.pathInRemote) : \(error.localizedDescription) — progression dossier indéterminée"
+                )
+            }
             let transfer = Transfer(
                 kind: .download,
                 sourceRemote: remote,
@@ -121,7 +135,8 @@ public final class TransferQueue {
                 batchID: batchID,
                 relativePath: entry.name,
                 displayName: entry.name,
-                sourceKind: .remote
+                sourceKind: .remote,
+                bytesTotal: folderBytesTotal
             )
             transfer.isDirectoryTransfer = true
             enqueueAndSchedule(transfer)
@@ -1310,13 +1325,26 @@ public final class TransferQueue {
         // core/stats reports per-file under `transferring`, keyed by the destination basename.
         // We do best-effort matching. Dirty flag : on évite save() si rien
         // n'a changé (épargne ~10ms × 75/min = 750ms CPU/min en idle).
+        //
+        // Stratégie à deux passes :
+        //  1. Transferts FICHIER : match direct (statMatchesTransfer / fallbacks).
+        //     On note les index consommés pour ne pas les recompter dans un dossier.
+        //  2. Transferts DOSSIER : on agrège les stats restantes internes au dossier
+        //     (stat.name préfixé par le relativePath / sourcePath du dossier) en
+        //     sommant bytesTransferred et bytesTotal. bytesTotal reste plafonné par
+        //     le pré-calcul operations/size fait à l'enqueue.
+        var consumedStatIndexes = Set<Int>()
         var didMutate = false
-        for transfer in running {
-            if let match = stats.transferring.first(where: { statMatchesTransfer($0, transfer: transfer) })
-                ?? uniqueSizeFallback(stats: stats, running: running, transfer: transfer)
-                ?? singleTransferFallback(stats: stats, running: running) {
-                let newBytes = match.bytesTransferred
-                let newTotal = max(match.bytesTotal, transfer.bytesTotal)
+
+        // Passe 1 — transferts fichier (non-dossier).
+        for transfer in running where !(transfer.isDirectoryTransfer ?? false) {
+            if let match = stats.transferring.firstIndex(where: { statMatchesTransfer($0, transfer: transfer) })
+                ?? uniqueSizeFallbackIndex(stats: stats, running: running, transfer: transfer)
+                ?? singleTransferFallbackIndex(stats: stats, running: running) {
+                let stat = stats.transferring[match]
+                consumedStatIndexes.insert(match)
+                let newBytes = stat.bytesTransferred
+                let newTotal = max(stat.bytesTotal, transfer.bytesTotal)
                 if transfer.bytesTransferred != newBytes || transfer.bytesTotal != newTotal {
                     transfer.bytesTransferred = newBytes
                     transfer.bytesTotal = newTotal
@@ -1324,11 +1352,68 @@ public final class TransferQueue {
                 }
             }
         }
+
+        // Passe 2 — transferts dossier : agrégation des fichiers internes.
+        for transfer in running where (transfer.isDirectoryTransfer ?? false) {
+            let matchedIndexes = directoryInternalStatIndexes(
+                stats: stats,
+                transfer: transfer,
+                excluding: consumedStatIndexes
+            )
+            guard !matchedIndexes.isEmpty else { continue }
+            let aggBytes = matchedIndexes.reduce(Int64(0)) { $0 + stats.transferring[$1].bytesTransferred }
+            let aggFileTotal = matchedIndexes.reduce(Int64(0)) { $0 + stats.transferring[$1].bytesTotal }
+            consumedStatIndexes.formUnion(matchedIndexes)
+            // bytesTransferred = somme des bytes déjà transmis des fichiers internes.
+            let newBytes = aggBytes
+            // bytesTotal : on garde le max entre le pré-calcul operations/size
+            // et la somme des tailles des fichiers actuellement transférés
+            // (rclone peut découvrir des fichiers au fil de l'eau, et certains
+            // peuvent être sizeless si operations/size a échoué → fallback).
+            let newTotal = max(aggFileTotal, transfer.bytesTotal)
+            if transfer.bytesTransferred != newBytes || transfer.bytesTotal != newTotal {
+                transfer.bytesTransferred = newBytes
+                transfer.bytesTotal = newTotal
+                didMutate = true
+            }
+        }
+
         let batchesChanged = updateRunningBatches()
         if didMutate || batchesChanged {
             try? modelContext.save()
         }
         return true
+    }
+
+    /// Renvoie les index de `stats.transferring` correspondant aux fichiers
+    /// internes à un transfert dossier, hors ceux déjà consommés par un
+    /// transfert fichier. Un stat est rattaché au dossier si son `name`
+    /// (chemin relatif rclone) commence par le `relativePath` / basename
+    /// du dossier, ou si aucun transfert fichier ne le réclame et qu'il
+    /// reste des stats non matchées (fallback unique dossier).
+    private func directoryInternalStatIndexes(
+        stats: CoreStatsDTO,
+        transfer: Transfer,
+        excluding consumed: Set<Int>
+    ) -> Set<Int> {
+        let folderBases = [
+            transfer.relativePath,
+            transfer.displayName,
+            (transfer.sourcePath as NSString).lastPathComponent,
+            (transfer.destinationPath as NSString).lastPathComponent
+        ].compactMap { $0?.isEmpty == false ? $0 : nil }
+
+        var matched = Set<Int>()
+        for (i, stat) in stats.transferring.enumerated() where !consumed.contains(i) {
+            let name = stat.name
+            // Match direct : le fichier est à l'intérieur du dossier
+            // → "subfolder/photo.jpg" sous "Photos" → préfixe "Photos/".
+            let isInternal = folderBases.contains { base in
+                name == base || name.hasPrefix("\(base)/") || name.hasPrefix("\(base)\\")
+            }
+            if isInternal { matched.insert(i) }
+        }
+        return matched
     }
 
     private func statMatchesTransfer(_ stat: CoreStatsDTO.Transferring, transfer: Transfer) -> Bool {
@@ -1354,25 +1439,25 @@ public final class TransferQueue {
         }
     }
 
-    private func uniqueSizeFallback(
+    private func uniqueSizeFallbackIndex(
         stats: CoreStatsDTO,
         running: [Transfer],
         transfer: Transfer
-    ) -> CoreStatsDTO.Transferring? {
+    ) -> Int? {
         guard transfer.bytesTotal > 0 else { return nil }
         let sameSizeTransfers = running.filter { $0.bytesTotal == transfer.bytesTotal }
         guard sameSizeTransfers.count == 1 else { return nil }
-        let sameSizeStats = stats.transferring.filter { $0.bytesTotal == transfer.bytesTotal }
+        let sameSizeStats = stats.transferring.enumerated().filter { $0.element.bytesTotal == transfer.bytesTotal }
         guard sameSizeStats.count == 1 else { return nil }
-        return sameSizeStats.first
+        return sameSizeStats.first?.offset
     }
 
-    private func singleTransferFallback(
+    private func singleTransferFallbackIndex(
         stats: CoreStatsDTO,
         running: [Transfer]
-    ) -> CoreStatsDTO.Transferring? {
+    ) -> Int? {
         guard stats.transferring.count == 1, running.count == 1 else { return nil }
-        return stats.transferring.first
+        return 0
     }
 
     // MARK: - Cold start replay
