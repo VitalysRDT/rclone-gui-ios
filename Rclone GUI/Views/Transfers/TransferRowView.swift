@@ -69,6 +69,19 @@ struct TransferRowView: View {
                         .progressViewStyle(.linear)
                         .tint(kindColor)
                 }
+            } else if transfer.status == .running, (transfer.isDirectoryTransfer ?? false) {
+                // Dossier running sans bytesTotal (operations/size a échoué ou
+                // n'a pas encore retourné) → barre indéterminée plutôt que rien.
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 6) {
+                        ProgressView()
+                            .progressViewStyle(.linear)
+                            .tint(kindColor)
+                        Text(String(localized: "Calcul de la taille\u{2026}"))
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
 
             if let error = transfer.lastError, transfer.status == .failed {

@@ -24,7 +24,10 @@ public enum PlaybackEngine: Sendable, Equatable {
     case vlc
 }
 
-public enum MediaFormat {
+/// Utilitaire pur (calculs sur des données statiques) : on le sort de
+/// l'isolation `MainActor` par défaut pour pouvoir l'appeler depuis n'importe
+/// quel contexte (acteurs, closures concurrentes…) sans franchir le main actor.
+public nonisolated enum MediaFormat {
 
     // Extensions qu'AVFoundation lit nativement (décodage matériel possible).
     static let avFoundationVideoExtensions: Set<String> = [

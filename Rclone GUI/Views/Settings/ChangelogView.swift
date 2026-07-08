@@ -79,6 +79,15 @@ struct ChangelogView: View {
     // Historique aligné sur rclone.rougetet.com (le plus récent en premier).
     private static let releases: [Release] = [
         Release(
+            version: "1.9.2", dateFR: "Juillet 2026", dateEN: "July 2026",
+            itemsFR: [
+                "Avancement des téléchargements de dossier : la barre de progression s'affiche enfin (la taille du dossier est pré-calculée avant le transfert).",
+            ],
+            itemsEN: [
+                "Folder download progress: the progress bar is finally shown (the folder size is precomputed before the transfer starts).",
+            ]
+        ),
+        Release(
             version: "1.9", dateFR: "Juin 2026", dateEN: "June 2026",
             itemsFR: [
                 "Lecteur vidéo refondu : ouverture plus rapide et lecture bien plus robuste des fichiers 4K MKV/HEVC (nouveau moteur VLCKit 4), audio sans grésillement et meilleure sélection des pistes audio et des sous-titres.",

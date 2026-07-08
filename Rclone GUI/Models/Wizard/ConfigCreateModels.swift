@@ -12,7 +12,7 @@
 import Foundation
 
 /// Body of `config/create` (and `config/update` when `continue=true`).
-struct ConfigCreateInput: Encodable, Sendable {
+struct ConfigCreateInput: nonisolated Encodable, Sendable {
     let name: String
     let type: String
     let parameters: [String: String]
@@ -27,7 +27,7 @@ struct ConfigCreateInput: Encodable, Sendable {
 /// - `obscure` / `noObscure`: control automatic password obfuscation.
 /// - `continue` / `state` / `result`: drive the state machine after
 ///   the first call returns an `Option` payload.
-struct ConfigCreateOpt: Encodable, Sendable {
+struct ConfigCreateOpt: nonisolated Encodable, Sendable {
     var nonInteractive: Bool? = nil
     var all: Bool? = nil
     var obscure: Bool? = nil

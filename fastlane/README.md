@@ -39,6 +39,14 @@ Push screenshots only
 
 Resubmit existing binary for review after metadata fixes (no rebuild)
 
+### ios ship
+
+```sh
+[bundle exec] fastlane ios ship
+```
+
+Create the iOS version, attach already-uploaded build, push metadata, submit for review
+
 ### ios submit
 
 ```sh
@@ -46,6 +54,43 @@ Resubmit existing binary for review after metadata fixes (no rebuild)
 ```
 
 Full submission: archive + upload + send for review
+
+----
+
+
+## Mac
+
+### mac upload_mac
+
+```sh
+[bundle exec] fastlane mac upload_mac
+```
+
+Archive the macOS Release build (App Store) and upload to App Store Connect
+
+### mac upload_mac_metadata
+
+```sh
+[bundle exec] fastlane mac upload_mac_metadata
+```
+
+Push localized metadata to the macOS App Store version
+
+### mac upload_mac_screenshots
+
+```sh
+[bundle exec] fastlane mac upload_mac_screenshots
+```
+
+Push macOS screenshots only (en-US + fr-FR)
+
+### mac submit_mac
+
+```sh
+[bundle exec] fastlane mac submit_mac
+```
+
+Submit the macOS version for review (build already uploaded)
 
 ----
 

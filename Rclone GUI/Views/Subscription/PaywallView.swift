@@ -98,7 +98,16 @@ struct PaywallView: View {
     private var errorBinding: Binding<Bool> {
         Binding(
             get: { subs.lastErrorMessage != nil },
-            set: { newValue in if !newValue { subs.lastErrorMessage = nil } }
+            // Le setter du binding est invoqué pendant un cycle de mise à jour de
+            // la vue (dismiss de l'alerte). Muter `lastErrorMessage` (publié)
+            // synchroniquement ici déclenche « Publishing changes from within
+            // view updates is not allowed » → on diffère au prochain tour de
+            // boucle sur le main actor.
+            set: { newValue in
+                if !newValue {
+                    Task { @MainActor in subs.lastErrorMessage = nil }
+                }
+            }
         )
     }
 
