@@ -256,7 +256,7 @@ public actor TransferService {
         let _async: Bool
     }
 
-    private func jobIDFromRPC<I: Encodable>(method: String, input: I) async throws -> Int {
+    private func jobIDFromRPC<I: Encodable & Sendable>(method: String, input: I) async throws -> Int {
         let resp: JobIDResponse = try await RcloneCore.shared.rpc(method, input: input)
         return resp.jobid
     }

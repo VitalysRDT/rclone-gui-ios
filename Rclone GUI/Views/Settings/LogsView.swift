@@ -67,7 +67,9 @@ struct LogsView: View {
                         } label: {
                             HStack {
                                 Spacer()
-                                Text("Afficher \(min(Self.pageSize, entries.count - visibleEntries.count)) de plus (\(entries.count - visibleEntries.count) restants)")
+                                Text(String(
+                                    localized: "Afficher \(min(Self.pageSize, entries.count - visibleEntries.count)) de plus (\(entries.count - visibleEntries.count) restants)"
+                                ))
                                     .font(.subheadline.weight(.medium))
                                 Spacer()
                             }
