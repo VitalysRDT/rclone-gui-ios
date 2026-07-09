@@ -88,6 +88,15 @@ struct ChangelogView: View {
             ]
         ),
         Release(
+            version: "1.9.1", dateFR: "Juin 2026", dateEN: "June 2026",
+            itemsFR: [
+                "Correctif : au premier lancement (notamment sur macOS), la création du tout premier remote via l'assistant pouvait échouer avec l'erreur « Catalogue rclone indisponible ». C'est corrigé — l'assistant « Nouveau remote » fonctionne dès le premier lancement.",
+            ],
+            itemsEN: [
+                "Fix: on first launch (especially on macOS), creating your very first remote through the wizard could fail with a \"rclone catalog unavailable\" error. This is now fixed — the \"New remote\" wizard works right away.",
+            ]
+        ),
+        Release(
             version: "1.9", dateFR: "Juin 2026", dateEN: "June 2026",
             itemsFR: [
                 "Lecteur vidéo refondu : ouverture plus rapide et lecture bien plus robuste des fichiers 4K MKV/HEVC (nouveau moteur VLCKit 4), audio sans grésillement et meilleure sélection des pistes audio et des sous-titres.",

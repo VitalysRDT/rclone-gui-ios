@@ -703,6 +703,9 @@
     { v: "1.9.2", current: true, date: { fr: "Juillet 2026", en: "July 2026" }, items: [
       { fr: "Avancement des t\xE9l\xE9chargements de dossier : la barre de progression s'affiche enfin (la taille du dossier est pr\xE9-calcul\xE9e avant le transfert).", en: "Folder download progress: the progress bar is finally shown (the folder size is precomputed before the transfer starts)." }
     ] },
+    { v: "1.9.1", date: { fr: "Juin 2026", en: "June 2026" }, items: [
+      { fr: "Correctif : au premier lancement (notamment sur macOS), la cr\xE9ation du tout premier remote via l'assistant pouvait \xE9chouer avec l'erreur \xAB Catalogue rclone indisponible \xBB. C'est corrig\xE9 \u2014 l'assistant \xAB Nouveau remote \xBB fonctionne d\xE8s le premier lancement.", en: 'Fix: on first launch (especially on macOS), creating your very first remote through the wizard could fail with a "rclone catalog unavailable" error. This is now fixed \u2014 the "New remote" wizard works right away.' }
+    ] },
     { v: "1.9", date: { fr: "Juin 2026", en: "June 2026" }, items: [
       { fr: "Lecteur vid\xE9o refondu : ouverture plus rapide et lecture bien plus robuste des fichiers 4K MKV/HEVC (nouveau moteur VLCKit 4), audio sans gr\xE9sillement et meilleure s\xE9lection des pistes audio et des sous-titres.", en: "Rebuilt video player: faster startup and far more robust playback of 4K MKV/HEVC files (new VLCKit 4 engine), crackle-free audio, and better audio-track and subtitle selection." },
       { fr: "Picture-in-Picture vid\xE9o : l'image continue dans une fen\xEAtre flottante quand vous quittez l'app \u2014 avant, seul le son se poursuivait.", en: "Picture-in-Picture for video: the picture keeps playing in a floating window when you leave the app \u2014 previously only the sound continued." },
