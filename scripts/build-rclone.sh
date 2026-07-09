@@ -189,6 +189,15 @@ if [ -e "$XCFRAMEWORK" ]; then
     rm -rf "$XCFRAMEWORK"
 fi
 
+# gomobile bind internally runs `go mod tidy` in a temp directory. On Xcode
+# Cloud, two archive actions (iOS + macOS) each run ci_post_clone.sh, so the
+# second invocation hits stale Go build/module cache from the first run and
+# gomobile's internal `go mod tidy` fails with "missing module declaration".
+# Clean the Go build cache so each gomobile bind starts from a clean slate.
+echo ""
+echo "Cleaning Go build cache (avoids gomobile stale-state failures)..."
+go clean -cache 2>/dev/null || true
+
 # Read project deployment targets so each wrapper dylib carries the matching
 # minimum OS version. The macOS slice (Apple Silicon) lets the app run natively
 # on macOS; the iOS slice remains device-only (arm64).
@@ -325,7 +334,7 @@ wrap_slice() {
 echo ""
 echo "Running 'gomobile bind' for ios/arm64 (5–15 min cold, 2–5 min warm)..."
 echo ""
-gomobile bind \
+retry gomobile bind \
     -target=ios/arm64 \
     -o "$STAGE_DIR/ios/RcloneKit.xcframework" \
     -tags="rclone_no_serve_dlna" \
@@ -335,7 +344,7 @@ if [ "$BUILD_IOS_SIMULATOR" = "1" ]; then
     echo ""
     echo "Running 'gomobile bind' for iossimulator/arm64 (5–15 min cold, 2–5 min warm)..."
     echo ""
-    gomobile bind \
+    retry gomobile bind \
         -target=iossimulator/arm64 \
         -o "$STAGE_DIR/iossimulator/RcloneKit.xcframework" \
         -tags="rclone_no_serve_dlna" \
@@ -345,7 +354,7 @@ fi
 echo ""
 echo "Running 'gomobile bind' for macos/arm64 (5–15 min cold, 2–5 min warm)..."
 echo ""
-gomobile bind \
+retry gomobile bind \
     -target=macos/arm64 \
     -o "$STAGE_DIR/macos/RcloneKit.xcframework" \
     -tags="rclone_no_serve_dlna" \

@@ -1,2 +1,2 @@
-Novedades de la versión 1.9.1:
-- Corrección: en el primer inicio (especialmente en macOS), crear tu primer remoto con el asistente podía fallar con el error "Catálogo de rclone no disponible". Esto ya está solucionado: el asistente "Nuevo remoto" funciona desde el primer momento.
+Novedades de la versión 1.9.2:
+- Progreso de descarga de carpetas: la barra de progreso por fin se muestra (el tamaño de la carpeta se calcula antes de la transferencia).
