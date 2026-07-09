@@ -484,7 +484,7 @@ struct PhotoSyncSettingsView: View {
                 .tint(stats.pausedByUser ? .gray : RG.photoSync.accent)
                 .animation(.spring(duration: 0.4, bounce: 0.15), value: ratio)
             HStack {
-                Text("\(stats.completed) / \(total) photos et vidéos")
+                Text(String(localized: "\(stats.completed) / \(total) photos et vidéos"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()

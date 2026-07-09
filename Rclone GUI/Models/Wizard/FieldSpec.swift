@@ -67,7 +67,7 @@ struct FieldSpec: Identifiable, Hashable, Sendable {
         self.providerFilter = option.provider
     }
 
-    private static func humanize(_ raw: String) -> String {
+    private nonisolated static func humanize(_ raw: String) -> String {
         // "access_key_id" → "Access Key Id"
         raw.split(separator: "_")
             .map { $0.prefix(1).uppercased() + $0.dropFirst() }
