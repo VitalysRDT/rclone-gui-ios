@@ -115,6 +115,13 @@ enum DemoSeeder {
         filename_encryption = standard
         directory_name_encryption = true
 
+        [Vault Cloud]
+        type = crypt
+        remote = iPhone:Vault
+        password = \(demoCryptPassword)
+        filename_encryption = standard
+        directory_name_encryption = true
+
         """
     }
 

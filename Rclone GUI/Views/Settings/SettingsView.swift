@@ -99,6 +99,17 @@ struct SettingsView: View {
                         tint: .pink
                     )
                 }
+
+                NavigationLink {
+                    GhostVaultSettingsView()
+                } label: {
+                    SettingsNavigationRow(
+                        icon: "lock.shield.fill",
+                        title: "Ghost Vault",
+                        subtitle: "Sauvegarde chiffrée dans un de tes remotes, scellée par biométrie",
+                        tint: .indigo
+                    )
+                }
             }
 
             Section("Stockage") {
