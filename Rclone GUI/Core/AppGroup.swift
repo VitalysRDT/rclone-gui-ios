@@ -151,6 +151,15 @@ public enum AppGroup {
         containerURL.appending(path: "credentials", directoryHint: .isDirectory)
     }
 
+    /// Répertoire local (dans Application Support) qui héberge le manifest
+    /// chiffré des Ghost Vaults connus. Ce manifest n'est PAS sur le remote :
+    /// il liste les vaults que cet appareil a créés ou restaurés, pour
+    /// pouvoir les reconnaître sans re-lister le remote à chaque lancement.
+    public nonisolated static var ghostVaultDir: URL {
+        applicationSupportURL
+            .appending(path: "ghost-vault", directoryHint: .isDirectory)
+    }
+
     public nonisolated static func streamingURLFile(remote: String, path: String) -> URL {
         let key = "\(remote):\(path)"
         let safe = key.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? UUID().uuidString
@@ -190,6 +199,7 @@ public enum AppGroup {
         try fm.createDirectory(at: streamingURLsDir, withIntermediateDirectories: true)
         try fm.createDirectory(at: credentialsURL, withIntermediateDirectories: true)
         try fm.createDirectory(at: vaultDir, withIntermediateDirectories: true)
+        try fm.createDirectory(at: ghostVaultDir, withIntermediateDirectories: true)
         try fm.createDirectory(
             at: fileProviderDiagnosticsURL.deletingLastPathComponent(),
             withIntermediateDirectories: true

@@ -16,6 +16,8 @@ public enum BiometricReason: Sendable {
     case configRead
     case configWrite
     case revealRemoteCredentials
+    case ghostVaultSeal
+    case ghostVaultUnseal
 
     nonisolated var localized: String {
         switch self {
@@ -27,11 +29,15 @@ public enum BiometricReason: Sendable {
             return NSLocalizedString("Sauvegarder votre configuration rclone", comment: "FaceID prompt before writing rclone.conf")
         case .revealRemoteCredentials:
             return NSLocalizedString("Afficher les identifiants de ce remote", comment: "FaceID prompt before showing credentials")
+        case .ghostVaultSeal:
+            return NSLocalizedString("Sceller un Ghost Vault", comment: "FaceID prompt before sealing a Ghost Vault backup")
+        case .ghostVaultUnseal:
+            return NSLocalizedString("Ouvrir un Ghost Vault", comment: "FaceID prompt before restoring a Ghost Vault backup")
         }
     }
 }
 
-public enum BiometricResult: Sendable {
+public enum BiometricResult: Sendable, Equatable {
     case authenticated
     case userCancelled
     case fallback

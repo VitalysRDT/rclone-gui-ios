@@ -672,3 +672,186 @@ struct FilesClipboardTests {
         #expect(item.id == "s3-prod:uploads/q4-2026.pdf")
     }
 }
+
+// MARK: - Ghost Vault round-trip
+
+@Suite("Ghost Vault encryption & format")
+struct GhostVaultTests {
+
+    private let sampleConf = Data("""
+    [drive]
+    type = drive
+    scope = drive
+    token = {"access_token":"demo","expiry":"2099-01-01T00:00:00Z"}
+
+    [b2-photos]
+    type = b2
+    account = 003a1b2c3d4e5f60000000001
+    key = K003exampleexampleexampleexampleEXA
+    """.utf8)
+
+    @Test("seal → open round-trips the rclone.conf and preserves meta")
+    func sealOpenRoundTrip() throws {
+        let passphrase = "correct horse battery staple"
+        let meta = GhostVaultMeta(
+            sizeBytes: sampleConf.count,
+            remoteCount: 2,
+            createdAt: Date(timeIntervalSince1970: 1_750_000_000),
+            deviceName: "iPhone de Vitalys",
+            rcloneVersion: "1.74.3"
+        )
+        let envelope = try GhostVault.seal(
+            rcloneConf: sampleConf,
+            passphrase: passphrase,
+            meta: meta,
+            rcloneVersion: meta.rcloneVersion
+        )
+        let opened = try GhostVault.open(envelope: envelope, passphrase: passphrase)
+        #expect(opened.rcloneConf == sampleConf)
+        #expect(opened.meta.sizeBytes == meta.sizeBytes)
+        #expect(opened.meta.remoteCount == meta.remoteCount)
+        #expect(opened.meta.deviceName == meta.deviceName)
+        #expect(opened.meta.rcloneVersion == meta.rcloneVersion)
+    }
+
+    @Test("encode/decode round-trips an envelope without alteration")
+    func envelopeEncodeDecode() throws {
+        let envelope = try GhostVault.seal(
+            rcloneConf: sampleConf,
+            passphrase: "another-strong-passphrase",
+            meta: GhostVaultMeta(
+                sizeBytes: sampleConf.count,
+                remoteCount: 1,
+                createdAt: Date(timeIntervalSince1970: 1_750_000_000),
+                deviceName: "MacBook Pro",
+                rcloneVersion: "1.74.3"
+            ),
+            rcloneVersion: "1.74.3"
+        )
+        let bytes = try GhostVault.encode(envelope)
+        let restored = try GhostVault.decode(bytes)
+        #expect(restored == envelope)
+    }
+
+    @Test("wrong passphrase produces a decryption failure (not a silent success)")
+    func wrongPassphraseFails() throws {
+        let envelope = try GhostVault.seal(
+            rcloneConf: sampleConf,
+            passphrase: "right-passphrase-here",
+            meta: GhostVaultMeta(
+                sizeBytes: sampleConf.count,
+                remoteCount: 1,
+                createdAt: Date(),
+                deviceName: "iPhone",
+                rcloneVersion: "1.74.3"
+            ),
+            rcloneVersion: "1.74.3"
+        )
+        #expect(throws: GhostVaultError.self) {
+            _ = try GhostVault.open(envelope: envelope, passphrase: "wrong-passphrase")
+        }
+    }
+
+    @Test("passphrase too short is rejected before any encryption work")
+    func shortPassphraseRejected() {
+        let meta = GhostVaultMeta(
+            sizeBytes: 0, remoteCount: 0,
+            createdAt: Date(), deviceName: "iPhone", rcloneVersion: "1.0"
+        )
+        #expect(throws: GhostVaultError.self) {
+            _ = try GhostVault.seal(
+                rcloneConf: Data(),
+                passphrase: "abc",
+                meta: meta,
+                rcloneVersion: "1.0"
+            )
+        }
+    }
+
+    @Test("tampered ciphertext is rejected (no silent partial decryption)")
+    func tamperedCiphertextFails() throws {
+        let passphrase = "tamper-resistant-vault-2026"
+        let envelope = try GhostVault.seal(
+            rcloneConf: sampleConf,
+            passphrase: passphrase,
+            meta: GhostVaultMeta(
+                sizeBytes: sampleConf.count,
+                remoteCount: 1,
+                createdAt: Date(),
+                deviceName: "iPhone",
+                rcloneVersion: "1.74.3"
+            ),
+            rcloneVersion: "1.74.3"
+        )
+        // Décode l'envelope, flippe un octet au milieu du payload chiffré,
+        // réencode et tente d'ouvrir : doit échouer.
+        var tampered = envelope
+        let originalB64 = envelope.payloadB64
+        guard var payloadBytes = Data(base64Encoded: originalB64) else {
+            Issue.record("payload non base64"); return
+        }
+        let mid = payloadBytes.count / 2
+        payloadBytes[mid] ^= 0xFF
+        let tamperedB64 = payloadBytes.base64EncodedString()
+        // On doit reconstruire l'envelope avec le payload altéré.
+        let json = try GhostVault.encode(envelope)
+        var dict = try JSONSerialization.jsonObject(with: json) as? [String: Any] ?? [:]
+        dict["payload_b64"] = tamperedB64
+        let tamperedData = try JSONSerialization.data(withJSONObject: dict)
+        let tamperedEnvelope = try GhostVault.decode(tamperedData)
+        #expect(throws: GhostVaultError.self) {
+            _ = try GhostVault.open(envelope: tamperedEnvelope, passphrase: passphrase)
+        }
+        _ = tampered // silence unused warning
+    }
+
+    @Test("two seals of the same conf produce different ciphertexts (fresh salt + nonce)")
+    func freshSaltEachSeal() throws {
+        let meta = GhostVaultMeta(
+            sizeBytes: sampleConf.count,
+            remoteCount: 1,
+            createdAt: Date(),
+            deviceName: "iPhone",
+            rcloneVersion: "1.74.3"
+        )
+        let a = try GhostVault.seal(
+            rcloneConf: sampleConf,
+            passphrase: "same-passphrase-12345",
+            meta: meta,
+            rcloneVersion: "1.74.3"
+        )
+        let b = try GhostVault.seal(
+            rcloneConf: sampleConf,
+            passphrase: "same-passphrase-12345",
+            meta: meta,
+            rcloneVersion: "1.74.3"
+        )
+        #expect(a.kdfSaltB64 != b.kdfSaltB64)
+        #expect(a.cipherNonceB64 != b.cipherNonceB64)
+        #expect(a.payloadB64 != b.payloadB64)
+    }
+
+    @Test("envelope JSON is human-readable (no binary blob in plaintext)")
+    func envelopeIsJSON() throws {
+        let envelope = try GhostVault.seal(
+            rcloneConf: sampleConf,
+            passphrase: "inspect-me-passphrase",
+            meta: GhostVaultMeta(
+                sizeBytes: sampleConf.count,
+                remoteCount: 2,
+                createdAt: Date(),
+                deviceName: "iPhone de Vitalys",
+                rcloneVersion: "1.74.3"
+            ),
+            rcloneVersion: "1.74.3"
+        )
+        let bytes = try GhostVault.encode(envelope)
+        let asText = String(data: bytes, encoding: .utf8) ?? ""
+        #expect(asText.contains("\"v\":1"))
+        #expect(asText.contains("\"kdf\":\"pbkdf2-sha256\""))
+        #expect(asText.contains("\"cipher\":\"chacha20-poly1305\""))
+        // Le payload chiffré est base64, donc caractères ASCII imprimables.
+        #expect(!asText.contains("[drive]"))
+        #expect(!asText.contains("type = drive"))
+    }
+}
