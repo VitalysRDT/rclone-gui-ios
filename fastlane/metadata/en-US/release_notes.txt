@@ -1,2 +1,2 @@
-What's new in 1.9.1:
-- Fix: on first launch (especially on macOS), creating your very first remote through the wizard could fail with a "rclone catalog unavailable" error. This is now fixed — the "New remote" wizard works right away.
+What's new in 1.9.2:
+- Folder download progress: the progress bar is finally shown (the folder size is precomputed before the transfer starts).

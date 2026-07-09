@@ -1,2 +1,2 @@
-Nouveautés de la version 1.9.1 :
-- Correctif : au premier lancement (notamment sur macOS), la création du tout premier remote via l'assistant pouvait échouer avec l'erreur « Catalogue rclone indisponible ». C'est corrigé — l'assistant « Nouveau remote » fonctionne dès le premier lancement.
+Nouveautés de la version 1.9.2 :
+- Avancement des téléchargements de dossier : la barre de progression s'affiche enfin (la taille du dossier est pré-calculée avant le transfert).

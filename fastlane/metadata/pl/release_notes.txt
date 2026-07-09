@@ -1,2 +1,2 @@
-Nowości w wersji 1.9.1:
-- Poprawka: przy pierwszym uruchomieniu (zwłaszcza na macOS) utworzenie pierwszego zdalnego zasobu w kreatorze mogło zakończyć się błędem „Katalog rclone niedostępny”. Zostało to naprawione — kreator „Nowy zdalny zasób” działa od razu poprawnie.
+Nowości w wersji 1.9.2:
+- Postęp pobierania folderów: pasek postępu jest w końcu widoczny (rozmiar folderu jest wstępnie obliczany przed transferem).

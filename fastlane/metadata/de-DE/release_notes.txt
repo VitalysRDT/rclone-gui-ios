@@ -1,2 +1,2 @@
-Neu in Version 1.9.1:
-- Fehlerbehebung: Beim ersten Start (insbesondere unter macOS) konnte das Anlegen des allerersten Remote über den Assistenten mit der Fehlermeldung „Rclone-Katalog nicht verfügbar" fehlschlagen. Das ist jetzt behoben – der Assistent „Neuer Remote" funktioniert von Anfang an.
+Neu in Version 1.9.2:
+- Ordner-Download-Fortschritt: Die Fortschrittsanzeige wird endlich angezeigt (die Ordnergröße wird vor dem Transfer vorab berechnet).
