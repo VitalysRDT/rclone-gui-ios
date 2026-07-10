@@ -12930,6 +12930,82 @@
         }
       }
     },
+    "Ajuste le nombre de transferts simultanés selon le réseau, la chauffe et la batterie." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passt die Anzahl gleichzeitiger Übertragungen an Netzwerk, Wärme und Batterie an."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adjusts the number of simultaneous transfers based on network, heat and battery."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajusta el número de transferencias simultáneas según la red, el calor y la batería."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Regola il numero di trasferimenti simultanei in base a rete, calore e batteria."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ネットワーク・発熱・バッテリーに応じて同時転送数を調整します。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크, 발열, 배터리에 따라 동시 전송 수를 조정합니다."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Past het aantal gelijktijdige overdrachten aan op basis van netwerk, warmte en batterij."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dostosowuje liczbę równoczesnych transferów do sieci, temperatury i baterii."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajusta o número de transferências simultâneas conforme a rede, o aquecimento e a bateria."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Подстраивает число одновременных передач под сеть, нагрев и батарею."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "根据网络、发热和电池状况自动调整同时传输数量。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "根據網路、發熱和電池狀況自動調整同時傳輸數量。"
+          }
+        }
+      }
+    },
     "Albums à sauvegarder" : {
       "localizations" : {
         "de" : {
@@ -14236,6 +14312,82 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Apple 應用專用密碼"
+          }
+        }
+      }
+    },
+    "appareil chaud" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gerät warm"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "device warm"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "dispositivo caliente"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "dispositivo caldo"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本体が高温"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "기기 온도 높음"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "toestel warm"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "urządzenie nagrzane"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "aparelho quente"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "устройство нагрето"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "设备发热"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "裝置發熱"
           }
         }
       }
@@ -19600,6 +19752,82 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "缺陷、想法或問題 — 通過電子郵件"
+          }
+        }
+      }
+    },
+    "connexion rapide" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "schnelle Verbindung"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "fast connection"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "conexión rápida"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "connessione veloce"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "高速接続"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "빠른 연결"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "snelle verbinding"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "szybkie połączenie"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "conexão rápida"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "быстрое соединение"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "高速连接"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "高速連線"
           }
         }
       }
@@ -36660,6 +36888,82 @@
         }
       }
     },
+    "économie d'énergie" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stromsparmodus"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Low Power Mode"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ahorro de energía"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "risparmio energetico"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "低電力モード"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "저전력 모드"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "energiebesparing"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "oszczędzanie energii"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "economia de energia"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "энергосбережение"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "低电量模式"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "低耗電模式"
+          }
+        }
+      }
+    },
     "Écrire un e-mail" : {
       "localizations" : {
         "de" : {
@@ -44246,6 +44550,82 @@
         }
       }
     },
+    "Gestion automatique" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatische Verwaltung"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatic management"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gestión automática"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gestione automatica"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自動管理"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "자동 관리"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatisch beheer"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zarządzanie automatyczne"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gerenciamento automático"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Автоматическое управление"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自动管理"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自動管理"
+          }
+        }
+      }
+    },
     "Ghost Sync" : {
       "localizations" : {
         "de" : {
@@ -45249,6 +45629,82 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Не в сети"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "离线"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "離線"
+          }
+        }
+      }
+    },
+    "hors-ligne" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "offline"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "offline"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "sin conexión"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "offline"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "オフライン"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "오프라인"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "offline"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "offline"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "off-line"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "офлайн"
           }
         },
         "zh-Hans" : {
@@ -56759,6 +57215,82 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "演示模式已啟用"
+          }
+        }
+      }
+    },
+    "mode données réduites" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Datensparmodus"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Low Data Mode"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "modo de ahorro de datos"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "risparmio dati"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "省データモード"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "데이터 절약 모드"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "gegevensbesparing"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "tryb oszczędzania danych"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "modo de economia de dados"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "экономия данных"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "低数据模式"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "低數據模式"
           }
         }
       }
@@ -72596,6 +73128,82 @@
         }
       }
     },
+    "réseau cellulaire" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mobilfunknetz"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "cellular network"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "red celular"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "rete cellulare"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "モバイル通信"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "셀룰러 네트워크"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "mobiel netwerk"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "sieć komórkowa"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "rede celular"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "сотовая сеть"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "蜂窝网络"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "行動網路"
+          }
+        }
+      }
+    },
     "Restaurables pendant 30 jours avant purge automatique." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -79100,6 +79708,82 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "在裝有 rclone CLI 的機器上：`rclone authorize \"onedrive\"`。"
+          }
+        }
+      }
+    },
+    "surchauffe critique" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "kritische Überhitzung"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "critical overheating"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "sobrecalentamiento crítico"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "surriscaldamento critico"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "深刻な過熱"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "심각한 과열"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "kritieke oververhitting"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "krytyczne przegrzanie"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "superaquecimento crítico"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "критический перегрев"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "严重过热"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "嚴重過熱"
           }
         }
       }
@@ -89299,6 +89983,82 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "預設使用 Wi-Fi + 充電"
+          }
+        }
+      }
+    },
+    "Wi-Fi : 4 · Cellulaire : 2 · Économie d'énergie ou chauffe : 1-2 · Surchauffe critique : 1. Les petits fichiers passent en premier et un échec hors-ligne reprend tout seul au retour du réseau. Vos réglages manuels sont conservés et restaurés si vous désactivez le mode automatique." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WLAN: 4 · Mobilfunk: 2 · Stromsparmodus oder Wärme: 1-2 · Kritische Überhitzung: 1. Kleine Dateien werden zuerst übertragen, und ein Offline-Fehler wird bei Netzwerkrückkehr automatisch fortgesetzt. Ihre manuellen Einstellungen bleiben erhalten und werden wiederhergestellt, wenn Sie den Automatikmodus deaktivieren."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wi-Fi: 4 · Cellular: 2 · Low Power or heat: 1-2 · Critical overheating: 1. Small files go first, and an offline failure resumes on its own when the network returns. Your manual settings are kept and restored if you turn off automatic mode."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wi-Fi: 4 · Datos móviles: 2 · Ahorro de energía o calor: 1-2 · Sobrecalentamiento crítico: 1. Los archivos pequeños pasan primero y un fallo sin conexión se reanuda solo al volver la red. Tus ajustes manuales se conservan y se restauran si desactivas el modo automático."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wi-Fi: 4 · Cellulare: 2 · Risparmio energetico o calore: 1-2 · Surriscaldamento critico: 1. I file piccoli passano per primi e un errore offline riprende da solo al ritorno della rete. Le impostazioni manuali vengono conservate e ripristinate se disattivi la modalità automatica."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wi-Fi:4 · モバイル通信:2 · 低電力または発熱:1〜2 · 深刻な過熱:1。小さいファイルが優先され、オフラインでの失敗はネットワーク復帰時に自動で再開されます。手動設定は保持され、自動モードをオフにすると復元されます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wi-Fi: 4 · 셀룰러: 2 · 저전력 또는 발열: 1-2 · 심각한 과열: 1. 작은 파일이 먼저 전송되며, 오프라인 실패는 네트워크가 복구되면 자동으로 재개됩니다. 수동 설정은 유지되며 자동 모드를 끄면 복원됩니다."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wifi: 4 · Mobiel: 2 · Energiebesparing of warmte: 1-2 · Kritieke oververhitting: 1. Kleine bestanden gaan eerst en een offline fout wordt automatisch hervat zodra het netwerk terugkeert. Je handmatige instellingen blijven bewaard en worden hersteld als je de automatische modus uitschakelt."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wi-Fi: 4 · Sieć komórkowa: 2 · Oszczędzanie energii lub nagrzanie: 1-2 · Krytyczne przegrzanie: 1. Małe pliki idą pierwsze, a nieudany transfer offline wznawia się sam po powrocie sieci. Ustawienia ręczne są zachowywane i przywracane po wyłączeniu trybu automatycznego."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wi-Fi: 4 · Celular: 2 · Economia de energia ou aquecimento: 1-2 · Superaquecimento crítico: 1. Arquivos pequenos passam primeiro e uma falha off-line retoma sozinha quando a rede volta. Seus ajustes manuais são mantidos e restaurados se você desativar o modo automático."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wi-Fi: 4 · Сотовая сеть: 2 · Энергосбережение или нагрев: 1-2 · Критический перегрев: 1. Маленькие файлы идут первыми, а сбой в офлайне возобновляется сам при возвращении сети. Ручные настройки сохраняются и восстанавливаются при отключении автоматического режима."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wi-Fi：4 · 蜂窝网络：2 · 低电量或发热：1-2 · 严重过热：1。小文件优先传输，离线失败会在网络恢复后自动继续。手动设置会被保留，关闭自动模式后即恢复。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wi-Fi：4 · 行動網路：2 · 低耗電或發熱：1-2 · 嚴重過熱：1。小檔案優先傳輸，離線失敗會在網路恢復後自動繼續。手動設定會被保留，關閉自動模式後即恢復。"
           }
         }
       }

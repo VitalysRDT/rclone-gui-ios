@@ -56,6 +56,52 @@ public final class TransferQueue {
     private var bridgeFolderTasks: [String: Task<Void, Never>] = [:]
     private let maxAutoRetries = 2
 
+    // MARK: - Mode Auto (gestion automatique de la concurrence)
+
+    /// Dernière décision du mode Auto (voir AutoTransferPolicy). Rafraîchie
+    /// par refreshAutoPolicy() sur les évènements réseau/énergie déjà câblés,
+    /// consommée par `maxConcurrent` et affichée dans Réglages → Performance.
+    public private(set) var currentAutoDecision = AutoTransferPolicy.Decision(
+        queueConcurrency: 3, bridgeConcurrency: 4, reason: .nominal
+    )
+
+    /// Mode Auto actif ? Défaut ON tant que l'utilisateur n'a pas touché au
+    /// toggle ; OFF → les réglages manuels reprennent la main à l'identique.
+    public var isAutoModeEnabled: Bool {
+        AutoTransferPolicy.isAutoModeEnabled(UserDefaults.standard)
+    }
+
+    /// Échantillonne les signaux réseau/énergie et met à jour la décision du
+    /// mode Auto. Appelé à l'attach, sur changement de lien réseau, sur
+    /// changement thermique/mode éco, et au toggle dans les réglages.
+    /// Réduction NON préemptive : les transferts en vol terminent, seuls les
+    /// prochains dispatchs voient moins de slots — on ne relance donc le
+    /// scheduler que quand la concurrence AUGMENTE.
+    public func refreshAutoPolicy() {
+        guard isAutoModeEnabled else { return }
+        // snapshot : une seule prise de lock — trois lectures séparées
+        // pourraient chevaucher une bascule de path (état déchiré).
+        let reach = NetworkReachability.shared.snapshot
+        let info = ProcessInfo.processInfo
+        let decision = AutoTransferPolicy.decide(AutoTransferPolicy.Inputs(
+            isOnline: reach.online,
+            isExpensive: reach.expensive,
+            isConstrained: reach.constrained,
+            thermal: info.thermalState,
+            lowPower: info.isLowPowerModeEnabled
+        ))
+        guard decision != currentAutoDecision else { return }
+        let previous = currentAutoDecision
+        currentAutoDecision = decision
+        Task {
+            await LogService.shared.log(.info, category: "transfer",
+                message: "🤖 Mode Auto : concurrence \(decision.queueConcurrency) (\(decision.reason.rawValue))")
+        }
+        if decision.queueConcurrency > previous.queueConcurrency {
+            scheduleNext()
+        }
+    }
+
     // MARK: - Security-scoped bookmark helpers
 
     /// Capture un bookmark security-scoped pour une URL issue de
@@ -121,6 +167,21 @@ public final class TransferQueue {
         Task { await replayInterrupted() }
         startStatsPolling()
         startEnergyObservers()
+        migrateAutoModeDefaultIfNeeded()
+        refreshAutoPolicy()
+    }
+
+    /// Défaut ON du mode Auto réservé aux installations SANS réglage manuel
+    /// préalable : un utilisateur existant qui avait explicitement réglé
+    /// « Transferts simultanés » garde son comportement (Auto OFF, activable
+    /// à tout moment dans Réglages → Performance). Écrit la clé une seule
+    /// fois — le choix de l'utilisateur reste ensuite souverain.
+    private func migrateAutoModeDefaultIfNeeded() {
+        let defaults = UserDefaults.standard
+        guard defaults.object(forKey: AutoTransferPolicy.autoModeEnabledKey) == nil else { return }
+        if defaults.object(forKey: Self.maxConcurrentKey) != nil {
+            defaults.set(false, forKey: AutoTransferPolicy.autoModeEnabledKey)
+        }
     }
 
     // MARK: - Enqueue API
@@ -784,8 +845,11 @@ public final class TransferQueue {
     static let cellularLimitKey = "transfer.cellularLimitMBps"
     static let wifiLimitKey = "transfer.bandwidthLimitMBps"
 
-    /// Nombre max de transferts download/upload simultanés (défaut 3, borné 1…8).
+    /// Nombre max de transferts download/upload simultanés. Mode Auto ON →
+    /// valeur décidée par AutoTransferPolicy (réseau + énergie) ; OFF →
+    /// préférence manuelle inchangée (défaut 3, borné 1…8).
     public var maxConcurrent: Int {
+        if isAutoModeEnabled { return currentAutoDecision.queueConcurrency }
         let v = UserDefaults.standard.integer(forKey: Self.maxConcurrentKey)
         return v <= 0 ? 3 : min(v, 8)
     }
@@ -854,7 +918,22 @@ public final class TransferQueue {
                      SortDescriptor(\.startedAt, order: .forward)]
         )
         let all = (try? modelContext.fetch(descriptor)) ?? []
-        return all.filter { isQueuedKind($0) }
+        let queued = all.filter { isQueuedKind($0) }
+        guard isAutoModeEnabled, queued.count > 1 else { return queued }
+        // Mode Auto : petits-fichiers-d'abord à priorité manuelle égale —
+        // maximise les éléments terminés par minute. Le geste « Prioriser »
+        // (queueOrder min-1) prime toujours sur la taille ; bytesTotal est
+        // déjà connu à l'enqueue (operations/size / entry.size), zéro RPC.
+        let candidates = queued.map {
+            AutoTransferPolicy.QueueCandidate(
+                id: $0.id,
+                queueOrder: $0.queueOrder,
+                bytesTotal: $0.bytesTotal,
+                startedAt: $0.startedAt
+            )
+        }
+        let byID = Dictionary(uniqueKeysWithValues: queued.map { ($0.id, $0) })
+        return AutoTransferPolicy.sortSmallFirst(candidates).compactMap { byID[$0.id] }
     }
 
     /// Dispatch effectif d'un transfert déjà réservé (.running) par scheduleNext.
@@ -886,6 +965,13 @@ public final class TransferQueue {
                 startPolling(t)
             } catch {
                 if let t = fetchTransfer(id: id) {
+                    if autoPauseInsteadOfFail(t) {
+                        // Le dispatch a échoué parce que le réseau est tombé
+                        // entre la réservation du slot et la RPC : pause auto,
+                        // le retour du lien remettra en file.
+                        scheduleNext()
+                        return
+                    }
                     t.status = .failed
                     t.lastError = error.localizedDescription
                     t.finishedAt = .now
@@ -940,8 +1026,17 @@ public final class TransferQueue {
             // Continue sans fileCount, le bridge le recalculera.
         }
 
-        let concurrencyRaw = UserDefaults.standard.integer(forKey: Self.bridgeFolderConcurrencyKey)
-        let concurrency = concurrencyRaw > 0 ? concurrencyRaw : Self.defaultBridgeFolderConcurrency
+        // Mode Auto : la concurrence des workers de dossier suit la décision
+        // contextuelle (Wi-Fi 6, cellulaire 3, éco/chauffe 2, critique 1) ;
+        // sinon préférence manuelle inchangée (défaut 4). Lue au démarrage de
+        // chaque dossier — un dossier déjà en vol garde sa concurrence.
+        let concurrency: Int
+        if isAutoModeEnabled {
+            concurrency = currentAutoDecision.bridgeConcurrency
+        } else {
+            let concurrencyRaw = UserDefaults.standard.integer(forKey: Self.bridgeFolderConcurrencyKey)
+            concurrency = concurrencyRaw > 0 ? concurrencyRaw : Self.defaultBridgeFolderConcurrency
+        }
 
         do {
             try FileManager.default.createDirectory(at: destinationURL, withIntermediateDirectories: true)
@@ -990,15 +1085,20 @@ public final class TransferQueue {
                 return
             } catch {
                 if let t = fetchTransfer(id: id) {
-                    t.status = .failed
-                    t.lastError = "Bridge + sync/copy ont échoué : \(error.localizedDescription)"
-                    t.finishedAt = .now
-                    try? modelContext?.save()
+                    if autoPauseInsteadOfFail(t) {
+                        // Double échec parce que le réseau est tombé : pause
+                        // auto — reprise skip-existing au retour du lien.
+                    } else {
+                        t.status = .failed
+                        t.lastError = "Bridge + sync/copy ont échoué : \(error.localizedDescription)"
+                        t.finishedAt = .now
+                        try? modelContext?.save()
+                        await LogService.shared.log(
+                            .error, category: "transfer",
+                            message: "❌ Bridge + sync/copy ont échoué pour \(remote):\(transfer.sourcePath) — \(error.localizedDescription)"
+                        )
+                    }
                 }
-                await LogService.shared.log(
-                    .error, category: "transfer",
-                    message: "❌ Bridge + sync/copy ont échoué pour \(remote):\(transfer.sourcePath) — \(error.localizedDescription)"
-                )
             }
         }
 
@@ -1040,9 +1140,10 @@ public final class TransferQueue {
 
     // MARK: - Politique réseau (Wi-Fi / cellulaire)
 
-    /// Abonné aux changements de lien (`.networkPathDidChange`) : applique la
-    /// politique réseau courante.
+    /// Abonné aux changements de lien (`.networkPathDidChange`) : réévalue la
+    /// concurrence du mode Auto puis applique la politique réseau courante.
     public func handleNetworkChange() async {
+        refreshAutoPolicy()
         await applyNetworkPolicy()
     }
 
@@ -1391,6 +1492,9 @@ public final class TransferQueue {
                 forName: name, object: nil, queue: .main
             ) { [weak self] _ in
                 Task { @MainActor [weak self] in
+                    // Concurrence (mode Auto) ET plafond de débit réagissent
+                    // au même évènement thermique/énergie.
+                    self?.refreshAutoPolicy()
                     await self?.reevaluateUserActivityThrottle()
                 }
             }
@@ -1463,8 +1567,10 @@ public final class TransferQueue {
 
     /// Éligible au re-enqueue automatique ? On exclut les batches et PhotoSync
     /// (logiques propres) et les downloads de DOSSIER (retry() les relancerait
-    /// en copyfile). Borné par `maxAutoRetries` via une signature stable.
-    private func shouldAutoRetry(_ t: Transfer) -> Bool {
+    /// en copyfile). Budget de tentatives : en mode Auto, par CLASSE d'erreur
+    /// (permanent 0 / inconnu 2 / transitoire et rate-limit 3) ; en manuel,
+    /// `maxAutoRetries` historique — via une signature stable.
+    private func shouldAutoRetry(_ t: Transfer, errorMessage: String?) -> Bool {
         guard t.batchID == nil, t.sourceKind != .photoLibrary else { return false }
         switch t.kind {
         case .copy, .move, .sync:
@@ -1474,7 +1580,43 @@ public final class TransferQueue {
         default:
             return false
         }
-        return autoRetryCounts[autoRetryKey(t), default: 0] < maxAutoRetries
+        return autoRetryCounts[autoRetryKey(t), default: 0] < retryBudget(for: errorMessage)
+    }
+
+    /// Nombre max de tentatives auto pour un message d'erreur donné.
+    private func retryBudget(for errorMessage: String?) -> Int {
+        guard isAutoModeEnabled else { return maxAutoRetries }
+        return AutoTransferPolicy.maxAttempts(for: AutoTransferPolicy.classify(errorMessage))
+    }
+
+    /// Garde hors-ligne du mode Auto : un échec pendant une coupure réseau
+    /// n'est PAS un échec. Passe le transfert en pause AUTO sans consommer de
+    /// tentative ; le retour du réseau le remet en file via le chemin existant
+    /// .networkPathDidChange → applyNetworkPolicy → resumeAutoPaused (les
+    /// dossiers reprennent en skip-existing). Réservé aux download/upload
+    /// (seuls repêchés par resumeAutoPaused) ENCORE .running — une pause
+    /// manuelle ou une annulation posée pendant l'await du dispatch/poll ne
+    /// doit jamais être convertie en pause auto relançable — hors PhotoSync
+    /// (pipeline d'état propre). Renvoie true si la pause a été appliquée.
+    private func autoPauseInsteadOfFail(_ t: Transfer) -> Bool {
+        guard AutoTransferPolicy.shouldAutoPauseInsteadOfFail(
+            status: t.status,
+            kind: t.kind,
+            sourceKind: t.sourceKind,
+            autoEnabled: isAutoModeEnabled,
+            isOnline: NetworkReachability.shared.isOnline
+        ) else { return false }
+        t.jobID = nil
+        t.status = .paused
+        t.autoPaused = true
+        t.finishedAt = nil
+        try? modelContext?.save()
+        let src = t.sourcePath
+        Task {
+            await LogService.shared.log(.info, category: "transfer",
+                message: "📴 Échec hors-ligne : \(src) en pause auto (reprise au retour du réseau)")
+        }
+        return true
     }
 
     private func pollLoop(transferID: String, jobID: Int) async {
@@ -1524,27 +1666,43 @@ public final class TransferQueue {
                                 message: "✅ \(finalKind.rawValue) terminé : \(finalSrc)"
                             )
                         }
-                    } else if shouldAutoRetry(transfer) {
+                    } else if autoPauseInsteadOfFail(transfer) {
+                        // Coupure réseau : pause auto au lieu d'un échec — ne
+                        // consomme aucune tentative, reprise au retour du lien.
+                        break
+                    } else if shouldAutoRetry(transfer, errorMessage: status.error) {
                         // Re-enqueue auto borné (coupures réseau transitoires).
                         let key = autoRetryKey(transfer)
                         let attempt = autoRetryCounts[key, default: 0] + 1
                         autoRetryCounts[key] = attempt
+                        let budget = retryBudget(for: status.error)
                         transfer.status = .failed
-                        transfer.lastError = (status.error ?? "Échec") + " — nouvelle tentative \(attempt)/\(maxAutoRetries)"
+                        transfer.lastError = (status.error ?? "Échec") + " — nouvelle tentative \(attempt)/\(budget)"
                         transfer.finishedAt = .now
                         try? modelContext?.save()
                         await LogService.shared.log(
                             .info,
                             category: "transfer",
-                            message: "🔁 Nouvelle tentative auto \(attempt)/\(maxAutoRetries) : \(finalSrc)"
+                            message: "🔁 Nouvelle tentative auto \(attempt)/\(budget) : \(finalSrc)"
                         )
                         let toRetry = transfer
-                        // Backoff EXPONENTIEL avec jitter (équilibré), plafonné à
-                        // 60 s : plus doux pour le radio/la batterie que l'ancien
-                        // délai linéaire, et le jitter évite que plusieurs échecs
-                        // simultanés ne retentent tous au même instant.
-                        let capped = min(60.0, 3.0 * pow(2.0, Double(attempt - 1)))
-                        let backoff = capped / 2 + Double.random(in: 0...(capped / 2))
+                        // Backoff EXPONENTIEL avec jitter (équilibré) : plus doux
+                        // pour le radio/la batterie que l'ancien délai linéaire,
+                        // et le jitter évite que plusieurs échecs simultanés ne
+                        // retentent tous au même instant. Mode Auto : bornes par
+                        // CLASSE d'erreur (rate-limit attend plus longtemps) ;
+                        // manuel : formule historique cap 60 s inchangée.
+                        let backoff: Double
+                        if isAutoModeEnabled,
+                           let range = AutoTransferPolicy.retryDelayRange(
+                               errorClass: AutoTransferPolicy.classify(status.error),
+                               attempt: attempt
+                           ) {
+                            backoff = Double.random(in: range)
+                        } else {
+                            let capped = min(60.0, 3.0 * pow(2.0, Double(attempt - 1)))
+                            backoff = capped / 2 + Double.random(in: 0...(capped / 2))
+                        }
                         Task { @MainActor in
                             try? await Task.sleep(for: .seconds(backoff))
                             try? await self.retry(toRetry)
@@ -1584,6 +1742,11 @@ public final class TransferQueue {
                 break
             } catch {
                 let transfer = self.fetchTransfer(id: transferID)
+                if let transfer, autoPauseInsteadOfFail(transfer) {
+                    // La RPC de poll a échoué parce que le réseau est tombé :
+                    // pause auto (reprise au retour) au lieu d'un échec sec.
+                    break
+                }
                 transfer?.status = .failed
                 transfer?.lastError = error.localizedDescription
                 transfer?.finishedAt = .now
