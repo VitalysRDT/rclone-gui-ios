@@ -8,6 +8,7 @@
 //  setting takes effect immediately without app restart.
 //
 
+import Combine
 import SwiftUI
 
 struct PerformanceSettingsView: View {
@@ -21,10 +22,17 @@ struct PerformanceSettingsView: View {
     @AppStorage("transfer.pauseOnCellular") private var pauseOnCellular: Bool = false
     /// Limite de bande passante distincte appliquée en cellulaire (0 = illimité).
     @AppStorage("transfer.cellularLimitMBps") private var cellularLimitMBps: Double = 0
+    /// Mode Auto : la concurrence de la file est décidée automatiquement selon
+    /// le réseau et l'énergie (AutoTransferPolicy). OFF → le Stepper manuel
+    /// et sa clé reprennent la main à l'identique.
+    @AppStorage(AutoTransferPolicy.autoModeEnabledKey) private var autoMode: Bool = true
 
     @State private var isPaused = false
     @State private var transientMessage: String?
     @State private var isApplying = false
+    /// Résumé affiché en mode Auto (« 4 · connexion rapide »). Rafraîchi sur
+    /// les mêmes évènements que la décision (réseau, thermique, mode éco).
+    @State private var autoSummary = ""
 
     static let maxMBps: Double = 100  // 100 MB/s ≈ Gigabit ceiling — beyond user's
                                       // realistic LTE/Wi-Fi needs without making
@@ -94,26 +102,66 @@ struct PerformanceSettingsView: View {
             }
 
             Section {
-                Stepper(value: Binding(
-                    get: { maxConcurrent },
+                Toggle(isOn: Binding(
+                    get: { autoMode },
                     set: { newValue in
-                        maxConcurrent = newValue
-                        TransferQueue.shared.setMaxConcurrent(newValue)
+                        autoMode = newValue
+                        // Réévalue immédiatement : la décision Auto (ou le
+                        // réglage manuel restauré) s'applique sans redémarrage.
+                        TransferQueue.shared.refreshAutoPolicy()
+                        TransferQueue.shared.scheduleNext()
+                        refreshAutoSummary()
                     }
-                ), in: 1...8) {
+                )) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Gestion automatique")
+                            .font(.body.weight(.medium))
+                        Text("Ajuste le nombre de transferts simultanés selon le réseau, la chauffe et la batterie.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                if autoMode {
                     HStack {
                         Text("Transferts simultanés")
                         Spacer()
-                        Text("\(maxConcurrent)")
+                        // verbatim : nombre + libellé déjà localisé, pas de clé à
+                        // extraire. @State (et non lecture directe du singleton) :
+                        // TransferQueue n'est pas Observable — sans ça la ligne
+                        // resterait figée quand la décision change écran ouvert.
+                        Text(verbatim: autoSummary)
                             .font(.body.weight(.semibold))
                             .monospacedDigit()
                             .foregroundStyle(.secondary)
+                    }
+                } else {
+                    Stepper(value: Binding(
+                        get: { maxConcurrent },
+                        set: { newValue in
+                            maxConcurrent = newValue
+                            TransferQueue.shared.setMaxConcurrent(newValue)
+                        }
+                    ), in: 1...8) {
+                        HStack {
+                            Text("Transferts simultanés")
+                            Spacer()
+                            Text("\(maxConcurrent)")
+                                .font(.body.weight(.semibold))
+                                .monospacedDigit()
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
             } header: {
                 Text("File d'attente")
             } footer: {
-                Text("Nombre maximum de téléchargements/envois actifs en même temps. Les suivants patientent dans la file et démarrent automatiquement dès qu'un slot se libère.")
+                // Deux Text littéraux distincts (pas un ternaire de String) pour
+                // rester sur LocalizedStringKey → clés extraites dans le catalogue.
+                if autoMode {
+                    Text("Wi-Fi : 4 · Cellulaire : 2 · Économie d'énergie ou chauffe : 1-2 · Surchauffe critique : 1. Les petits fichiers passent en premier et un échec hors-ligne reprend tout seul au retour du réseau. Vos réglages manuels sont conservés et restaurés si vous désactivez le mode automatique.")
+                } else {
+                    Text("Nombre maximum de téléchargements/envois actifs en même temps. Les suivants patientent dans la file et démarrent automatiquement dès qu'un slot se libère.")
+                }
             }
 
             Section {
@@ -175,7 +223,29 @@ struct PerformanceSettingsView: View {
             // through restoreFromPersistedState; we just mirror the resulting
             // isPausedGlobally into the local Toggle binding.
             isPaused = TransferQueue.shared.isPausedGlobally
+            refreshAutoSummary()
         }
+        // Suit les mêmes évènements que refreshAutoPolicy pour que la ligne
+        // « Transferts simultanés » reste juste écran ouvert (bascule Wi-Fi →
+        // cellulaire, chauffe…). receive(on:) : les notifications thermique/
+        // énergie peuvent arriver hors main thread.
+        .onReceive(NotificationCenter.default.publisher(for: .networkPathDidChange).receive(on: RunLoop.main)) { _ in
+            refreshAutoSummary()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: ProcessInfo.thermalStateDidChangeNotification).receive(on: RunLoop.main)) { _ in
+            refreshAutoSummary()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .NSProcessInfoPowerStateDidChange).receive(on: RunLoop.main)) { _ in
+            refreshAutoSummary()
+        }
+    }
+
+    /// Réévalue la décision Auto (idempotente) puis recopie le résumé dans le
+    /// @State — TransferQueue n'est pas Observable, c'est ce @State qui rend
+    /// la ligne réactive.
+    private func refreshAutoSummary() {
+        TransferQueue.shared.refreshAutoPolicy()
+        autoSummary = "\(TransferQueue.shared.maxConcurrent) · \(TransferQueue.shared.currentAutoDecision.reason.localizedLabel)"
     }
 
     // MARK: - Actions
