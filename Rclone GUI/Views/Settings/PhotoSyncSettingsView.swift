@@ -47,6 +47,9 @@ struct PhotoSyncSettingsView: View {
                         AppMetricPill(value: "\(stats.pending)", label: "attente", systemImage: "clock", tint: .orange)
                         AppMetricPill(value: "\(stats.active)", label: "actifs", systemImage: "bolt.fill", tint: .blue)
                         AppMetricPill(value: "\(stats.completed)", label: "terminés", systemImage: "checkmark.circle", tint: .green)
+                        if stats.skipped > 0 {
+                            AppMetricPill(value: "\(stats.skipped)", label: "ignorées", systemImage: "minus.circle", tint: .gray)
+                        }
                     }
 
                     if shouldShowProgressBar {
@@ -200,6 +203,15 @@ struct PhotoSyncSettingsView: View {
                     }
                 }
 
+                if stats.skipped > 0 {
+                    Button {
+                        Task { await retrySkipped() }
+                    } label: {
+                        Label("Réessayer les ignorées (\(stats.skipped))", systemImage: "arrow.clockwise.circle")
+                    }
+                    .disabled(stats.pausedByUser || selectedRemote.isEmpty)
+                }
+
                 Button {
                     Task { await verifyIntegrity() }
                 } label: {
@@ -244,6 +256,8 @@ struct PhotoSyncSettingsView: View {
                     Text("La synchro est en pause. Aucun nouveau transfert ne sera lancé jusqu'à la reprise manuelle.")
                 } else if stats.failed > 0 {
                     Text("\(stats.failed) photo(s) en échec. Réessayer remet à zéro le compteur de tentatives.")
+                } else if stats.skipped > 0 {
+                    Text("\(stats.skipped) photo(s) ignorée(s) : supprimées/déplacées dans Photos, accès partiel, ou originaux illisibles. « Réessayer les ignorées » les recycle — utile après avoir re-accordé « Toutes les photos ».")
                 }
             }
 
@@ -266,6 +280,9 @@ struct PhotoSyncSettingsView: View {
                 LabeledContent("En cours/en file", value: "\(stats.active)")
                 LabeledContent("Terminés", value: "\(stats.completed)")
                 LabeledContent("Échecs", value: "\(stats.failed)")
+                if stats.skipped > 0 {
+                    LabeledContent("Ignorées", value: "\(stats.skipped)")
+                }
             } header: {
                 Text("État")
             }
@@ -401,6 +418,7 @@ struct PhotoSyncSettingsView: View {
             active: summary.activeCount,
             completed: summary.completedCount,
             failed: summary.failedCount,
+            skipped: summary.skippedCount,
             totalBytes: summary.totalBytes,
             transferredBytes: summary.transferredBytes,
             averageBytesPerSecond: summary.averageBytesPerSecond,
@@ -422,6 +440,14 @@ struct PhotoSyncSettingsView: View {
         let recycled = await PhotoSyncService.shared.retryFailedAssets()
         if recycled > 0 {
             message = "\(recycled) photo(s) remise(s) en file."
+        }
+        await reloadStats()
+    }
+
+    private func retrySkipped() async {
+        let recycled = await PhotoSyncService.shared.retrySkippedAssets()
+        if recycled > 0 {
+            message = "\(recycled) photo(s) ignorée(s) remise(s) en file."
         }
         await reloadStats()
     }
@@ -599,6 +625,7 @@ private struct PhotoSyncStats {
     var active = 0
     var completed = 0
     var failed = 0
+    var skipped = 0
     var totalBytes: Int64 = 0
     var transferredBytes: Int64 = 0
     var averageBytesPerSecond: Double = 0
@@ -609,7 +636,7 @@ private struct PhotoSyncStats {
     /// `PhotoSyncRunSummary.effectiveTotal` so both screens agree on
     /// the denominator (includes failed, ratchet-aware).
     var effectiveTotal: Int {
-        max(completed + active + pending + failed, indexed)
+        max(completed + active + pending + failed + skipped, indexed)
     }
 
     /// Monotonic 0..1 ratio sourced from the service-side ratchet.
