@@ -112,7 +112,7 @@ public final class TransferQueue {
     /// `bookmarkData` peut renvoyer nil). On ne capture que pour les downloads
     /// de DOSSIER (sync/copy est asynchrone via librclone goroutine et peut
     /// tourner après la désallocation de l'URL caller — voir `relaunch`).
-    static func captureSecurityScopedBookmark(for url: URL) -> Data? {
+    nonisolated static func captureSecurityScopedBookmark(for url: URL) -> Data? {
         // Sur iOS, un bookmark créé depuis une URL issue de UIDocumentPicker
         // est implicitement security-scoped : la résolution via
         // URL(resolvingBookmarkData:) suivie de startAccessingSecurityScopedResource()
@@ -137,7 +137,14 @@ public final class TransferQueue {
     /// l'URL résolue (à utiliser comme `dstFs`) si succès, nil sinon.
     /// Le caller DOIT appeler `url.stopAccessingSecurityScopedResource()` après
     /// la fin du job rclone (cleanup dans `pollLoop`).
-    static func resolveSecurityScopedBookmark(_ data: Data) -> (url: URL, didStart: Bool)? {
+    ///
+    /// ⚠️ BLOQUANT : `URL(resolvingBookmarkData:)` +
+    /// `startAccessingSecurityScopedResource()` peuvent SUSPENDRE le thread
+    /// appelant en attendant le daemon iCloud / la coordination de fichiers
+    /// (doc Apple « Improving performance … accessing the file system »).
+    /// Ne JAMAIS appeler depuis le MainActor → passer par
+    /// `resolveSecurityScopedBookmarkOffMain`.
+    nonisolated static func resolveSecurityScopedBookmark(_ data: Data) -> (url: URL, didStart: Bool)? {
         var isStale = false
         do {
             let url = try URL(
@@ -155,6 +162,56 @@ public final class TransferQueue {
         } catch {
             return nil
         }
+    }
+
+    // MARK: - Helpers système de fichiers HORS MainActor
+    //
+    // Doctrine Apple : TOUTE opération iCloud / security-scoped /
+    // NSFileCoordinator / FileManager est BLOQUANTE (peut parquer le thread
+    // dans le daemon iCloud même à ~0 % CPU → gel de l'UI). TransferQueue est
+    // @MainActor : ces appels DOIVENT être déportés sur une tâche de fond.
+
+    /// Résolution de bookmark hors MainActor (démarre le scope, process-wide).
+    nonisolated static func resolveSecurityScopedBookmarkOffMain(_ data: Data?) async -> (url: URL, didStart: Bool)? {
+        guard let data else { return nil }
+        return await Task.detached(priority: .userInitiated) {
+            resolveSecurityScopedBookmark(data)
+        }.value
+    }
+
+    /// Libération du scope hors MainActor (stop peut aussi bloquer).
+    nonisolated static func releaseScopeOffMain(_ pair: (url: URL, didStart: Bool)?) async {
+        guard let pair, pair.didStart else { return }
+        await Task.detached { pair.url.stopAccessingSecurityScopedResource() }.value
+    }
+
+    /// `FileManager.createDirectory` hors MainActor (bloquant sur iCloud).
+    nonisolated static func createDirectoryOffMain(_ url: URL) async throws {
+        try await Task.detached(priority: .userInitiated) {
+            try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        }.value
+    }
+
+    /// `FileManager.removeItem` best-effort hors MainActor.
+    nonisolated static func removeItemOffMain(_ url: URL) async {
+        await Task.detached { try? FileManager.default.removeItem(at: url) }.value
+    }
+
+    /// `partitionByExistence` hors MainActor (lit `attributesOfItem` sur la
+    /// destination — bloquant si iCloud/évincé/daemon occupé).
+    nonisolated static func partitionByExistenceOffMain(
+        files: [RemoteEntryDTO], sourcePath: String, destDir: URL
+    ) async -> (todo: [(entry: RemoteEntryDTO, destURL: URL)], skippedBytes: Int64, skippedCount: Int) {
+        await Task.detached(priority: .userInitiated) {
+            BridgeFolderDownloader.partitionByExistence(files: files, sourcePath: sourcePath, destDir: destDir)
+        }.value
+    }
+
+    /// Capture de bookmark hors MainActor (`bookmarkData()` est bloquant).
+    nonisolated static func captureSecurityScopedBookmarkOffMain(for url: URL) async -> Data? {
+        await Task.detached(priority: .userInitiated) {
+            captureSecurityScopedBookmark(for: url)
+        }.value
     }
 
     // MARK: - Setup
@@ -188,7 +245,7 @@ public final class TransferQueue {
 
     public func enqueueDownload(remote: String, path: String, to localURL: URL) async throws {
         let parent = localURL.deletingLastPathComponent()
-        try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
+        try await Self.createDirectoryOffMain(parent)
 
         let transfer = Transfer(
             kind: .download,
@@ -237,7 +294,8 @@ public final class TransferQueue {
         conflictPolicy: LocalConflictPolicy = .keepBoth,
         batchID: String? = nil
     ) async throws {
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        // Hors main thread : createDirectory bloque si `directory` est iCloud.
+        try await Self.createDirectoryOffMain(directory)
         let requestedURL = directory.appending(path: entry.name, directoryHint: entry.isDirectory ? .isDirectory : .notDirectory)
         guard let destinationURL = try LocalFileConflictResolver.destination(for: requestedURL, policy: conflictPolicy) else {
             await LogService.shared.log(.info, category: "transfer", message: "Téléchargement ignoré : \(remote):\(entry.pathInRemote)")
@@ -245,7 +303,7 @@ public final class TransferQueue {
         }
 
         if entry.isDirectory {
-            try FileManager.default.createDirectory(at: destinationURL, withIntermediateDirectories: true)
+            try await Self.createDirectoryOffMain(destinationURL)
             // Pré-calcul de la taille du dossier via operations/size pour avoir
             // un bytesTotal déterminé dès l'enqueue → la barre de progression
             // s'affiche immédiatement. Échec non bloquant : 0 → barre indéterminée.
@@ -282,7 +340,7 @@ public final class TransferQueue {
             // startAccessingSecurityScopedResource(). Pour les chemins du
             // sandbox app (Documents/, Caches/), bookmarkData() ne capture rien
             // et le champ reste nil → fallback transparent sur destinationURL.path.
-            transfer.destinationSecurityBookmark = Self.captureSecurityScopedBookmark(for: directory)
+            transfer.destinationSecurityBookmark = await Self.captureSecurityScopedBookmarkOffMain(for: directory)
             enqueueAndSchedule(transfer)
         } else {
             let transfer = Transfer(
@@ -731,7 +789,7 @@ public final class TransferQueue {
             }
             let destinationURL = URL(fileURLWithPath: t.destinationPath)
             if t.isDirectoryTransfer ?? false {
-                try FileManager.default.createDirectory(at: destinationURL, withIntermediateDirectories: true)
+                try await Self.createDirectoryOffMain(destinationURL)
                 // Réacquisition du scope security-scoped pour les downloads de
                 // dossier vers iCloud Drive / On My iPhone / picker externe.
                 // Sans ça, l'URL caller a été désallouée → scope iOS retiré →
@@ -745,7 +803,7 @@ public final class TransferQueue {
                 // que `copyDirAsync` ait rendu la main. On stocke donc la
                 // (URL, didStart) dans `activeSecurityScopes[jobID]` et c'est
                 // `pollLoop` qui libère le scope quand `finished=true`.
-                let resolvedBookmark = t.destinationSecurityBookmark.flatMap(Self.resolveSecurityScopedBookmark)
+                let resolvedBookmark = await Self.resolveSecurityScopedBookmarkOffMain(t.destinationSecurityBookmark)
                 let dstFs = resolvedBookmark?.url.path ?? destinationURL.path
                 let jobID: Int
                 do {
@@ -754,9 +812,7 @@ public final class TransferQueue {
                         dstFs: dstFs
                     )
                 } catch {
-                    if let pair = resolvedBookmark, pair.didStart {
-                        pair.url.stopAccessingSecurityScopedResource()
-                    }
+                    await Self.releaseScopeOffMain(resolvedBookmark)
                     await LogService.shared.log(.error, category: "transfer",
                         message: "copyDirAsync échec src=\(remote):\(t.sourcePath) dst=\(dstFs) → \(error.localizedDescription)")
                     throw error
@@ -769,7 +825,7 @@ public final class TransferQueue {
                 return jobID
             } else {
                 let parent = destinationURL.deletingLastPathComponent()
-                try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
+                try await Self.createDirectoryOffMain(parent)
                 return try await TransferService.shared.copyFileAsync(
                     srcFs: "\(remote):",
                     srcPath: t.sourcePath,
@@ -1013,12 +1069,12 @@ public final class TransferQueue {
         let destinationURL = URL(fileURLWithPath: transfer.destinationPath)
         // Scope tenu pour tout le dossier (le bookmark vise le dossier parent
         // choisi par l'utilisateur ; les fichiers s'écrivent en-dessous).
-        let resolvedBookmark = transfer.destinationSecurityBookmark.flatMap(Self.resolveSecurityScopedBookmark)
-        func releaseScope() {
-            if let pair = resolvedBookmark, pair.didStart {
-                pair.url.stopAccessingSecurityScopedResource()
-            }
-        }
+        // RÉSOLUTION HORS MAIN THREAD : URL(resolvingBookmarkData:) +
+        // startAccessingSecurityScopedResource() bloquent sur le daemon iCloud
+        // → gelaient l'app à ~10 % CPU, download bloqué à 0 %.
+        let bookmarkData = transfer.destinationSecurityBookmark
+        let resolvedBookmark = await Self.resolveSecurityScopedBookmarkOffMain(bookmarkData)
+        func releaseScope() async { await Self.releaseScopeOffMain(resolvedBookmark) }
 
         // 1) Listing récursif (fichiers seulement).
         let files: [RemoteEntryDTO]
@@ -1026,7 +1082,7 @@ public final class TransferQueue {
             files = try await RemoteService.shared.listRecursive(remote: remote, path: sourcePath)
                 .filter { !$0.isDirectory }
         } catch {
-            releaseScope()
+            await releaseScope()
             if let t = fetchTransfer(id: id), !autoPauseInsteadOfFail(t) {
                 t.status = .failed
                 t.lastError = error.localizedDescription
@@ -1044,8 +1100,9 @@ public final class TransferQueue {
         try? modelContext?.save()
 
         // 2) Skip des fichiers déjà présents avec la même taille (reprise sans
-        //    tout retélécharger). destDir = racine locale du dossier.
-        let partition = BridgeFolderDownloader.partitionByExistence(
+        //    tout retélécharger). HORS MAIN THREAD : attributesOfItem sur la
+        //    destination iCloud est bloquant.
+        let partition = await Self.partitionByExistenceOffMain(
             files: files, sourcePath: sourcePath, destDir: destinationURL
         )
         var doneBytes = partition.skippedBytes
@@ -1061,10 +1118,10 @@ public final class TransferQueue {
                 .appendingPathComponent(id, isDirectory: true)
             : nil
         if let stagingDir {
-            try? FileManager.default.createDirectory(at: stagingDir, withIntermediateDirectories: true)
+            try? await Self.createDirectoryOffMain(stagingDir)
         }
-        func cleanupStaging() {
-            if let stagingDir { try? FileManager.default.removeItem(at: stagingDir) }
+        func cleanupStaging() async {
+            if let stagingDir { await Self.removeItemOffMain(stagingDir) }
         }
 
         await LogService.shared.log(.info, category: "transfer",
@@ -1115,10 +1172,10 @@ public final class TransferQueue {
             }
         }
 
-        releaseScope()
+        await releaseScope()
         // Nettoyage du staging (fichiers publiés = déplacés ; restes partiels
         // sur erreur/annulation = à jeter, re-téléchargés à la reprise).
-        cleanupStaging()
+        await cleanupStaging()
 
         // 4) Finalisation.
         if Task.isCancelled {
@@ -1170,7 +1227,8 @@ public final class TransferQueue {
     ) async throws {
         let writeURL = stagingDir?.appendingPathComponent(UUID().uuidString) ?? destURL
         let parent = writeURL.deletingLastPathComponent()
-        try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
+        // Hors main thread (createDirectory bloque si le parent est iCloud).
+        try await Self.createDirectoryOffMain(parent)
 
         let jobID = try await TransferService.shared.copyFileAsync(
             srcFs: "\(remote):", srcPath: srcPath,
@@ -1192,7 +1250,7 @@ public final class TransferQueue {
                 try await Task.sleep(for: .milliseconds(500))
             }
         } catch {
-            if stagingDir != nil { try? FileManager.default.removeItem(at: writeURL) }
+            if stagingDir != nil { await Self.removeItemOffMain(writeURL) }
             throw error
         }
 
@@ -1882,7 +1940,7 @@ public final class TransferQueue {
         // termine (succès, échec, annulation, ou interruption réseau).
         // La goroutine librclone a fini ses `os.Open` à ce stade → safe.
         if let pair = activeSecurityScopes.removeValue(forKey: jobID), pair.didStart {
-            pair.url.stopAccessingSecurityScopedResource()
+            await Self.releaseScopeOffMain(pair)
             await LogService.shared.log(.debug, category: "transfer",
                 message: "🔓 scope security-scoped libéré pour jobID=\(jobID)")
         }
