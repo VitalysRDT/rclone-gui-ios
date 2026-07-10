@@ -57,6 +57,11 @@ public actor BridgeFolderDownloader {
     /// Progression courante du download (snapshot lu par les callers).
     private var lastSnapshot: ProgressSnapshot = .init(bytesTransferred: 0, bytesTotal: 0, filesCompleted: 0, filesTotal: 0, currentFilename: nil)
 
+    /// Erreurs des workers, collectées de façon actor-isolée (les tâches
+    /// enfants du TaskGroup y écrivent via `recordWorkerError` — jamais un
+    /// `append` concurrent sur une variable locale = plus de data race).
+    private var workerErrors: [Error] = []
+
     public func lastProgress() -> ProgressSnapshot { lastSnapshot }
 
     /// Télécharge un dossier via N workers bridge parallèles. Le callback
@@ -96,25 +101,19 @@ public actor BridgeFolderDownloader {
         // 3) Skip fichiers déjà présents avec taille identique (reprise après
         //    pause sans tout retélécharger). On calcule bytesTransferred
         //    initial pour ne pas fausser la barre de progression.
-        var todo: [(entry: RemoteEntryDTO, destURL: URL)] = []
-        var skippedBytes: Int64 = 0
-        var skippedCount = 0
         let partition = Self.partitionByExistence(
             files: sorted, sourcePath: sourcePath, destDir: destDir
         )
-        skippedBytes = partition.skippedBytes
-        skippedCount = partition.skippedCount
-        todo = partition.todo
-
+        let todo = partition.todo
         let bytesTotal = sorted.reduce(Int64(0)) { $0 + $1.size }
-        var bytesTransferred = skippedBytes
-        var filesCompleted = skippedCount
 
-        // Snapshot initial
-        var snapshot = ProgressSnapshot(
-            bytesTransferred: bytesTransferred,
+        // Snapshot initial (les octets/fichiers « skippés » comptent déjà comme
+        // faits). Ensuite tout passe par l'état actor `lastSnapshot`, jamais par
+        // une locale figée — d'où `let` : ce snapshot n'est plus muté.
+        let snapshot = ProgressSnapshot(
+            bytesTransferred: partition.skippedBytes,
             bytesTotal: bytesTotal,
-            filesCompleted: filesCompleted,
+            filesCompleted: partition.skippedCount,
             filesTotal: sorted.count,
             currentFilename: nil
         )
@@ -123,36 +122,26 @@ public actor BridgeFolderDownloader {
 
         await LogService.shared.log(
             .info, category: "transfer",
-            message: "🌉 BridgeFolderDownloader start remote=\(remote):\(sourcePath) → \(destDir.path) files=\(sorted.count) skip=\(skippedCount) concurrency=\(concurrency) bytesTotal=\(bytesTotal)"
+            message: "🌉 BridgeFolderDownloader start remote=\(remote):\(sourcePath) → \(destDir.path) files=\(sorted.count) skip=\(partition.skippedCount) concurrency=\(concurrency) bytesTotal=\(bytesTotal)"
         )
 
-        // 4) Pool de workers TaskGroup avec concurrence bornée
+        // 4) Pool de workers TaskGroup avec concurrence bornée.
+        //    Les callbacks de progression lisent l'état actor VIVANT
+        //    (`lastProgress()`) — surtout PAS la variable locale `snapshot`
+        //    figée à son état initial (sinon l'UI reste bloquée à 0 %).
         var iterator = todo.makeIterator()
         let throttledProgress = ThrottledProgress(onProgress: onProgress, intervalMs: 500)
-        var workerErrors: [Error] = []
+        workerErrors = []
 
         try await withThrowingTaskGroup(of: Void.self) { group in
             // Seed N workers
             for _ in 0..<concurrency {
                 guard let next = iterator.next() else { break }
                 group.addTask { [self] in
-                    do {
-                        try await runWorker(
-                            remote: remote,
-                            entry: next.entry,
-                            destURL: next.destURL,
-                            onFileBytes: { writtenDelta, totalSize in
-                                Task { await self.recordFileBytes(delta: writtenDelta, currentTotal: snapshot.bytesTotal) }
-                                throttledProgress.maybeFire(snapshot)
-                            },
-                            onFileDone: { filename in
-                                Task { await self.recordFileDone(filename: filename, currentTotal: snapshot.bytesTotal) }
-                                throttledProgress.maybeFire(snapshot, force: true)
-                            }
-                        )
-                    } catch {
-                        workerErrors.append(error)
-                    }
+                    await self.runWorkerCapturingError(
+                        remote: remote, entry: next.entry, destURL: next.destURL,
+                        throttledProgress: throttledProgress
+                    )
                 }
             }
 
@@ -162,23 +151,10 @@ public actor BridgeFolderDownloader {
                 if Task.isCancelled { break }
                 while let next = iterator.next() {
                     group.addTask { [self] in
-                        do {
-                            try await runWorker(
-                                remote: remote,
-                                entry: next.entry,
-                                destURL: next.destURL,
-                                onFileBytes: { writtenDelta, _ in
-                                    Task { await self.recordFileBytes(delta: writtenDelta, currentTotal: snapshot.bytesTotal) }
-                                    throttledProgress.maybeFire(snapshot)
-                                },
-                                onFileDone: { filename in
-                                    Task { await self.recordFileDone(filename: filename, currentTotal: snapshot.bytesTotal) }
-                                    throttledProgress.maybeFire(snapshot, force: true)
-                                }
-                            )
-                        } catch {
-                            workerErrors.append(error)
-                        }
+                        await self.runWorkerCapturingError(
+                            remote: remote, entry: next.entry, destURL: next.destURL,
+                            throttledProgress: throttledProgress
+                        )
                     }
                 }
             }
@@ -197,17 +173,57 @@ public actor BridgeFolderDownloader {
         }
 
         let elapsed = Int(Date().timeIntervalSince(started))
-        let avgSpeed = elapsed > 0 ? bytesTransferred / Int64(elapsed) : 0
+        // Débit/octets lus depuis l'état actor vivant, pas les compteurs
+        // initiaux (bug de flush final : ils restaient aux valeurs de skip).
+        let doneBytes = lastSnapshot.bytesTransferred
+        let avgSpeed = elapsed > 0 ? doneBytes / Int64(elapsed) : 0
         await LogService.shared.log(
             .info, category: "transfer",
-            message: "✅ BridgeFolderDownloader DONE remote=\(remote):\(sourcePath) files=\(sorted.count) bytes=\(bytesTransferred)/\(bytesTotal) elapsed=\(elapsed)s avg=\(avgSpeed) B/s"
+            message: "✅ BridgeFolderDownloader DONE remote=\(remote):\(sourcePath) files=\(sorted.count) bytes=\(doneBytes)/\(bytesTotal) elapsed=\(elapsed)s avg=\(avgSpeed) B/s"
         )
 
-        // Flush final
-        snapshot.bytesTransferred = bytesTransferred
-        snapshot.filesCompleted = filesCompleted
-        lastSnapshot = snapshot
-        await MainActor.run { onProgress(snapshot) }
+        // Flush final : pousse l'état actor VIVANT (et non les locales figées).
+        lastSnapshot.currentFilename = nil
+        let final = lastSnapshot
+        await MainActor.run { onProgress(final) }
+    }
+
+    /// Exécute un worker et capture son éventuelle erreur dans l'état
+    /// actor-isolé (plus de `workerErrors.append` depuis des tâches enfants
+    /// concurrentes = data race). Les callbacks poussent le snapshot VIVANT.
+    private func runWorkerCapturingError(
+        remote: String,
+        entry: RemoteEntryDTO,
+        destURL: URL,
+        throttledProgress: ThrottledProgress
+    ) async {
+        do {
+            try await runWorker(
+                remote: remote,
+                entry: entry,
+                destURL: destURL,
+                onFileBytes: { [self] writtenDelta, _ in
+                    Task {
+                        await self.recordFileBytes(delta: writtenDelta)
+                        throttledProgress.maybeFire(await self.lastProgress())
+                    }
+                },
+                onFileDone: { [self] filename in
+                    Task {
+                        await self.recordFileDone(filename: filename)
+                        throttledProgress.maybeFire(await self.lastProgress(), force: true)
+                    }
+                }
+            )
+        } catch is CancellationError {
+            // Pause/annulation : pas une erreur de transfert.
+        } catch {
+            recordWorkerError(error)
+            await LogService.shared.log(
+                .error, category: "transfer",
+                message: "🌉 worker échec \(remote):\(entry.pathInRemote) — \(error.localizedDescription)"
+            )
+        }
     }
 
     // MARK: - Worker
@@ -255,20 +271,29 @@ public actor BridgeFolderDownloader {
 
     // MARK: - Progress bookkeeping (actor-isolated)
 
-    fileprivate func recordFileBytes(delta: Int64, currentTotal: Int64) {
-        var snap = lastSnapshot
-        snap.bytesTransferred += delta
-        lastSnapshot = snap
+    fileprivate func recordFileBytes(delta: Int64) {
+        lastSnapshot.bytesTransferred += delta
     }
 
-    fileprivate func recordFileDone(filename: String, currentTotal: Int64) {
-        var snap = lastSnapshot
-        snap.filesCompleted += 1
-        snap.currentFilename = filename
-        lastSnapshot = snap
+    fileprivate func recordFileDone(filename: String) {
+        lastSnapshot.filesCompleted += 1
+        lastSnapshot.currentFilename = filename
+    }
+
+    fileprivate func recordWorkerError(_ error: Error) {
+        workerErrors.append(error)
     }
 
     // MARK: - Pure helpers (testable sans HTTP ni actor)
+
+    /// Convertit un compteur d'octets CUMULATIF (celui que remonte
+    /// `URLSessionDownloadDelegate.didWriteData` via `totalBytesWritten`) en
+    /// DELTA depuis le dernier rapport. Sans ça, le cumul était ajouté comme
+    /// un delta à chaque tick → `bytesTransferred` explosait. Clampé à 0 pour
+    /// absorber un éventuel reset (relance de la même tâche).
+    nonisolated static func progressDelta(previous: Int64, cumulative: Int64) -> Int64 {
+        max(0, cumulative - previous)
+    }
 
     /// Tri large-first : sature le réseau dès les premiers octets (les gros
     /// fichiers remplissent le pipe et les petits finissent dans la queue).
@@ -336,6 +361,10 @@ private final class FileWorkerDownloader: NSObject, URLSessionDownloadDelegate, 
     private var session: URLSession?
     private var moveError: Error?
     private var lastProgressAt = Date.distantPast
+    /// Dernier cumul REPORTÉ (pas seulement reçu) : n'avance qu'aux ticks
+    /// réellement émis, pour que le delta englobe les octets des ticks sautés
+    /// par le throttle (aucune perte de progression).
+    private var lastReportedWritten: Int64 = 0
 
     init(dest: URL, onProgress: @escaping @Sendable (Int64, Int64) -> Void) {
         self.dest = dest
@@ -372,7 +401,14 @@ private final class FileWorkerDownloader: NSObject, URLSessionDownloadDelegate, 
         let now = Date()
         if now.timeIntervalSince(lastProgressAt) >= 0.25 {
             lastProgressAt = now
-            onProgress(totalBytesWritten, max(0, totalBytesExpectedToWrite))
+            // DELTA (pas le cumul) : le caller additionne ces valeurs. On
+            // n'avance lastReportedWritten qu'ici → un tick sauté par le
+            // throttle est inclus dans le prochain delta.
+            let delta = BridgeFolderDownloader.progressDelta(
+                previous: lastReportedWritten, cumulative: totalBytesWritten
+            )
+            lastReportedWritten = totalBytesWritten
+            onProgress(delta, max(0, totalBytesExpectedToWrite))
         }
     }
 
@@ -405,16 +441,22 @@ private final class FileWorkerDownloader: NSObject, URLSessionDownloadDelegate, 
     }
 }
 
-/// Helper pour throttler les callbacks de progression. Pas d'actor isolation :
-/// utilisé depuis plusieurs workers simultanément, garde son état interne.
-private final class ThrottledProgress: @unchecked Sendable {
-    private let onProgress: @Sendable (BridgeFolderDownloader.ProgressSnapshot) -> Void
+/// Helper pour throttler les callbacks de progression. `nonisolated` explicite :
+/// le projet est en SWIFT_DEFAULT_ACTOR_ISOLATION=MainActor, sans ça cette
+/// classe hériterait de @MainActor alors qu'elle est appelée depuis plusieurs
+/// workers hors main. Elle garde son état interne sous NSLock et re-hoppe
+/// elle-même sur le MainActor pour invoquer `onProgress`.
+private nonisolated final class ThrottledProgress: @unchecked Sendable {
+    // Typé @MainActor : le callback met à jour SwiftData/UI, et maybeFire
+    // re-hoppe explicitement sur le MainActor pour l'invoquer (pas de perte
+    // d'isolation à la conversion — warning Swift 6 résolu).
+    private let onProgress: @MainActor @Sendable (BridgeFolderDownloader.ProgressSnapshot) -> Void
     private let interval: TimeInterval
     private var lastFire: Date = .distantPast
     private let lock = NSLock()
 
     init(
-        onProgress: @escaping @Sendable (BridgeFolderDownloader.ProgressSnapshot) -> Void,
+        onProgress: @escaping @MainActor @Sendable (BridgeFolderDownloader.ProgressSnapshot) -> Void,
         intervalMs: Int
     ) {
         self.onProgress = onProgress
