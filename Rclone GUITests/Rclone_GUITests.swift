@@ -1160,6 +1160,37 @@ struct HandoffInboxTests {
     }
 }
 
+// MARK: - Handoff P2P : fichier AirDrop (send service → inbox)
+
+@Suite("Handoff P2P — fichier AirDrop")
+struct HandoffSendServiceFileTests {
+
+    @Test("materializeAirDropFile écrit un .rclonebackup lisible qui round-trip via l'inbox")
+    func airDropFileRoundTrips() throws {
+        let payload = "HND1:eJyrVk3PT8wvSizKUOKi5MrPSwMAF5MDtw"
+        let url = try HandoffSendService.shared.materializeAirDropFile(payload: payload)
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        #expect(url.pathExtension == "rclonebackup")
+        #expect(FileManager.default.fileExists(atPath: url.path))
+        // Le daemon de partage (sharingd) lit ce fichier hors-process : il
+        // doit être lisible (protection ≠ .completeFileProtection) et contenir
+        // exactement le payload. Ce round-trip est la garantie anti-régression
+        // du bug « AirDrop n'affiche rien ».
+        let extracted = try HandoffInbox.extractPayload(fromFileAt: url)
+        #expect(extracted == payload)
+    }
+
+    @Test("Le fichier AirDrop n'est PAS protégé en .completeFileProtection")
+    func airDropFileIsReadableByShareDaemon() throws {
+        let url = try HandoffSendService.shared.materializeAirDropFile(payload: "HND1:abcdef")
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        let values = try url.resourceValues(forKeys: [.fileProtectionKey])
+        // .complete rendrait le fichier illisible pour sharingd quand l'écran
+        // se verrouille pendant le transfert AirDrop.
+        #expect(values.fileProtection != .complete)
+    }
+}
+
 // MARK: - Handoff P2P : QR payload single-fit
 
 @Suite("Handoff P2P — QR payload split")

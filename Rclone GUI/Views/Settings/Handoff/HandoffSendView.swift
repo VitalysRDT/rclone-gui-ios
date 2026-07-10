@@ -233,16 +233,25 @@ struct HandoffSendView: View {
                 }
 
                 if passphraseRevealed, let prepared {
-                    HStack(alignment: .top, spacing: 8) {
+                    // Grille 3×2 : un HStack de 6 colonnes donnait ~55 pt par
+                    // mot, ce qui coupait les mots Diceware longs (« nemeton »,
+                    // « flocon »…) avec césure. 3 colonnes = ~110 pt par mot,
+                    // et minimumScaleFactor gère les rares mots plus longs.
+                    LazyVGrid(
+                        columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3),
+                        spacing: 8
+                    ) {
                         ForEach(Array(prepared.passphraseWords.enumerated()), id: \.offset) { idx, word in
-                            VStack(spacing: 2) {
+                            VStack(spacing: 3) {
                                 Text("\(idx + 1)")
                                     .font(.caption2.weight(.bold))
                                     .foregroundStyle(.tertiary)
                                 Text(word)
-                                    .font(.title3.weight(.semibold).monospacedDigit())
+                                    .font(.body.weight(.semibold))
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.6)
                                     .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 8)
+                                    .padding(.vertical, 10)
                                     .background(.purple.opacity(0.12), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                             }
                         }
@@ -338,8 +347,12 @@ struct HandoffSendView: View {
         guard let prepared else { return }
         do {
             let url = try HandoffSendService.shared.materializeAirDropFile(payload: prepared.payload)
+            #if os(iOS)
+            presentActivitySheet(items: [url])
+            #else
             shareItems = [url]
             showShare = true
+            #endif
         } catch {
             self.error = "Impossible de préparer le fichier : \(error.localizedDescription)"
         }
@@ -362,12 +375,45 @@ struct HandoffSendView: View {
         guard let prepared else { return }
         do {
             let url = try HandoffSendService.shared.materializeAirDropFile(payload: prepared.payload)
+            #if os(iOS)
+            presentActivitySheet(items: [url])
+            #else
             shareItems = [url]
             showShare = true
+            #endif
         } catch {
             self.error = "Écriture impossible : \(error.localizedDescription)"
         }
     }
+
+    #if os(iOS)
+    /// Présente la share sheet directement depuis le contrôleur le plus
+    /// haut de la fenêtre clé. Encapsuler `UIActivityViewController` dans un
+    /// `.sheet` SwiftUI produit une feuille vide sur iOS récent (le VC ne
+    /// se met pas en page) — d'où « AirDrop n'affiche rien ». La présenter
+    /// en UIKit règle le problème.
+    @MainActor
+    private func presentActivitySheet(items: [Any]) {
+        guard let scene = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .first(where: { $0.activationState == .foregroundActive }),
+              let root = scene.windows.first(where: { $0.isKeyWindow })?.rootViewController
+        else {
+            self.error = "Impossible d'ouvrir le partage : aucune fenêtre active."
+            return
+        }
+        var top = root
+        while let presented = top.presentedViewController { top = presented }
+        let vc = UIActivityViewController(activityItems: items, applicationActivities: nil)
+        // iPad : la share sheet est un popover et exige une ancre.
+        if let pop = vc.popoverPresentationController {
+            pop.sourceView = top.view
+            pop.sourceRect = CGRect(x: top.view.bounds.midX, y: top.view.bounds.maxY - 60, width: 0, height: 0)
+            pop.permittedArrowDirections = []
+        }
+        top.present(vc, animated: true)
+    }
+    #endif
 }
 
 // MARK: - QR Display
