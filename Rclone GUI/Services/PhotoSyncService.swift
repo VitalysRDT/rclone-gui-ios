@@ -201,6 +201,11 @@ public struct PhotoSyncRunSummary: Sendable, Equatable {
     public let activeCount: Int
     public let completedCount: Int
     public let failedCount: Int
+    /// Photos en état terminal `.skipped` (asset supprimé/déplacé dans Photos,
+    /// accès perdu, ou illisible). Jamais uploadées et jamais réessayées
+    /// automatiquement — surfacées ici pour ne plus être un « trou » invisible
+    /// qui laisse la barre plafonner sans explication.
+    public let skippedCount: Int
     public let totalBytes: Int64
     public let transferredBytes: Int64
     public let averageBytesPerSecond: Double
@@ -238,7 +243,14 @@ public struct PhotoSyncRunSummary: Sendable, Equatable {
     /// below by the discovered library size (`indexedCount`). Failed are
     /// included so the user doesn't "lose" them visually.
     public var effectiveTotal: Int {
-        max(completedCount + activeCount + pendingCount + failedCount, indexedCount)
+        max(completedCount + activeCount + pendingCount + failedCount + skippedCount, indexedCount)
+    }
+
+    /// Travail réellement en cours ou à faire (hors `.skipped`, terminal). Sert
+    /// à afficher « N restantes » de façon honnête : atteint 0 quand il ne reste
+    /// que des ignorées, au lieu de rester bloqué à `total - completed`.
+    public var outstandingCount: Int {
+        pendingCount + activeCount + failedCount
     }
 
     /// Monotonic 0..1 progress ratio. Combined with the service-side ratchet,
@@ -256,8 +268,16 @@ public struct PhotoSyncRunSummary: Sendable, Equatable {
     public var displayLabel: String {
         let total = effectiveTotal
         if total > 0 {
-            let remaining = max(0, total - completedCount)
-            return String(localized: "\(completedCount) / \(total) photos uploadées · \(remaining) restantes")
+            var label = String(localized: "\(completedCount) / \(total) photos uploadées")
+            if outstandingCount > 0 {
+                label += String(localized: " · \(outstandingCount) restantes")
+            }
+            // Explique le plateau : les ignorées ne sont ni terminées ni en
+            // attente, elles n'apparaissaient nulle part avant ce correctif.
+            if skippedCount > 0 {
+                label += String(localized: " · \(skippedCount) ignorées")
+            }
+            return label
         }
         if indexedCount > 0 {
             return String(localized: "\(indexedCount) élément(s) indexé(s)")
@@ -321,6 +341,10 @@ private struct PhotoSyncCounts {
     let active: Int
     let completed: Int
     let failed: Int
+    /// Assets en état terminal `.skipped` (asset supprimé/déplacé, accès Photos
+    /// perdu, ou illisible) — jamais uploadés, jamais réessayés automatiquement.
+    /// Comptés à part pour ne plus les faire passer pour « en attente ».
+    let skipped: Int
     let totalBytes: Int64
     let transferredBytes: Int64
 }
@@ -967,6 +991,37 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
             )
         }
         return failed.count
+    }
+
+    /// Recycle les assets `.skipped` (asset supprimé/déplacé, accès Photos perdu,
+    /// illisible) en `.pending` puis relance une sync. Utile après avoir re-accordé
+    /// « Toutes les photos » (les skips 3303 « accès refusé » redeviennent valides).
+    /// Les skips définitifs (asset réellement disparu) repasseront en `.skipped`
+    /// en une passe — pas de boucle. Renvoie le nombre d'assets recyclés.
+    @discardableResult
+    public func retrySkippedAssets() async -> Int {
+        guard let modelContext else { return 0 }
+        let descriptor = FetchDescriptor<PhotoSyncAsset>(
+            predicate: #Predicate { $0.statusRaw == "skipped" }
+        )
+        let skipped = (try? modelContext.fetch(descriptor)) ?? []
+        guard !skipped.isEmpty else { return 0 }
+        for asset in skipped {
+            asset.status = .pending
+            asset.retryCount = 0
+            asset.lastError = nil
+        }
+        try? modelContext.save()
+        await LogService.shared.log(.info, category: "photos", message: "Reprise de \(skipped.count) asset(s) ignoré(s).")
+        if isEnabled, configuredRemote != nil, !isPausedByUser {
+            shouldContinueUntilEmpty = true
+            _ = await runSync(
+                requestedLimit: limits.enqueueBatchSize,
+                continueUntilEmpty: true,
+                includeFailedRetries: true
+            )
+        }
+        return skipped.count
     }
 
     /// Permanently drop every `.failed` asset row so the historique stops
@@ -2687,7 +2742,7 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         // de photos uploadées ne peuvent descendre pendant une session.
         // Reset (à 0) déjà fait par resetSessionCounters au début du
         // pipeline runPipeline.
-        let candidateTotal = max(counts.completed + counts.active + counts.pending + counts.failed, counts.indexed)
+        let candidateTotal = max(counts.completed + counts.active + counts.pending + counts.failed + counts.skipped, counts.indexed)
         ratchetTotal = max(ratchetTotal, candidateTotal)
         ratchetCompleted = max(ratchetCompleted, counts.completed)
         // Calcul des valeurs "affichables" qui respectent le ratchet,
@@ -2698,7 +2753,10 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         // Recalcule pending pour que `effectiveTotal` du summary corresponde
         // à `displayTotal` (sans changer les compteurs réels affichés sur
         // les pastilles individuelles).
-        let displayPending = max(0, displayTotal - displayCompleted - counts.active - counts.failed)
+        // Les ignorées (.skipped) sont terminales : on les retire du « pending »
+        // affiché, sinon elles apparaissaient comme des restantes qui ne
+        // drainent jamais (cause du « bloqué à N photos »).
+        let displayPending = max(0, displayTotal - displayCompleted - counts.active - counts.failed - counts.skipped)
 
         let summary = PhotoSyncRunSummary(
             authorization: authorization,
@@ -2710,6 +2768,7 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
             activeCount: counts.active,
             completedCount: displayCompleted,
             failedCount: counts.failed,
+            skippedCount: counts.skipped,
             totalBytes: total,
             transferredBytes: transferred,
             averageBytesPerSecond: bps,
@@ -2811,6 +2870,7 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
             active: fetchPhotoSyncCount(.exporting) + fetchPhotoSyncCount(.enqueued),
             completed: fetchPhotoSyncCount(.completed),
             failed: fetchPhotoSyncCount(.failed),
+            skipped: fetchPhotoSyncCount(.skipped),
             totalBytes: byteTotals.total,
             transferredBytes: byteTotals.transferred
         )

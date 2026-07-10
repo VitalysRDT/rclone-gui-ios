@@ -86,6 +86,11 @@ struct PhotoSyncStatsView: View {
                             y: .value("Count", summary.failedCount)
                         )
                         .foregroundStyle(.red)
+                        BarMark(
+                            x: .value("État", "Ignorés"),
+                            y: .value("Count", summary.skippedCount)
+                        )
+                        .foregroundStyle(.gray)
                     }
                     .frame(height: 180)
                 } header: {
