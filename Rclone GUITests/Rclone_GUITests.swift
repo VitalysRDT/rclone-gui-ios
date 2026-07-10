@@ -232,7 +232,14 @@ struct SavedLocationStoreTests {
     @MainActor
     private func makeSavedLocationContainer() throws -> ModelContainer {
         let schema = Schema([SavedLocation.self])
-        let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+        // cloudKitDatabase: .none — même piège que dans Rclone_GUIApp : le
+        // host de test porte l'entitlement iCloud, et sans opt-out SwiftData
+        // tente le mirroring CloudKit et rejette nos contraintes uniques.
+        let configuration = ModelConfiguration(
+            schema: schema,
+            isStoredInMemoryOnly: true,
+            cloudKitDatabase: .none
+        )
         return try ModelContainer(for: schema, configurations: [configuration])
     }
 }
@@ -853,5 +860,734 @@ struct GhostVaultTests {
         // Le payload chiffré est base64, donc caractères ASCII imprimables.
         #expect(!asText.contains("[drive]"))
         #expect(!asText.contains("type = drive"))
+    }
+}
+
+// MARK: - Handoff P2P : passphrase Diceware
+
+@Suite("Handoff P2P — Diceware passphrase")
+struct HandoffPassphraseTests {
+
+    @Test("Le wordlist FR contient 256 mots uniques")
+    func frenchWordlistHas256UniqueWords() {
+        let list = HandoffPassphrase.wordlist(for: .french)
+        #expect(list.count == 256)
+        #expect(Set(list).count == 256)
+    }
+
+    @Test("Le wordlist EN contient 256 mots uniques")
+    func englishWordlistHas256UniqueWords() {
+        let list = HandoffPassphrase.wordlist(for: .english)
+        #expect(list.count == 256)
+        #expect(Set(list).count == 256)
+    }
+
+    @Test("generate() produit exactement 6 mots (default)")
+    func generateProducesSixWords() {
+        let words = HandoffPassphrase.generate()
+        #expect(words.count == 6)
+        let list = HandoffPassphrase.wordlist(for: .french)
+        for w in words {
+            #expect(list.contains(w), "le mot \(w) devrait provenir du wordlist FR")
+        }
+    }
+
+    @Test("Deux tirages consécutifs produisent des listes différentes (SystemRandomNumberGenerator)")
+    func consecutiveDrawsDiffer() {
+        let a = HandoffPassphrase.generate()
+        let b = HandoffPassphrase.generate()
+        let setA = Set(a)
+        let setB = Set(b)
+        #expect(setA != setB, "deux tirages consécutifs devraient rarement être identiques")
+    }
+
+    @Test("split() lowercased et dé-whitespace")
+    func splitNormalisesWhitespaceAndCase() {
+        let words = HandoffPassphrase.split("  Abeille   ACIER  Cerise\n\nBaie ")
+        #expect(words == ["abeille", "acier", "cerise", "baie"])
+    }
+
+    @Test("validate() rejette un mot hors wordlist")
+    func validateRejectsForeignWord() {
+        let bogus = ["abeille", "cerise", "banane", "chien", "loutre", "nuage"]
+        #expect(throws: HandoffPassphraseError.self) {
+            _ = try HandoffPassphrase.validate(words: bogus, language: .french)
+        }
+    }
+
+    @Test("validate() rejette un nombre de mots hors bornes")
+    func validateRejectsWrongCount() {
+        let tooFew = ["abeille", "acier"]
+        #expect(throws: HandoffPassphraseError.self) {
+            _ = try HandoffPassphrase.validate(words: tooFew, language: .french)
+        }
+        let tooMany = (1...10).map { _ in "abeille" }
+        #expect(throws: HandoffPassphraseError.self) {
+            _ = try HandoffPassphrase.validate(words: tooMany, language: .french)
+        }
+    }
+
+    @Test("validate() accepte un set FR valide")
+    func validateAcceptsValidFrenchSet() throws {
+        let list = HandoffPassphrase.wordlist(for: .french)
+        let sample = Array(list.prefix(6))
+        try HandoffPassphrase.validate(words: sample, language: .french)
+    }
+
+    @Test("entropyBits croît linéairement avec le nombre de mots")
+    func entropyBitsIsLinear() {
+        #expect(HandoffPassphrase.entropyBits(for: 3) == 24.0)
+        #expect(HandoffPassphrase.entropyBits(for: 6) == 48.0)
+        #expect(HandoffPassphrase.entropyBits(for: 8) == 64.0)
+    }
+}
+
+// MARK: - Handoff P2P : envelope transport (zlib + base64url + HND1:)
+
+@Suite("Handoff P2P — transport envelope")
+struct HandoffEnvelopeTests {
+
+    private let sampleConf = Data("""
+    [drive]
+    type = drive
+    scope = drive
+    token = {"access_token":"demo","expiry":"2099-01-01T00:00:00Z"}
+
+    [b2-photos]
+    type = b2
+    account = 003a1b2c3d4e5f60000000001
+    key = K003exampleexampleexampleexampleEXA
+
+    [crypt-photos]
+    type = crypt
+    remote = b2-photos:encrypted
+    password = rclonecrypt-strong-passphrase-2026
+    filename_encryption = standard
+    """.utf8)
+
+    private func buildEnvelope() throws -> GhostVaultEnvelope {
+        let meta = GhostVaultMeta(
+            sizeBytes: sampleConf.count,
+            remoteCount: 3,
+            createdAt: Date(timeIntervalSince1970: 1_750_000_000),
+            deviceName: "iPhone de Vitalys",
+            rcloneVersion: "1.74.3"
+        )
+        return try GhostVault.seal(
+            rcloneConf: sampleConf,
+            passphrase: "valid-passphrase-test-2026",
+            meta: meta,
+            rcloneVersion: meta.rcloneVersion
+        )
+    }
+
+    @Test("Encode → decode round-trip préserve l'envelope")
+    func encodeDecodeRoundTrip() throws {
+        let env = try buildEnvelope()
+        let payload = try HandoffEnvelope.encode(env)
+        #expect(payload.hasPrefix(HandoffEnvelope.transportPrefix))
+        let restored = try HandoffEnvelope.decode(payload)
+        #expect(restored == env)
+    }
+
+    @Test("Le payload est mono-ligne ASCII imprimable")
+    func payloadIsSingleLineASCII() throws {
+        let env = try buildEnvelope()
+        let payload = try HandoffEnvelope.encode(env)
+        #expect(!payload.contains("\n"))
+        for scalar in payload.unicodeScalars {
+            #expect(scalar.isASCII)
+            #expect(scalar.value >= 0x20 && scalar.value <= 0x7E, "imprimable uniquement")
+        }
+    }
+
+    @Test("Reject: payload sans préfixe HND1:")
+    func rejectsMissingPrefix() {
+        #expect(throws: HandoffEnvelopeError.self) {
+            _ = try HandoffEnvelope.decode("AAECAwQF")
+        }
+    }
+
+    @Test("Reject: base64url invalide")
+    func rejectsInvalidBase64URL() {
+        let payload = "HND1:!!@@##not-base64@@!!##"
+        #expect(throws: HandoffEnvelopeError.self) {
+            _ = try HandoffEnvelope.decode(payload)
+        }
+    }
+
+    @Test("Reject: payload JSON brut (pas HND1)")
+    func rejectsRawJSON() {
+        let json = #"{"v":1,"kdf":"pbkdf2-sha256"}"#
+        #expect(throws: HandoffEnvelopeError.self) {
+            _ = try HandoffEnvelope.decode(json)
+        }
+    }
+
+    @Test("isPayload() détecte un HND1: au milieu d'un texte")
+    func isPayloadDetectsPrefix() {
+        #expect(HandoffEnvelope.isPayload("HND1:abc") == true)
+        #expect(HandoffEnvelope.isPayload("  HND1:abc  ") == true)
+        #expect(HandoffEnvelope.isPayload("Voyage à HND1:abc") == true)
+        #expect(HandoffEnvelope.isPayload("plain text") == false)
+    }
+
+    @Test("extract() retourne le payload complet même noyé dans du texte")
+    func extractFindsPayloadInText() {
+        let text = """
+        Bonjour ! Voici le payload :
+
+        HND1:eJyrVk3PT8wvSizKUOKi5MrPSwMAF5MDtw
+
+        Merci !
+        """
+        let extracted = HandoffEnvelope.extract(from: text)
+        #expect(extracted == "HND1:eJyrVk3PT8wvSizKUOKi5MrPSwMAF5MDtw")
+    }
+
+    @Test("zlib réduit le JSON GhostVault avant base64url")
+    func compressionShrinksPayload() throws {
+        let env = try buildEnvelope()
+        let jsonBytes = try GhostVault.encode(env)
+        let payload = try HandoffEnvelope.encode(env)
+        // Mesure les octets zlib BINAIRES : comparer au base64url (+33%)
+        // masquerait la compression. On décode donc le corps du payload.
+        var body = String(payload.dropFirst(HandoffEnvelope.transportPrefix.count))
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        body.append(String(repeating: "=", count: (4 - body.count % 4) % 4))
+        let compressed = try #require(Data(base64Encoded: body))
+        let compressionRatio = Double(jsonBytes.count) / Double(compressed.count)
+        // Le JSON de l'envelope est majoritairement du base64 (ciphertext),
+        // que zlib re-compacte vers ~75% + les clés textuelles : on attend
+        // au moins 10% de gain réel sur une conf réaliste.
+        #expect(compressionRatio >= 1.10, "compression insuffisante : ratio \(compressionRatio)")
+    }
+}
+
+// MARK: - Handoff P2P : inbox (fichier .rclonebackup entrant via AirDrop)
+
+@Suite("Handoff P2P — inbox fichier entrant")
+struct HandoffInboxTests {
+
+    private func tempFile(named name: String, contents: Data) throws -> URL {
+        let dir = FileManager.default.temporaryDirectory
+            .appending(path: "handoff-inbox-tests-\(UUID().uuidString)", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let url = dir.appending(path: name)
+        try contents.write(to: url)
+        return url
+    }
+
+    private func tempFile(named name: String, contents: String) throws -> URL {
+        try tempFile(named: name, contents: Data(contents.utf8))
+    }
+
+    @Test("isHandoffFile : extension .rclonebackup, insensible à la casse")
+    func isHandoffFileMatchesExtension() {
+        #expect(HandoffInbox.isHandoffFile(URL(fileURLWithPath: "/tmp/a.rclonebackup")))
+        #expect(HandoffInbox.isHandoffFile(URL(fileURLWithPath: "/tmp/a.RcloneBackup")))
+        #expect(!HandoffInbox.isHandoffFile(URL(fileURLWithPath: "/tmp/a.conf")))
+        #expect(!HandoffInbox.isHandoffFile(URL(fileURLWithPath: "/tmp/rclonebackup")))
+    }
+
+    @Test("extractPayload : round-trip complet avec un envelope réel")
+    func extractPayloadRoundTrip() throws {
+        let conf = Data("[s3]\ntype = s3\nprovider = AWS\n".utf8)
+        let meta = GhostVaultMeta(
+            sizeBytes: conf.count,
+            remoteCount: 1,
+            createdAt: Date(timeIntervalSince1970: 1_750_000_000),
+            deviceName: "iPhone de test",
+            rcloneVersion: "1.74.3"
+        )
+        let env = try GhostVault.seal(
+            rcloneConf: conf,
+            passphrase: "abeille acier cerise baie dune ferme",
+            meta: meta,
+            rcloneVersion: meta.rcloneVersion
+        )
+        let payload = try HandoffEnvelope.encode(env)
+        let url = try tempFile(named: "handoff.rclonebackup", contents: payload)
+        let extracted = try HandoffInbox.extractPayload(fromFileAt: url)
+        #expect(extracted == payload)
+        let decoded = try HandoffEnvelope.decode(extracted)
+        #expect(decoded == env)
+    }
+
+    @Test("extractPayload : payload noyé dans du texte environnant")
+    func extractPayloadFromSurroundedText() throws {
+        let url = try tempFile(
+            named: "notes.rclonebackup",
+            contents: "Salut !\nHND1:eJyrVk3PT8wvSizKUOKi5MrPSwMAF5MDtw\nBye"
+        )
+        let extracted = try HandoffInbox.extractPayload(fromFileAt: url)
+        #expect(extracted == "HND1:eJyrVk3PT8wvSizKUOKi5MrPSwMAF5MDtw")
+    }
+
+    @Test("Reject : mauvaise extension")
+    func rejectsWrongExtension() throws {
+        let url = try tempFile(named: "payload.txt", contents: "HND1:abc")
+        #expect(throws: HandoffInboxError.self) {
+            _ = try HandoffInbox.extractPayload(fromFileAt: url)
+        }
+    }
+
+    @Test("Reject : fichier .rclonebackup sans payload HND1:")
+    func rejectsFileWithoutPayload() throws {
+        let url = try tempFile(named: "junk.rclonebackup", contents: "pas un payload handoff")
+        #expect(throws: HandoffInboxError.self) {
+            _ = try HandoffInbox.extractPayload(fromFileAt: url)
+        }
+    }
+
+    @Test("Reject : contenu binaire non-UTF8")
+    func rejectsBinaryContent() throws {
+        let binary = Data([0xFF, 0xFE, 0x00, 0x01, 0x80, 0x81, 0xC0])
+        let url = try tempFile(named: "binary.rclonebackup", contents: binary)
+        #expect(throws: HandoffInboxError.self) {
+            _ = try HandoffInbox.extractPayload(fromFileAt: url)
+        }
+    }
+
+    @Test("Reject : fichier inexistant")
+    func rejectsMissingFile() {
+        let url = FileManager.default.temporaryDirectory
+            .appending(path: "missing-\(UUID().uuidString).rclonebackup")
+        #expect(throws: HandoffInboxError.self) {
+            _ = try HandoffInbox.extractPayload(fromFileAt: url)
+        }
+    }
+}
+
+// MARK: - Handoff P2P : QR payload single-fit
+
+@Suite("Handoff P2P — QR payload split")
+struct QRPayloadBuilderTests {
+
+    private func buildEnvelope(bytes: Int) throws -> GhostVaultEnvelope {
+        let dummyConf = Data((0..<bytes).map { UInt8($0 & 0xFF) })
+        let meta = GhostVaultMeta(
+            sizeBytes: dummyConf.count,
+            remoteCount: 1,
+            createdAt: Date(),
+            deviceName: "Test",
+            rcloneVersion: "1.74.3"
+        )
+        return try GhostVault.seal(
+            rcloneConf: dummyConf,
+            passphrase: "valid-passphrase-test",
+            meta: meta,
+            rcloneVersion: meta.rcloneVersion
+        )
+    }
+
+    private func buildRealisticEnvelope() throws -> GhostVaultEnvelope {
+        // Conf TEXTE réaliste (~450 octets, 3 remotes) : une fois chiffrée,
+        // la taille du ciphertext ≈ celle du plaintext — c'est elle qui
+        // décide si le payload tient dans un QR, pas la compressibilité
+        // (des octets chiffrés ne se compressent pas).
+        let conf = Data("""
+        [drive]
+        type = drive
+        scope = drive
+        token = {"access_token":"demo","expiry":"2099-01-01T00:00:00Z"}
+
+        [b2-photos]
+        type = b2
+        account = 003a1b2c3d4e5f60000000001
+        key = K003exampleexampleexampleexampleEXA
+
+        [crypt-photos]
+        type = crypt
+        remote = b2-photos:encrypted
+        password = rclonecrypt-strong-passphrase-2026
+        filename_encryption = standard
+        """.utf8)
+        let meta = GhostVaultMeta(
+            sizeBytes: conf.count,
+            remoteCount: 3,
+            createdAt: Date(),
+            deviceName: "Test",
+            rcloneVersion: "1.74.3"
+        )
+        return try GhostVault.seal(
+            rcloneConf: conf,
+            passphrase: "valid-passphrase-test",
+            meta: meta,
+            rcloneVersion: meta.rcloneVersion
+        )
+    }
+
+    @Test("Un envelope typique (3 remotes, conf texte) tient en un seul QR")
+    func typicalEnvelopeFitsInSingleQR() throws {
+        let env = try buildRealisticEnvelope()
+        let decision = try QRPayloadBuilder.build(from: env)
+        switch decision {
+        case .single:
+            break
+        case .tooLargeForQR(_, let rawBytes):
+            Issue.record("attendu single QR, reçu tooLargeForQR (\(rawBytes) bytes)")
+        }
+    }
+
+    @Test("Un envelope de 100 octets produit un payload de taille attendue")
+    func measureEnvelopes() throws {
+        for size in [100, 500, 1_000, 4_000, 8_000] {
+            let env = try buildEnvelope(bytes: size)
+            let payload = try HandoffEnvelope.encode(env)
+            print("conf \(size) → envelope+transport: \(payload.utf8.count) bytes")
+        }
+    }
+
+    @Test("Un envelope trop gros (>1800 bytes) déclenche fallback")
+    func hugeEnvelopeTriggersFallback() throws {
+        let env = try buildEnvelope(bytes: 16_000)
+        let decision = try QRPayloadBuilder.build(from: env)
+        switch decision {
+        case .single(let payload):
+            Issue.record("attendu tooLargeForQR, reçu single (\(payload.utf8.count) bytes)")
+        case .tooLargeForQR(_, let rawBytes):
+            #expect(rawBytes > QRPayloadBuilder.singleQRByteBudget)
+        }
+    }
+
+    @Test("Le seuil 1800 bytes est appliqué correctement")
+    func singleQRBudgetEdge() {
+        #expect(QRPayloadBuilder.singleQRByteBudget == 1800)
+    }
+}
+
+// MARK: - Handoff P2P : merge INI
+
+@Suite("Handoff P2P — merge rclone.conf")
+struct HandoffReceiveMergeTests {
+
+    @Test("Replace: incoming écrase local entièrement")
+    func mergeReplaceYieldsIncoming() async {
+        let local = Data("""
+        [local]
+        type = local
+        """.utf8)
+        let incoming = Data("""
+        [drive]
+        type = drive
+        """.utf8)
+        let plan = await HandoffReceiveService.shared.buildMergePlan(local: local, incoming: incoming)
+        #expect(plan.addedRemotes == ["drive"])
+        #expect(plan.conflictingRemotes.isEmpty)
+        #expect(plan.keptRemotes.isEmpty)
+    }
+
+    @Test("Merge: collision garde la version locale, marque le conflit")
+    func mergeKeepsLocalOnConflict() async {
+        let local = Data("""
+        [drive]
+        type = drive
+        token = {"access_token":"LOCAL"}
+        """.utf8)
+        let incoming = Data("""
+        [drive]
+        type = drive
+        token = {"access_token":"REMOTE"}
+        """.utf8)
+        let plan = await HandoffReceiveService.shared.buildMergePlan(local: local, incoming: incoming)
+        #expect(plan.addedRemotes.isEmpty)
+        #expect(plan.conflictingRemotes.count == 1)
+        #expect(plan.conflictingRemotes.first?.name == "drive")
+    }
+
+    @Test("Merge: les remotes inchangés sont signalés «kept»")
+    func mergeIdentifiesKeptRemotes() async {
+        let local = Data("""
+        [s3prod]
+        type = s3
+        provider = AWS
+        """.utf8)
+        let incoming = Data("""
+        [s3prod]
+        type = s3
+        provider = AWS
+        """.utf8)
+        let plan = await HandoffReceiveService.shared.buildMergePlan(local: local, incoming: incoming)
+        #expect(plan.keptRemotes == ["s3prod"])
+        #expect(plan.conflictingRemotes.isEmpty)
+        #expect(plan.addedRemotes.isEmpty)
+    }
+
+    @Test("Merge: 3 sections, 2 nouvelles + 1 collision → added=2 conflict=1")
+    func mergeMixesAddedAndConflicts() async {
+        let local = Data("""
+        [drive]
+        type = drive
+        token = LOCAL
+        """.utf8)
+        let incoming = Data("""
+        [drive]
+        type = drive
+        token = REMOTE
+
+        [b2]
+        type = b2
+        account = B2ACC
+
+        [box]
+        type = box
+        """.utf8)
+        let plan = await HandoffReceiveService.shared.buildMergePlan(local: local, incoming: incoming)
+        #expect(plan.addedRemotes.sorted() == ["b2", "box"])
+        #expect(plan.conflictingRemotes.count == 1)
+        #expect(plan.conflictingRemotes.first?.name == "drive")
+    }
+
+    @Test("Merge: local vide → tous les entrants sont «added»")
+    func mergeFromEmptyLocal() async {
+        let plan = await HandoffReceiveService.shared.buildMergePlan(local: Data(), incoming: Data("""
+        [drive]
+        type = drive
+        """.utf8))
+        #expect(plan.addedRemotes == ["drive"])
+    }
+}
+
+// MARK: - Handoff P2P : unseal cross-check
+
+@Suite("Handoff P2P — seal + HND1 + unseal round-trip")
+struct HandoffEndToEndTests {
+
+    @Test("Seal → HND1 → unseal restitue la conf originale")
+    func endToEndRoundTrip() throws {
+        let originalConf = Data("""
+        [drive]
+        type = drive
+        token = {"access_token":"abc"}
+
+        [b2]
+        type = b2
+        account = 12345
+        """.utf8)
+        let meta = GhostVaultMeta(
+            sizeBytes: originalConf.count,
+            remoteCount: 2,
+            createdAt: Date(),
+            deviceName: "iPhone",
+            rcloneVersion: "1.74.3"
+        )
+        let envelope = try GhostVault.seal(
+            rcloneConf: originalConf,
+            passphrase: "diceware-temporary-passphrase-2026",
+            meta: meta,
+            rcloneVersion: meta.rcloneVersion
+        )
+        let payload = try HandoffEnvelope.encode(envelope)
+        let restored = try HandoffEnvelope.decode(payload)
+        let opened = try GhostVault.open(envelope: restored, passphrase: "diceware-temporary-passphrase-2026")
+        #expect(opened.rcloneConf == originalConf)
+    }
+
+    @Test("HND1: payload déchiffré avec MAUVAISE passphrase → erreur")
+    func wrongPassphraseFailsOnHDN1Payload() throws {
+        let envelope = try GhostVault.seal(
+            rcloneConf: Data("[x]\ntype = local\n".utf8),
+            passphrase: "right-passphrase",
+            meta: GhostVaultMeta(
+                sizeBytes: 14, remoteCount: 1,
+                createdAt: Date(), deviceName: "iPhone", rcloneVersion: "1.74.3"
+            ),
+            rcloneVersion: "1.74.3"
+        )
+        let payload = try HandoffEnvelope.encode(envelope)
+        let restored = try HandoffEnvelope.decode(payload)
+        #expect(throws: GhostVaultError.self) {
+            _ = try GhostVault.open(envelope: restored, passphrase: "wrong-passphrase")
+        }
+    }
+}
+
+// MARK: - BridgeFolderDownloader pure helpers
+//
+// Tests des helpers statiques extraits de BridgeFolderDownloader.swift.
+// Pas besoin de librclone ni de réseau : la logique de tri, de calcul de
+// chemin relatif et de partition skip-existing est pure et testable en
+// isolation. Couvre les régressions critiques pour le download de dossier
+// « daisychain 9 GB vers iCloud Drive ».
+
+@Suite("BridgeFolderDownloader — helpers purs")
+struct BridgeFolderDownloaderTests {
+
+    /// Construit une RemoteEntryDTO factice pour les tests. Pas de SwiftData,
+    /// juste les champs nécessaires aux helpers testés.
+    private func entry(path: String, name: String, size: Int64) -> RemoteEntryDTO {
+        RemoteEntryDTO(
+            pathInRemote: path,
+            name: name,
+            isDirectory: false,
+            size: size,
+            modTime: Date(),
+            mimeType: nil,
+            hashMD5: nil,
+            hashSHA1: nil
+        )
+    }
+
+    // MARK: - sortLargeFirst
+
+    @Test("sortLargeFirst : place les gros fichiers en premier")
+    func sortPlacesLargestFirst() {
+        let small = entry(path: "a.mp4", name: "a.mp4", size: 100)
+        let big = entry(path: "b.mp4", name: "b.mp4", size: 9_000_000_000)
+        let medium = entry(path: "c.mp4", name: "c.mp4", size: 50_000_000)
+        let input = [small, big, medium]
+        let sorted = BridgeFolderDownloader.sortLargeFirst(input)
+        #expect(sorted.map(\.size) == [9_000_000_000, 50_000_000, 100])
+    }
+
+    @Test("sortLargeFirst : stable pour les fichiers de même taille")
+    func sortIsStableForEqualSizes() {
+        let a = entry(path: "a.mp4", name: "a.mp4", size: 1000)
+        let b = entry(path: "b.mp4", name: "b.mp4", size: 1000)
+        let c = entry(path: "c.mp4", name: "c.mp4", size: 1000)
+        let sorted = BridgeFolderDownloader.sortLargeFirst([a, b, c])
+        // L'ordre d'origine est préservé (algorithme de tri Swift stable).
+        #expect(sorted.map(\.pathInRemote) == ["a.mp4", "b.mp4", "c.mp4"])
+    }
+
+    @Test("sortLargeFirst : tableau vide → vide")
+    func sortEmpty() {
+        #expect(BridgeFolderDownloader.sortLargeFirst([]).isEmpty)
+    }
+
+    // MARK: - relativePath
+
+    @Test("relativePath : sourcePath vide → pathInRemote tel quel")
+    func relativePathWithEmptySource() {
+        let e = entry(path: "sub/foo.mp4", name: "foo.mp4", size: 100)
+        #expect(BridgeFolderDownloader.relativePath(for: e, sourcePath: "") == "sub/foo.mp4")
+    }
+
+    @Test("relativePath : strip le préfixe sourcePath")
+    func relativePathStripsPrefix() {
+        let e = entry(path: "daisychain/sub/foo.mp4", name: "foo.mp4", size: 100)
+        #expect(BridgeFolderDownloader.relativePath(for: e, sourcePath: "daisychain") == "sub/foo.mp4")
+    }
+
+    @Test("relativePath : tolère un sourcePath avec trailing slash")
+    func relativePathWithTrailingSlash() {
+        let e = entry(path: "daisychain/sub/foo.mp4", name: "foo.mp4", size: 100)
+        #expect(BridgeFolderDownloader.relativePath(for: e, sourcePath: "daisychain/") == "sub/foo.mp4")
+    }
+
+    @Test("relativePath : pathInRemote sans préfixe → conservé tel quel")
+    func relativePathWithoutPrefix() {
+        // Cas rare : pathInRemote ne commence pas par sourcePath (listing
+        // incomplet ou path absolu). On garde le path tel quel pour ne
+        // pas perdre le fichier.
+        let e = entry(path: "other/foo.mp4", name: "foo.mp4", size: 100)
+        #expect(BridgeFolderDownloader.relativePath(for: e, sourcePath: "daisychain") == "other/foo.mp4")
+    }
+
+    // MARK: - partitionByExistence
+
+    @Test("partitionByExistence : skip les fichiers existants avec taille identique")
+    func partitionSkipsIdenticalFiles() throws {
+        // Crée un dossier temporaire avec deux fichiers existants
+        let tmp = FileManager.default.temporaryDirectory
+            .appending(path: "bridge-folder-test-\(UUID().uuidString)", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+
+        // Crée deux fichiers : un avec taille qui matche, un autre qui ne matche pas
+        let matchURL = tmp.appending(path: "exists.mp4")
+        let mismatchURL = tmp.appending(path: "wrongsize.mp4")
+        try Data(count: 1000).write(to: matchURL)
+        try Data(count: 2000).write(to: mismatchURL)
+
+        let matchingEntry = entry(path: "sub/exists.mp4", name: "exists.mp4", size: 1000)
+        let mismatchEntry = entry(path: "sub/wrongsize.mp4", name: "wrongsize.mp4", size: 999_999)
+        let missingEntry = entry(path: "sub/missing.mp4", name: "missing.mp4", size: 5000)
+
+        let result = BridgeFolderDownloader.partitionByExistence(
+            files: [matchingEntry, mismatchEntry, missingEntry],
+            sourcePath: "sub",
+            destDir: tmp
+        )
+
+        #expect(result.skippedCount == 1, "Le fichier avec taille identique doit être skipped")
+        #expect(result.skippedBytes == 1000, "Le skippedBytes doit refléter la taille du fichier skip")
+        #expect(result.todo.count == 2, "Les deux autres fichiers doivent rester en todo")
+        #expect(result.todo.map(\.entry.name).sorted() == ["missing.mp4", "wrongsize.mp4"])
+    }
+
+    @Test("partitionByExistence : ne skip JAMAIS un fichier de taille 0")
+    func partitionNeverSkipsZeroSize() throws {
+        let tmp = FileManager.default.temporaryDirectory
+            .appending(path: "bridge-folder-zs-\(UUID().uuidString)", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+
+        // Fichier vide existant : on doit le retélécharger car la taille 0
+        // ne permet pas de confirmer l'intégrité (backends comme S3 distillent
+        // la taille pendant le download).
+        let emptyURL = tmp.appending(path: "empty.mp4")
+        try Data().write(to: emptyURL)
+
+        let emptyEntry = entry(path: "empty.mp4", name: "empty.mp4", size: 0)
+        let result = BridgeFolderDownloader.partitionByExistence(
+            files: [emptyEntry],
+            sourcePath: "",
+            destDir: tmp
+        )
+        #expect(result.skippedCount == 0, "Taille 0 = pas de skip, on retélécharge pour récupérer la vraie taille")
+        #expect(result.todo.count == 1)
+    }
+
+    @Test("partitionByExistence : aucun fichier existant → tout en todo")
+    func partitionAllMissing() {
+        let tmp = URL(fileURLWithPath: "/tmp/bridge-folder-test-nonexistent-\(UUID().uuidString)")
+        let files = (1...5).map { entry(path: "file\($0).mp4", name: "file\($0).mp4", size: Int64($0 * 1000)) }
+        let result = BridgeFolderDownloader.partitionByExistence(files: files, sourcePath: "", destDir: tmp)
+        #expect(result.skippedCount == 0)
+        #expect(result.skippedBytes == 0)
+        #expect(result.todo.count == 5)
+    }
+
+    @Test("partitionByExistence : préserve la structure interne du dossier distant")
+    func partitionPreservesFolderStructure() throws {
+        let tmp = FileManager.default.temporaryDirectory
+            .appending(path: "bridge-folder-struct-\(UUID().uuidString)", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+
+        // Fichier dans un sous-dossier
+        let subDir = tmp.appending(path: "sub", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: subDir, withIntermediateDirectories: true)
+        let nestedURL = subDir.appending(path: "deep.mp4")
+        try Data(count: 500).write(to: nestedURL)
+
+        let nestedEntry = entry(path: "daisychain/sub/deep.mp4", name: "deep.mp4", size: 500)
+        let result = BridgeFolderDownloader.partitionByExistence(
+            files: [nestedEntry],
+            sourcePath: "daisychain",
+            destDir: tmp
+        )
+        // Le fichier est trouvé grâce au strip du préfixe "daisychain/"
+        #expect(result.skippedCount == 1)
+        #expect(result.todo.isEmpty)
+    }
+
+    // MARK: - Téléversement final
+
+    @Test("Téléversement : le compte de fichiers + bytesTotal est correct après tri+partition")
+    func endToEndSortAndPartition() {
+        let files = [
+            entry(path: "small.mp4", name: "small.mp4", size: 100),
+            entry(path: "big.mp4", name: "big.mp4", size: 1_000_000),
+            entry(path: "medium.mp4", name: "medium.mp4", size: 10_000),
+        ]
+        let sorted = BridgeFolderDownloader.sortLargeFirst(files)
+        #expect(sorted.first?.name == "big.mp4")
+        #expect(sorted.last?.name == "small.mp4")
+        let bytesTotal = sorted.reduce(Int64(0)) { $0 + $1.size }
+        #expect(bytesTotal == 1_010_100)
     }
 }

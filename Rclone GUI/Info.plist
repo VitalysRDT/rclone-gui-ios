@@ -13,6 +13,8 @@
 	<string>Rclone GUI utilise un serveur localhost interne pour streamer vos fichiers (audio/vidéo), y compris les fichiers chiffrés. Aucun trafic ne quitte votre appareil par cette voie.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Face ID protège l'accès à votre configuration rclone et à vos identifiants stockés.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Pour scanner un QR code lors d'un Handoff P2P. Aucune image n'est capturée ni stockée — le flux vidéo est analysé en local et jeté immédiatement.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Permet d'uploader vos photos et vidéos vers vos remotes rclone.</string>
 	<key>RcloneKeychainAccessGroup</key>
@@ -25,6 +27,43 @@
 	</array>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Sauvegarde chiffrée Rclone GUI</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.rougetet.rclone-gui.rclonebackup</string>
+			</array>
+		</dict>
+	</array>
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>com.rougetet.rclone-gui.rclonebackup</string>
+			<key>UTTypeDescription</key>
+			<string>Sauvegarde chiffrée Rclone GUI</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>rclonebackup</string>
+				</array>
+			</dict>
+		</dict>
+	</array>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>NSSupportsLiveActivitiesFrequentUpdates</key>
