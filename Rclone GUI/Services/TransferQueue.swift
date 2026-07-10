@@ -1052,8 +1052,23 @@ public final class TransferQueue {
         transfer.bytesTransferred = doneBytes
         try? modelContext?.save()
 
+        // Staging Caches quand la destination est iCloud Drive : on télécharge
+        // en local (pas de `bird`) puis on publie chaque fichier terminé. Un
+        // sous-dossier par transfert, nettoyé à la fin.
+        let stagingDir: URL? = Self.isICloudDrivePath(destinationURL.path)
+            ? FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+                .appendingPathComponent("folder-dl", isDirectory: true)
+                .appendingPathComponent(id, isDirectory: true)
+            : nil
+        if let stagingDir {
+            try? FileManager.default.createDirectory(at: stagingDir, withIntermediateDirectories: true)
+        }
+        func cleanupStaging() {
+            if let stagingDir { try? FileManager.default.removeItem(at: stagingDir) }
+        }
+
         await LogService.shared.log(.info, category: "transfer",
-            message: "📁 Download dossier (par fichiers) \(remote):\(sourcePath) files=\(files.count) skip=\(partition.skippedCount) concurrency=\(min(max(maxConcurrent,1),8)) bytesTotal=\(bytesTotal)")
+            message: "📁 Download dossier (par fichiers\(stagingDir != nil ? ", staging iCloud" : "")) \(remote):\(sourcePath) files=\(files.count) skip=\(partition.skippedCount) concurrency=\(min(max(maxConcurrent,1),8)) bytesTotal=\(bytesTotal)")
 
         // 3) File bornée de copyfile+poll. maxConcurrent respecte le mode Auto
         //    / le réglage manuel, borné 1…8. Chaque copyfile passe par le
@@ -1072,7 +1087,7 @@ public final class TransferQueue {
                 let name = next.entry.name
                 group.addTask { [self] in
                     do {
-                        try await self.copyFileAndWait(remote: remote, srcPath: srcPath, destURL: destURL)
+                        try await self.copyFileAndWait(remote: remote, srcPath: srcPath, destURL: destURL, stagingDir: stagingDir)
                         return (name, size, nil)
                     } catch {
                         return (name, size, error)
@@ -1101,6 +1116,9 @@ public final class TransferQueue {
         }
 
         releaseScope()
+        // Nettoyage du staging (fichiers publiés = déplacés ; restes partiels
+        // sur erreur/annulation = à jeter, re-téléchargés à la reprise).
+        cleanupStaging()
 
         // 4) Finalisation.
         if Task.isCancelled {
@@ -1135,27 +1153,82 @@ public final class TransferQueue {
     /// instantanément (jobID) → la lane du bouclier est libérée aussitôt, seul
     /// le poll — léger — reste. `Task.checkCancellation()` stoppe le poll sur
     /// pause/annulation (le fichier partiel sera re-téléchargé au skip-existing).
-    private func copyFileAndWait(remote: String, srcPath: String, destURL: URL) async throws {
-        let parent = destURL.deletingLastPathComponent()
+    ///
+    /// OPTIMISATION iOS (anti-gel iCloud) : si `stagingDir` est fourni
+    /// (destination iCloud Drive), on télécharge d'abord dans le sandbox
+    /// (`Caches`) — écriture locale rapide qui ne réveille PAS le daemon
+    /// `bird` — puis on publie le fichier TERMINÉ vers iCloud via
+    /// `NSFileCoordinator`. Écrire chaque chunk directement dans
+    /// `com~apple~CloudDocs` faisait thrasher `bird` (coordination + hash +
+    /// upload permanents) → gel. Destination locale (`stagingDir == nil`) :
+    /// écriture directe, inchangée.
+    private func copyFileAndWait(
+        remote: String,
+        srcPath: String,
+        destURL: URL,
+        stagingDir: URL?
+    ) async throws {
+        let writeURL = stagingDir?.appendingPathComponent(UUID().uuidString) ?? destURL
+        let parent = writeURL.deletingLastPathComponent()
         try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
+
         let jobID = try await TransferService.shared.copyFileAsync(
             srcFs: "\(remote):", srcPath: srcPath,
-            dstFs: parent.path, dstPath: destURL.lastPathComponent
+            dstFs: parent.path, dstPath: writeURL.lastPathComponent
         )
-        while true {
-            try Task.checkCancellation()
-            let status = try await TransferService.shared.jobStatus(jobID: jobID)
-            if status.finished {
-                if !status.success {
-                    throw RcloneError.rcloneError(
-                        code: 0, method: "operations/copyfile",
-                        message: status.error ?? "échec du téléchargement de \(destURL.lastPathComponent)"
-                    )
+        do {
+            while true {
+                try Task.checkCancellation()
+                let status = try await TransferService.shared.jobStatus(jobID: jobID)
+                if status.finished {
+                    if !status.success {
+                        throw RcloneError.rcloneError(
+                            code: 0, method: "operations/copyfile",
+                            message: status.error ?? "échec du téléchargement de \(destURL.lastPathComponent)"
+                        )
+                    }
+                    break
                 }
-                return
+                try await Task.sleep(for: .milliseconds(500))
             }
-            try await Task.sleep(for: .milliseconds(500))
+        } catch {
+            if stagingDir != nil { try? FileManager.default.removeItem(at: writeURL) }
+            throw error
         }
+
+        // Publication du fichier TERMINÉ vers iCloud, hors MainActor (le move
+        // coordonné peut bloquer). Le scope security-scoped est actif au niveau
+        // process pour toute la durée du dossier → le move de fond y a accès.
+        if stagingDir != nil {
+            let staged = writeURL
+            let final = destURL
+            try await Task.detached(priority: .utility) {
+                try Self.publishFileCoordinated(from: staged, to: final)
+            }.value
+        }
+    }
+
+    /// Déplace un fichier TERMINÉ du staging vers sa destination finale iCloud,
+    /// sous `NSFileCoordinator` (writing/`.forReplacing`) pour éviter les
+    /// conflits avec le daemon `bird`. `nonisolated static` → appelable depuis
+    /// une tâche de fond. On ne publie qu'un fichier FERMÉ (plus d'écriture) →
+    /// une seule passe de synchro iCloud au lieu d'un thrash continu.
+    nonisolated static func publishFileCoordinated(from src: URL, to dest: URL) throws {
+        let fm = FileManager.default
+        try fm.createDirectory(at: dest.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let coordinator = NSFileCoordinator(filePresenter: nil)
+        var coordError: NSError?
+        var opError: Error?
+        coordinator.coordinate(writingItemAt: dest, options: .forReplacing, error: &coordError) { url in
+            do {
+                if fm.fileExists(atPath: url.path) { try fm.removeItem(at: url) }
+                try fm.moveItem(at: src, to: url)
+            } catch {
+                opError = error
+            }
+        }
+        if let coordError { throw coordError }
+        if let opError { throw opError }
     }
 
     /// Crée le transfert EN FILE D'ATTENTE (.enqueued) puis tente de démarrer.
