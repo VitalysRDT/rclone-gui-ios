@@ -164,6 +164,13 @@ public final class OAuthBrokerService: NSObject {
             throw BrokerError.strategyNotConfigured("auth_url construit invalide")
         }
 
+        // Glass Engine : l'autorisation OAuth part vers le fournisseur choisi
+        // (catégorie .provider — jamais « maison »).
+        GlassEngineMonitor.record(
+            host: authURL.host,
+            purpose: String(localized: "Autorisation OAuth — \(config.backendName)")
+        )
+
         // Run the ASWebAuthenticationSession. We retain it on `self` for
         // the duration of the await; if we kept only a local `let session`
         // ARC could release it after `start()` returns and the callback
@@ -246,6 +253,13 @@ public final class OAuthBrokerService: NSObject {
         var components = URLComponents()
         components.queryItems = bodyItems
         request.httpBody = components.percentEncodedQuery?.data(using: .utf8)
+
+        // Glass Engine : l'échange de code→token part directement vers le
+        // fournisseur (son tokenURL), aucun intermédiaire « maison ».
+        GlassEngineMonitor.record(
+            host: tokenURL.host,
+            purpose: String(localized: "Échange de token OAuth")
+        )
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse else {
