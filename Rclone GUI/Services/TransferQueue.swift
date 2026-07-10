@@ -221,11 +221,65 @@ public final class TransferQueue {
     public func attach(modelContext: ModelContext) {
         guard self.modelContext !== modelContext else { return }
         self.modelContext = modelContext
+        pruneTerminalTransfers()
         Task { await replayInterrupted() }
         startStatsPolling()
         startEnergyObservers()
         migrateAutoModeDefaultIfNeeded()
         refreshAutoPolicy()
+    }
+
+    /// Plafond d'historique des transferts TERMINÉS (completed/failed) gardés en
+    /// base. Sans purge, la table `Transfer` grossissait indéfiniment (rien ne
+    /// supprimait les lignes terminées hors PhotoSync) : le `@Query` non borné
+    /// de l'écran Transferts matérialisait des milliers de lignes à CHAQUE
+    /// `save()` (polling, progression…) → l'app « tournait au ralenti » et
+    /// empirait avec l'usage. On garde les N plus récents.
+    static let maxTerminalHistory = 300
+
+    /// Supprime les transferts terminés au-delà du plafond (les plus anciens),
+    /// SANS toucher aux lignes d'un batch encore en cours (updateRunningBatches
+    /// resomme la progression depuis les `Transfer` → elle régresserait).
+    /// Appelé à l'attach (borne l'accumulation inter-sessions, principal vecteur
+    /// de lenteur) et après complétion d'un batch.
+    func pruneTerminalTransfers() {
+        guard let modelContext else { return }
+        let terminalDescriptor = FetchDescriptor<Transfer>(
+            predicate: #Predicate { $0.statusRaw == "completed" || $0.statusRaw == "failed" },
+            sortBy: [SortDescriptor(\.startedAt, order: .reverse)]
+        )
+        guard let terminal = try? modelContext.fetch(terminalDescriptor),
+              terminal.count > Self.maxTerminalHistory else { return }
+        let runningBatchDescriptor = FetchDescriptor<TransferBatch>(
+            predicate: #Predicate { $0.statusRaw == "running" }
+        )
+        let runningBatchIDs = Set((try? modelContext.fetch(runningBatchDescriptor))?.map(\.id) ?? [])
+        let byID = Dictionary(uniqueKeysWithValues: terminal.map { ($0.id, $0) })
+        let toDelete = Self.terminalTransfersToPrune(
+            sortedTerminal: terminal.map { (id: $0.id, batchID: $0.batchID) },
+            runningBatchIDs: runningBatchIDs,
+            keepingRecent: Self.maxTerminalHistory
+        )
+        guard !toDelete.isEmpty else { return }
+        for id in toDelete { if let t = byID[id] { modelContext.delete(t) } }
+        try? modelContext.save()
+        Task { await LogService.shared.log(.info, category: "transfer",
+            message: "🧹 Purge historique transferts : \(toDelete.count) ligne(s) terminée(s) supprimée(s) (plafond \(Self.maxTerminalHistory))") }
+    }
+
+    /// Sélection PURE des transferts terminés à supprimer : au-delà du plafond
+    /// (les plus anciens, la liste étant du plus récent au plus ancien), en
+    /// EXCLUANT ceux d'un batch encore en cours. Renvoie les ids à supprimer.
+    nonisolated static func terminalTransfersToPrune(
+        sortedTerminal: [(id: String, batchID: String?)],
+        runningBatchIDs: Set<String>,
+        keepingRecent: Int
+    ) -> [String] {
+        guard sortedTerminal.count > keepingRecent else { return [] }
+        return sortedTerminal.dropFirst(keepingRecent).compactMap { pair in
+            if let bid = pair.batchID, runningBatchIDs.contains(bid) { return nil }
+            return pair.id
+        }
     }
 
     /// Défaut ON du mode Auto réservé aux installations SANS réglage manuel
@@ -2225,11 +2279,16 @@ public final class TransferQueue {
         guard let batchID, let batch = fetchBatch(id: batchID) else { return }
         batch.completedItems += completedDelta
         batch.failedItems += failedDelta
+        var didFinish = false
         if batch.completedItems + batch.failedItems >= batch.totalItems {
             batch.status = batch.failedItems > 0 ? .failed : .completed
             batch.finishedAt = .now
+            didFinish = true
         }
         try? modelContext?.save()
+        // Un batch vient de se terminer → borne l'historique (évite que les
+        // gros batches fassent gonfler la table dans la même session).
+        if didFinish { pruneTerminalTransfers() }
     }
 
     /// Renvoie `true` si au moins un champ d'un batch a été modifié, pour
