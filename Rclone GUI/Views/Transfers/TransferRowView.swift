@@ -60,6 +60,14 @@ struct TransferRowView: View {
                         Text(progressText)
                             .font(.caption2)
                             .foregroundStyle(.secondary)
+                        if showsFileCount {
+                            Text("·")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                            Text(fileCountText)
+                                .font(.caption2.monospacedDigit())
+                                .foregroundStyle(.secondary)
+                        }
                         Spacer()
                         Text(progressPercent)
                             .font(.caption2.monospacedDigit().weight(.semibold))
@@ -68,6 +76,13 @@ struct TransferRowView: View {
                     ProgressView(value: progressValue, total: progressTotal)
                         .progressViewStyle(.linear)
                         .tint(kindColor)
+                    if let current = currentFileLabel {
+                        Text(current)
+                            .font(.caption2.monospacedDigit())
+                            .foregroundStyle(.tertiary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
                 }
             } else if transfer.status == .running, (transfer.isDirectoryTransfer ?? false) {
                 // Dossier running sans bytesTotal (operations/size a échoué ou
@@ -77,10 +92,30 @@ struct TransferRowView: View {
                         ProgressView()
                             .progressViewStyle(.linear)
                             .tint(kindColor)
-                        Text(String(localized: "Calcul de la taille\u{2026}"))
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
+                        if showsFileCount {
+                            Text(fileCountText)
+                                .font(.caption2.monospacedDigit())
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Text(String(localized: "Calcul de la taille\u{2026}"))
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
                     }
+                    if let current = currentFileLabel {
+                        Text(current)
+                            .font(.caption2.monospacedDigit())
+                            .foregroundStyle(.tertiary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                }
+            } else if showsFileCount, transfer.status == .completed || transfer.status == .failed {
+                // Affiche un récap fichiers pour les dossiers terminés/échoués
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(fileCountText)
+                        .font(.caption2.monospacedDigit())
+                        .foregroundStyle(.secondary)
                 }
             }
 
@@ -217,6 +252,46 @@ struct TransferRowView: View {
 
     private var clampedBytesTransferred: Int64 {
         min(max(transfer.bytesTransferred, 0), max(transfer.bytesTotal, 0))
+    }
+
+    /// Affiche le compteur de fichiers uniquement pour les downloads de
+    /// dossier lancés via BridgeFolderDownloader (fileCount > 0). Les
+    /// transferts sync/copy classiques n'ont pas cette info (le sync ne
+    /// sait pas combien de fichiers il contient a priori).
+    private var showsFileCount: Bool {
+        (transfer.isDirectoryTransfer ?? false) && transfer.fileCount > 0
+    }
+
+    /// Texte « X/Y fichiers » avec fallback singulier/pluriel localisé.
+    private var fileCountText: String {
+        let completed = max(0, min(transfer.fileCount, totalFileCompleted))
+        let total = transfer.fileCount
+        if total == 1 {
+            return String(localized: "1 fichier")
+        }
+        return String(localized: "\(completed)/\(total) fichiers")
+    }
+
+    /// Nombre de fichiers terminés (bytesTotal - bytesRestants) approximé.
+    /// BridgeFolderDownloader met à jour `bytesTransferred` au niveau fichier
+    /// donc on peut dériver le nombre de fichiers terminés depuis le ratio
+    /// bytesTransferred/bytesTotal * fileCount. Plus simple : on regarde la
+    /// dernière snapshot publique via un fallback à `bytesTotal` quand
+    /// bytesTransferred atteint la taille totale.
+    private var totalFileCompleted: Int {
+        guard transfer.fileCount > 0, transfer.bytesTotal > 0 else { return 0 }
+        let ratio = Double(clampedBytesTransferred) / Double(transfer.bytesTotal)
+        return Int((Double(transfer.fileCount) * ratio).rounded())
+    }
+
+    /// Label « Téléchargement : <fichier> » pour les dossiers bridge folder en
+    /// cours. Le nom est tronqué au basename (chemin potentiellement long dans
+    /// le remote). Nil si pas de fichier courant.
+    private var currentFileLabel: String? {
+        guard transfer.status == .running,
+              let name = transfer.currentFilename, !name.isEmpty else { return nil }
+        let basename = (name as NSString).lastPathComponent
+        return String(localized: "En cours : ") + basename
     }
 
     private var progressValue: Double {

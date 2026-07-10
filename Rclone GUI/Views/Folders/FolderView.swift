@@ -331,7 +331,17 @@ struct FolderView: View {
             .sheet(isPresented: $showingDestinationPicker) {
                 LocalDirectoryPicker(
                     onPicked: { url in
-                        let _ = url.startAccessingSecurityScopedResource()
+                        // Le scope est démarré ici pour que FileManager puisse
+                        // créer le dossier destination dans `enqueueDownload`
+                        // (createDirectory sur URL hors-sandbox requiert le
+                        // scope actif). Le bookmark `.withSecurityScope` est
+                        // capturé dans `enqueueDownload` et résolu à chaque
+                        // `relaunch` pour que la goroutine librclone écrive
+                        // hors-sandbox pendant toute la durée du job — sans
+                        // ça, le scope serait libéré à la fin de cette Task
+                        // et l'écriture échouerait silencieusement (le job
+                        // resterait bloqué à 0 octet pour toujours).
+                        _ = url.startAccessingSecurityScopedResource()
                         showingDestinationPicker = false
                         let entries = pendingDownloadEntries
                         pendingDownloadEntries = []

@@ -126,12 +126,36 @@ public final class Transfer {
     public var bytesTotal: Int64
     public var bytesTransferred: Int64
 
+    /// Nombre de fichiers dans le transfert (dossiers BridgeFolderDownloader).
+    /// 0 pour les transferts fichier simple. Mis à jour à l'enqueue pour les
+    /// dossiers, sert à afficher « 247/412 fichiers » dans la carte UI.
+    public var fileCount: Int = 0
+
+    /// Nom du fichier en cours de téléchargement dans un transfert dossier
+    /// (BridgeFolderDownloader). Mis à jour par le callback `onProgress`.
+    /// Nil pour les transferts fichier simple ou sync/copy.
+    public var currentFilename: String?
+
     public var startedAt: Date
     public var finishedAt: Date?
     public var lastError: String?
 
     /// rclone job id (returned by async RPC). nil for sync ops.
     public var jobID: Int?
+
+    /// Security-scoped bookmark data pour la destination locale (iCloud Drive,
+    /// On My iPhone, etc.). Recréé à chaque pick utilisateur via
+    /// `URL.bookmarkData()` dans `TransferQueue.enqueueDownload`. Sur iOS, un
+    /// bookmark créé depuis une URL UIDocumentPicker est implicitement
+    /// security-scoped — résolu dans `relaunch` via
+    /// `URL(resolvingBookmarkData:)` + `startAccessingSecurityScopedResource()`
+    /// pour que la goroutine librclone puisse écrire hors-sandbox pendant toute
+    /// la durée du transfert — sans ça, l'URL est désallouée dès la fin de la
+    /// Task d'enqueue et l'écriture échoue silencieusement (download de dossier
+    /// iCloud Drive bloqué à 0 octet, jamais de "terminé"/"échoué").
+    /// Optionnel : nil pour les chemins non-security-scoped (sandbox app,
+    /// Documents/, Caches/) où la permission est implicite.
+    @Attribute(.externalStorage) public var destinationSecurityBookmark: Data?
 
     public var kind: TransferKind {
         get { TransferKind(rawValue: kindRaw) ?? .download }
