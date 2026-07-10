@@ -1069,34 +1069,57 @@ public final class TransferQueue {
                 )
             }
             updateBatch(transfer.batchID, completedDelta: 1, failedDelta: 0)
+        } catch is CancellationError {
+            // Pause/annulation utilisateur : ni échec ni fallback.
+            if let pair = resolvedBookmark, pair.didStart {
+                pair.url.stopAccessingSecurityScopedResource()
+            }
+            return
         } catch {
-            await LogService.shared.log(
-                .info, category: "transfer",
-                message: "BridgeFolderDownloader échec \(remote):\(transfer.sourcePath) — fallback sync/copy : \(error.localizedDescription)"
-            )
-            // Fallback sync/copy : réutilise le chemin rclone historique.
-            // Le scope security-scoped est conservé pour le sync/copy.
-            do {
-                let jobID = try await relaunch(transfer)
-                guard let t = fetchTransfer(id: id), t.status == .running else { return }
-                t.jobID = jobID
-                try? modelContext?.save()
-                startPolling(t)
-                return
-            } catch {
-                if let t = fetchTransfer(id: id) {
-                    if autoPauseInsteadOfFail(t) {
-                        // Double échec parce que le réseau est tombé : pause
-                        // auto — reprise skip-existing au retour du lien.
-                    } else {
-                        t.status = .failed
-                        t.lastError = "Bridge + sync/copy ont échoué : \(error.localizedDescription)"
-                        t.finishedAt = .now
-                        try? modelContext?.save()
-                        await LogService.shared.log(
-                            .error, category: "transfer",
-                            message: "❌ Bridge + sync/copy ont échoué pour \(remote):\(transfer.sourcePath) — \(error.localizedDescription)"
-                        )
+            // GARDE-FOU ANTI-GEL : vers iCloud Drive, on NE retombe PAS sur
+            // sync/copy. C'est précisément le chemin que le bridge remplace :
+            // rclone écrivant un gros dossier dans com~apple~CloudDocs réveille
+            // le daemon `bird` et FIGE l'app (9 GB). Mieux vaut un échec clair.
+            if Self.isICloudDrivePath(transfer.destinationPath) {
+                if let t = fetchTransfer(id: id), !autoPauseInsteadOfFail(t) {
+                    t.status = .failed
+                    t.lastError = String(localized: "Téléchargement du dossier interrompu. Réessayez vers « Sur mon iPhone » : le repli iCloud Drive est désactivé car il peut figer l'app sur les gros dossiers.")
+                    t.finishedAt = .now
+                    try? modelContext?.save()
+                }
+                await LogService.shared.log(
+                    .error, category: "transfer",
+                    message: "❌ Bridge échoué + destination iCloud Drive → repli sync/copy DÉSACTIVÉ (anti-gel bird) : \(remote):\(transfer.sourcePath) — \(error.localizedDescription)"
+                )
+            } else {
+                await LogService.shared.log(
+                    .info, category: "transfer",
+                    message: "BridgeFolderDownloader échec \(remote):\(transfer.sourcePath) — fallback sync/copy : \(error.localizedDescription)"
+                )
+                // Fallback sync/copy (destination locale) : réutilise le chemin
+                // rclone historique. Le scope security-scoped est conservé.
+                do {
+                    let jobID = try await relaunch(transfer)
+                    guard let t = fetchTransfer(id: id), t.status == .running else { return }
+                    t.jobID = jobID
+                    try? modelContext?.save()
+                    startPolling(t)
+                    return
+                } catch {
+                    if let t = fetchTransfer(id: id) {
+                        if autoPauseInsteadOfFail(t) {
+                            // Double échec parce que le réseau est tombé : pause
+                            // auto — reprise skip-existing au retour du lien.
+                        } else {
+                            t.status = .failed
+                            t.lastError = "Bridge + sync/copy ont échoué : \(error.localizedDescription)"
+                            t.finishedAt = .now
+                            try? modelContext?.save()
+                            await LogService.shared.log(
+                                .error, category: "transfer",
+                                message: "❌ Bridge + sync/copy ont échoué pour \(remote):\(transfer.sourcePath) — \(error.localizedDescription)"
+                            )
+                        }
                     }
                 }
             }
@@ -2112,6 +2135,14 @@ public final class TransferQueue {
         var isDirectory: ObjCBool = false
         FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory)
         return isDirectory.boolValue
+    }
+
+    /// Le chemin est-il dans iCloud Drive ? Les URLs de l'espace « iCloud Drive »
+    /// (dossier Mobile Documents) contiennent le conteneur `com~apple~CloudDocs` ;
+    /// y écrire un gros dossier déclenche le daemon `bird` (upload iCloud) qui
+    /// fige l'app. `nonisolated static` → pur et testable sans le singleton.
+    nonisolated static func isICloudDrivePath(_ path: String) -> Bool {
+        path.contains("com~apple~CloudDocs") || path.contains("/Mobile Documents/")
     }
 
     private func fileSize(at url: URL) -> Int64 {
