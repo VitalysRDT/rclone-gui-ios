@@ -468,16 +468,16 @@ enum BackendOverrides {
             usePKCE: false,
             setupURL: URL(string: "https://appleid.apple.com/account/manage"),
             setupSteps: [
-                "Active la 2FA sur ton compte iCloud si pas déjà fait (obligatoire).",
-                "Ouvre appleid.apple.com → section « Sign-In and Security ».",
-                "« App-Specific Passwords » → « Generate Password » pour « Rclone GUI ».",
-                "Copie le mot de passe au format abcd-efgh-ijkl-mnop.",
-                "Colle-le ci-dessous (champ « password »).",
+                "Active la 2FA sur ton compte Apple si pas déjà fait (obligatoire).",
+                "Utilise ton mot de passe Apple ID NORMAL — Apple refuse les mots de passe « spécifiques à une app » pour iCloud Drive.",
+                "Sur ton iPhone : Réglages → [ton nom] → iCloud → active « Accéder aux données iCloud sur le web ».",
+                "Colle ton mot de passe ci-dessous (champ « password »).",
+                "Un code 2FA te sera demandé à l'étape « Récapitulatif » (test ou création).",
                 "À l'étape précédente du wizard, remplis aussi « apple_id » avec ton email Apple ID."
             ],
-            tokenLabel: "App-specific password Apple",
+            tokenLabel: "Mot de passe Apple ID",
             tokenFieldName: "password",
-            tokenHint: "Format : 4 groupes de 4 lettres séparés par des tirets. Le champ « apple_id » est rempli dans le formulaire principal."
+            tokenHint: "Ton mot de passe Apple ID complet — PAS un mot de passe d'app (rejeté par Apple). Le champ « apple_id » est rempli dans le formulaire principal."
         ),
 
         // ───────── Dropbox / Box / pCloud ─────────
