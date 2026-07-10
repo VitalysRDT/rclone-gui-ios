@@ -60,6 +60,15 @@ final class NetworkReachability: @unchecked Sendable {
         lock.lock(); defer { lock.unlock() }; return _isExpensive
     }
 
+    /// Instantané COHÉRENT des trois signaux (une seule prise de lock).
+    /// À préférer quand une décision combine plusieurs champs (mode Auto) :
+    /// trois lectures séparées peuvent chevaucher une bascule de path et
+    /// produire un état déchiré (ex. hors-ligne + cellulaire simultanés).
+    var snapshot: (online: Bool, expensive: Bool, constrained: Bool) {
+        lock.lock(); defer { lock.unlock() }
+        return (_isSatisfied, _isExpensive, _isConstrained)
+    }
+
     var isConstrained: Bool {
         lock.lock(); defer { lock.unlock() }; return _isConstrained
     }
