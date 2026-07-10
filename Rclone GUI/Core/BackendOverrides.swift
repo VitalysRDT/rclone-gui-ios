@@ -466,7 +466,11 @@ enum BackendOverrides {
             defaultScopes: [],
             strategy: .manual,
             usePKCE: false,
-            setupURL: URL(string: "https://appleid.apple.com/account/manage"),
+            // Pas de setupURL : la page appleid.apple.com servait à générer un
+            // mot de passe d'app, inutile (et trompeur) depuis le flow 2FA —
+            // l'utilisateur saisit son mot de passe habituel, le code 2FA est
+            // demandé dans l'app.
+            setupURL: nil,
             setupSteps: [
                 "Active la 2FA sur ton compte Apple si pas déjà fait (obligatoire).",
                 "Utilise ton mot de passe Apple ID HABITUEL (celui de ton compte) — Apple refuse les mots de passe « spécifiques à une app » et les mots de passe uniques.",
