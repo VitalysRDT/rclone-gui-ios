@@ -34,6 +34,31 @@ open "Rclone GUI.xcodeproj"      # build the "Rclone GUI" scheme (Xcode 26+)
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for tests and guidelines.
 
+## Version history
+
+The full changelog lives at [rclone.rougetet.com/#versions](https://rclone.rougetet.com/#versions)
+and in-app under **Settings → Version history**.
+
+- **2.0** — Transparency, zero phone-home: a live in-app monitor + a reproducible,
+  independently verifiable native build. Plus Handoff (transfer your encrypted config
+  between devices via QR/AirDrop/file), Ghost Vault (encrypted config backup to a remote),
+  smarter downloads (automatic network/battery/thermal management + reliable folder
+  downloads), and visible skipped photos in PhotoSync.
+- **1.9.2** — Folder-download progress bar (folder size precomputed before the transfer).
+- **1.9.1** — Fix: first-launch “rclone catalog unavailable” error when creating your first remote.
+- **1.9** — Rebuilt video player (VLCKit 4: robust 4K MKV/HEVC, crackle-free audio),
+  video Picture-in-Picture, more reliable “Open in another app”, and background audio.
+- **1.8** — Pro Transfers: a queue with adjustable concurrency and drag-and-drop reordering.
+- **1.7** — Download entire folders in one go (recursive).
+- **1.6** — Connect with a file (SSH private key, service-account JSON, TLS cert…) imported straight from Files.
+- **1.5** — Built-in multi-format video player (MKV, AVI, WebM, TS…) with subtitles and audio tracks.
+- **1.4** — New clouds: Drime, Internxt and Filen (Internxt and Filen are end-to-end encrypted).
+- **1.3** — Fix: importing a password-encrypted rclone configuration no longer crashes the app.
+- **1.2** — Native macOS app (Apple Silicon): sidebar layout and Finder integration.
+- **1.1** — Full English localization (follows your device language).
+- **1.0** — First public release: native rclone client, 70+ backends, Files integration,
+  end-to-end crypt encryption, photo sync, Face ID, zero tracking.
+
 ## License & trademarks
 
 - Code: [MPL-2.0](LICENSE).
