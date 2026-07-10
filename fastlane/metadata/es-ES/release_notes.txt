@@ -1,2 +1,6 @@
-Novedades de la versión 1.9.2:
-- Progreso de descarga de carpetas: la barra de progreso por fin se muestra (el tamaño de la carpeta se calcula antes de la transferencia).
+Novedades de la versión 2.0:
+- Transparencia, cero llamadas a casa: una nueva pantalla demuestra en directo que la app no contacta con ningún servidor propio, y el motor rclone ahora es reproducible y verificable.
+- Handoff: transfiere tu configuración cifrada entre dispositivos por código QR, AirDrop o archivo.
+- Ghost Vault: copia de seguridad cifrada de tu configuración en uno de tus propios remotos.
+- Descargas más inteligentes: gestión automática (red, batería, temperatura) y descargas de carpetas fiables.
+- Sincronización de fotos: las fotos omitidas por fin son visibles, con un botón «Reintentar omitidas».
