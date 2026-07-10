@@ -42,6 +42,7 @@
 <header class="nav"><div class="wrap nav-in">
   <a class="brand" href="/"><img src="icon.png" alt="Rclone GUI"/>Rclone GUI</a>
   <div class="nav-sp"></div>
+  <a href="/transparency.html">Transparence</a>
   <a href="/">&larr; Home</a>
 </div></header>
 
@@ -83,6 +84,7 @@
     <li><strong>Un serveur HTTP localhost (<code>127.0.0.1</code>)</strong> lancé par l'application pour permettre à AVPlayer de lire vos vidéos déchiffrées à la volée. Ce trafic ne quitte jamais l'appareil.</li>
     <li><strong>Aucun autre serveur.</strong> Pas de domaine sous notre contrôle, pas de webhook, pas de service tiers de notification.</li>
   </ul>
+  <p>Vous pouvez le <strong>vérifier vous-même</strong> (moniteur in-app « 0 appel maison », inspection au proxy, build reproductible) : voir la page <a href="/transparency.html">Transparence</a>.</p>
 
   <h3>4. Authentification biométrique (Face ID / Touch ID)</h3>
   <p>Si vous activez la protection biométrique, l'application utilise <code>LocalAuthentication</code> pour vérifier votre identité au lancement. <strong>La biométrie ne quitte jamais le Secure Enclave de votre iPhone</strong> et n'est jamais transmise à l'application ni à nous. Apple n'expose qu'un résultat booléen.</p>
@@ -136,6 +138,7 @@
     <li><strong>A localhost HTTP server (<code>127.0.0.1</code>)</strong> spawned by the App to let AVPlayer stream your decrypted media on the fly. This traffic never leaves the device.</li>
     <li><strong>No other servers.</strong> No domain under our control, no webhook, no third-party notification service.</li>
   </ul>
+  <p>You can <strong>verify this yourself</strong> (in-app "zero phone-home" monitor, proxy inspection, reproducible build): see the <a href="/transparency.html">Transparency</a> page.</p>
 
   <h3>4. Biometric authentication (Face ID / Touch ID)</h3>
   <p>If you enable biometric protection, the App uses <code>LocalAuthentication</code> to verify you at launch. <strong>Biometric data never leaves the Secure Enclave of your iPhone</strong> and is never transmitted to the App or to us. Apple exposes only a pass/fail boolean.</p>

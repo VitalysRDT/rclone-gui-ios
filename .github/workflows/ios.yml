@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 concurrency:
   group: ios-ci-${{ github.ref }}
@@ -99,3 +100,39 @@ jobs:
           fi
           echo "Archive structure OK"
           du -sh "build/RcloneGUI-CI.xcarchive"
+
+  transparency-guard:
+    name: Glass Engine — garde « 0 appel maison »
+    runs-on: macos-15
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Vérifier « 0 appel maison » (scan source, sans build)
+        run: ./scripts/verify-no-phone-home.sh
+
+  reproducible-build:
+    name: Build reproductible (empreinte RcloneKit.xcframework)
+    # Lourd (~20 min, build gomobile). Déclenché à la main uniquement — informatif,
+    # ne bloque pas les PR. Le mainteneur régénère le manifeste via
+    # `scripts/verify-reproducible.sh --record` après un build propre.
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: macos-15
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+
+      - name: Rebuild du framework natif (déterministe)
+        run: ./scripts/build-rclone.sh
+
+      - name: Empreintes + garde 0 appel maison
+        run: ./scripts/verify-reproducible.sh

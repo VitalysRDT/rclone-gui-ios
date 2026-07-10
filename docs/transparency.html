@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>Rclone GUI — Transparence & « 0 appel maison »</title>
+<meta name="description" content="Glass Engine : Rclone GUI ne téléphone à aucun serveur maison. Moniteur in-app « 0 appel maison » et build reproductible pour le prouver vous-même."/>
+<link rel="canonical" href="https://rclone.rougetet.com/transparency.html"/>
+<meta name="robots" content="index,follow"/>
+<meta name="theme-color" content="#7C3AED"/>
+<link rel="icon" href="icon.png"/>
+<style>
+  :root{--accent:#7C3AED;--accent-deep:#5B21B6;--ink:#0B0820;--muted:#6B6580;--line:rgba(11,8,32,.10);--bg:#FBFAFF}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);line-height:1.6;
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  a{color:var(--accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:760px;margin:0 auto;padding:0 22px}
+  header.nav{position:sticky;top:0;z-index:10;backdrop-filter:saturate(180%) blur(20px);
+    background:rgba(251,250,255,.82);border-bottom:1px solid var(--line)}
+  .nav-in{display:flex;align-items:center;gap:10px;height:58px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px;color:var(--ink)}
+  .brand img{width:28px;height:28px;border-radius:7px}
+  .nav-sp{flex:1}
+  h1{font-size:clamp(28px,5vw,40px);font-weight:800;letter-spacing:-1px;margin:36px 0 4px}
+  h2{font-size:24px;font-weight:800;letter-spacing:-.4px;margin:40px 0 0;padding-top:18px;border-top:1px solid var(--line)}
+  h3{font-size:18px;font-weight:700;margin:26px 0 0}
+  p,li{font-size:15.5px;color:#221c3a}
+  .muted{color:var(--muted)}
+  ul{padding-left:20px}
+  li{margin:5px 0}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px}
+  th,td{text-align:left;padding:9px 10px;border:1px solid var(--line);vertical-align:top}
+  th{background:rgba(124,58,237,.06);font-weight:700}
+  code{font-family:ui-monospace,"SF Mono",Menlo,monospace;background:rgba(11,8,32,.06);padding:1px 5px;border-radius:5px;font-size:13.5px}
+  pre{background:rgba(11,8,32,.045);border:1px solid var(--line);border-radius:10px;padding:14px 16px;overflow:auto;font-size:13px;line-height:1.5}
+  pre code{background:none;padding:0}
+  .badge{display:inline-block;background:rgba(52,199,89,.14);color:#1a7f37;font-weight:700;border-radius:999px;padding:3px 12px;font-size:14px}
+  hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+  footer{border-top:1px solid var(--line);margin-top:40px;padding:26px 0;color:var(--muted);font-size:13.5px}
+</style>
+</head>
+<body>
+<header class="nav"><div class="wrap nav-in">
+  <a class="brand" href="/"><img src="icon.png" alt="Rclone GUI"/>Rclone GUI</a>
+  <div class="nav-sp"></div>
+  <a href="/privacy.html">Confidentialité</a>
+  <a href="/">&larr; Home</a>
+</div></header>
+
+<main class="wrap">
+  <h1>Transparence — « 0 appel maison »</h1>
+  <p class="muted"><strong>Glass Engine</strong> · Dernière mise à jour : 10 juillet 2026<br/><em>Last updated: July 10, 2026</em></p>
+  <p><span class="badge">Appels maison : 0</span></p>
+
+  <hr/>
+  <h2>Français</h2>
+  <p>Rclone GUI est conçu pour ne <strong>jamais téléphoner à la maison</strong> : l'application ne contacte aucun serveur que nous contrôlons. Cette page explique exactement ce que l'app contacte, et comment vous pouvez le <strong>prouver vous-même</strong> — sans nous faire confiance sur parole. C'est le rôle du <strong>Glass Engine</strong>.</p>
+
+  <h3>1. Le moniteur « 0 appel maison » dans l'app</h3>
+  <p>Réglages → <strong>Transparence</strong> ouvre un écran qui, en direct :</p>
+  <ul>
+    <li>affiche un compteur <strong>« Appels maison : 0 »</strong> ;</li>
+    <li>liste l'<strong>allowlist complète</strong> des destinations que l'app est conçue pour contacter, par catégorie ;</li>
+    <li>liste <strong>vos remotes rclone</strong> (lus depuis votre config) — les seuls hôtes que le moteur rclone contactera ;</li>
+    <li>tient un <strong>journal live</strong> des appels réseau émis par l'app, exportable, où tout appel qui ne serait ni un remote à vous, ni Apple, ni l'appareil s'afficherait en rouge.</li>
+  </ul>
+
+  <h3>2. Tout ce que l'app contacte (et rien d'autre)</h3>
+  <table>
+    <tr><th>Destination</th><th>Pourquoi</th><th>Catégorie</th></tr>
+    <tr><td>Vos services cloud (S3, Google Drive, B2, SFTP…)</td><td>Le cœur de l'app : lister/transférer vos fichiers, via rclone, en HTTPS (ATS activé)</td><td>Vos remotes</td></tr>
+    <tr><td>Endpoints OAuth des fournisseurs (<code>accounts.google.com</code>, <code>login.microsoftonline.com</code>, <code>api.dropboxapi.com</code>…)</td><td>Connexion à vos comptes lors de l'ajout d'un remote — en direct, PKCE, session web éphémère, <strong>sans intermédiaire</strong></td><td>Fournisseurs</td></tr>
+    <tr><td>Apple (<code>apps.apple.com</code>, StoreKit, iCloud KVS)</td><td>Abonnement, codes promo Apple, ancre d'essai iCloud</td><td>Apple</td></tr>
+    <tr><td><code>127.0.0.1</code> (loopback)</td><td>Pont rclone local pour lire/télécharger vos fichiers — <strong>ne quitte jamais l'appareil</strong></td><td>Sur l'appareil</td></tr>
+  </table>
+  <p><strong>Ce qui n'existe pas :</strong></p>
+  <ul>
+    <li>Aucun SDK d'analytics, de crash-reporting ou de publicité (ni Firebase, ni Sentry, ni Crashlytics, ni Mixpanel…).</li>
+    <li>Aucune notification push distante : l'app n'appelle pas <code>registerForRemoteNotifications</code>, il n'y a <strong>ni APNs ni device token</strong> (les rappels de synchro photo sont des notifications <em>locales</em>).</li>
+    <li>Aucun serveur dorsal : l'essai (Trousseau + iCloud KVS), l'abonnement (StoreKit) et la config restent sur l'appareil / iCloud / Apple. Il n'y a <strong>pas de serveur de licence</strong>.</li>
+    <li><code>rclone.rougetet.com</code> n'est <strong>jamais appelé</strong> par l'app : il n'est ouvert dans Safari que si vous tapez un lien.</li>
+  </ul>
+
+  <h3>3. Le vérifier vous-même — au proxy</h3>
+  <p>Faites passer l'app par un proxy HTTPS d'inspection (mitmproxy, Charles, Proxyman) et observez le trafic. Vous ne verrez <strong>que</strong> : vos remotes, les endpoints OAuth des fournisseurs que vous connectez, Apple, et le loopback. Aucun <code>rougetet.com</code>, aucun <code>*.vercel.app</code>, aucun <code>supabase</code>, aucun domaine d'analytics.</p>
+  <p class="muted">Honnêteté sur la couche native : le moteur rclone (Go) fait son propre réseau vers <em>vos</em> remotes, hors du moniteur URLSession de l'app. Nous le <strong>déclarons</strong> depuis votre config plutôt que de le simuler — et il est vérifiable indépendamment par la méthode proxy ci-dessus.</p>
+
+  <h3>4. Le vérifier vous-même — build reproductible</h3>
+  <p>Le seul binaire non-Swift de l'app est le framework natif rclone (<code>RcloneKit.xcframework</code>), construit depuis les sources rclone via gomobile. Il est reproductible et vérifiable :</p>
+  <pre><code># 1. Cloner le dépôt public
+git clone https://github.com/VitalysRDT/rclone-gui-ios
+cd rclone-gui-ios
+
+# 2. Reconstruire le framework natif (rclone v1.74.3 + gomobile épinglés,
+#    -trimpath, -ldflags=-buildid=, SOURCE_DATE_EPOCH)
+./scripts/build-rclone.sh
+
+# 3. Comparer aux empreintes committées + scanner le code (0 appel maison)
+./scripts/verify-reproducible.sh</code></pre>
+  <p>Le manifeste <code>Frameworks/RcloneKit.xcframework.sha256</code> fige le SHA-256 de chaque tranche livrée (device iOS + macOS). La garde <code>scripts/verify-no-phone-home.sh</code> échoue si un SDK de tracking ou un endpoint maison apparaît dans le code — elle tourne aussi en CI sur chaque commit. Toolchain de référence : Xcode 27.0, Go 1.26, rclone v1.74.3.</p>
+  <p class="muted">Note : gomobile n'est pas garanti bit-à-bit sur toutes les machines ; les empreintes canoniques proviennent du build du mainteneur, et les drapeaux déterministes minimisent tout écart résiduel.</p>
+
+  <h3>5. Code source</h3>
+  <p>Tout le code de Rclone GUI est public : <a href="https://github.com/VitalysRDT/rclone-gui-ios">github.com/VitalysRDT/rclone-gui-ios</a>. Voir aussi la <a href="/privacy.html">politique de confidentialité</a>.</p>
+
+  <hr/>
+  <h2>English</h2>
+  <p>Rclone GUI is built to <strong>never phone home</strong>: the app contacts no server we control. This page states exactly what the app talks to, and how you can <strong>prove it yourself</strong> — without taking our word for it. That is the job of the <strong>Glass Engine</strong>.</p>
+
+  <h3>1. The in-app "zero phone-home" monitor</h3>
+  <p>Settings → <strong>Transparency</strong> opens a live screen that shows a <strong>"Home calls: 0"</strong> counter, the full <strong>allowlist</strong> of destinations the app is designed to reach, <strong>your own rclone remotes</strong> (the only hosts the rclone engine will contact), and a live, exportable <strong>log</strong> of the app's network calls — where anything that is neither your remote, nor Apple, nor the device itself would light up red.</p>
+
+  <h3>2. Everything the app contacts (and nothing else)</h3>
+  <table>
+    <tr><th>Destination</th><th>Why</th><th>Category</th></tr>
+    <tr><td>Your cloud services (S3, Google Drive, B2, SFTP…)</td><td>The whole point: list/transfer your files, via rclone, over HTTPS (ATS on)</td><td>Your remotes</td></tr>
+    <tr><td>Providers' OAuth endpoints (<code>accounts.google.com</code>, <code>login.microsoftonline.com</code>, <code>api.dropboxapi.com</code>…)</td><td>Signing in to your accounts when adding a remote — directly, PKCE, ephemeral web session, <strong>no broker</strong></td><td>Providers</td></tr>
+    <tr><td>Apple (<code>apps.apple.com</code>, StoreKit, iCloud KVS)</td><td>Subscription, Apple promo codes, iCloud trial anchor</td><td>Apple</td></tr>
+    <tr><td><code>127.0.0.1</code> (loopback)</td><td>On-device rclone bridge to read/download your files — <strong>never leaves the device</strong></td><td>On-device</td></tr>
+  </table>
+  <p><strong>What does not exist:</strong></p>
+  <ul>
+    <li>No analytics, crash-reporting, or ad SDK (no Firebase, Sentry, Crashlytics, Mixpanel…).</li>
+    <li>No remote push: the app never calls <code>registerForRemoteNotifications</code>, there is <strong>no APNs and no device token</strong> (photo-sync reminders are <em>local</em> notifications).</li>
+    <li>No backend: the trial (Keychain + iCloud KVS), the subscription (StoreKit) and the config stay on device / iCloud / Apple. There is <strong>no license server</strong>.</li>
+    <li><code>rclone.rougetet.com</code> is <strong>never called</strong> by the app: it only opens in Safari if you tap a link.</li>
+  </ul>
+
+  <h3>3. Verify it yourself — with a proxy</h3>
+  <p>Route the app through an inspecting HTTPS proxy (mitmproxy, Charles, Proxyman) and watch. You will see <strong>only</strong>: your remotes, the OAuth endpoints of the providers you connect, Apple, and loopback. No <code>rougetet.com</code>, no <code>*.vercel.app</code>, no <code>supabase</code>, no analytics domain.</p>
+  <p class="muted">Honesty about the native layer: the rclone engine (Go) does its own networking to <em>your</em> remotes, outside the app's URLSession monitor. We <strong>declare</strong> it from your config rather than fake it — and it is independently verifiable via the proxy method above.</p>
+
+  <h3>4. Verify it yourself — reproducible build</h3>
+  <p>The app's only non-Swift binary is the native rclone framework (<code>RcloneKit.xcframework</code>), built from rclone sources via gomobile. It is reproducible and verifiable:</p>
+  <pre><code># 1. Clone the public repo
+git clone https://github.com/VitalysRDT/rclone-gui-ios
+cd rclone-gui-ios
+
+# 2. Rebuild the native framework (pinned rclone v1.74.3 + gomobile,
+#    -trimpath, -ldflags=-buildid=, SOURCE_DATE_EPOCH)
+./scripts/build-rclone.sh
+
+# 3. Compare to the committed hashes + scan the source (zero phone-home)
+./scripts/verify-reproducible.sh</code></pre>
+  <p>The <code>Frameworks/RcloneKit.xcframework.sha256</code> manifest pins the SHA-256 of each shipped slice (iOS device + macOS). The <code>scripts/verify-no-phone-home.sh</code> guard fails if a tracking SDK or a home endpoint appears in the source — it also runs in CI on every commit. Reference toolchain: Xcode 27.0, Go 1.26, rclone v1.74.3.</p>
+  <p class="muted">Note: gomobile is not guaranteed bit-for-bit across all machines; the canonical hashes come from the maintainer's build, and the deterministic flags minimize any residual drift.</p>
+
+  <h3>5. Source code</h3>
+  <p>All of Rclone GUI's code is public: <a href="https://github.com/VitalysRDT/rclone-gui-ios">github.com/VitalysRDT/rclone-gui-ios</a>. See also the <a href="/privacy.html">privacy policy</a>.</p>
+</main>
+
+<footer><div class="wrap">© Rclone GUI — <a href="/">rclone.rougetet.com</a> · <a href="/privacy.html">Confidentialité</a> · <a href="https://github.com/VitalysRDT/rclone-gui-ios">GitHub</a></div></footer>
+</body>
+</html>

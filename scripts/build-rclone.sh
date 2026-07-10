@@ -39,6 +39,12 @@ BUILD_IOS_SIMULATOR="${BUILD_IOS_SIMULATOR:-0}"
 # Default to the latest stable (v1.74.3) so they ship; override with an arg
 # (e.g. ./build-rclone.sh v1.73.5) for a more conservative bump.
 RCLONE_TAG="${1:-v1.74.3}"
+
+# gomobile ÉPINGLÉ (reproductibilité) — même commit que golang.org/x/mobile dans
+# scripts/rclone-bridge/go.mod. Un gomobile flottant (@latest) casserait la
+# reproductibilité bit-à-bit du binaire. Override possible via l'env.
+GOMOBILE_VERSION="${GOMOBILE_VERSION:-v0.0.0-20260312152759-81488f6aeb60}"
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 WORK_DIR="$PROJECT_ROOT/.build/rclone"
@@ -93,8 +99,8 @@ retry() {
 
 if ! command -v gomobile >/dev/null 2>&1; then
     echo ""
-    echo "Installing gomobile (golang.org/x/mobile/cmd/gomobile)..."
-    retry go install golang.org/x/mobile/cmd/gomobile@latest
+    echo "Installing gomobile (golang.org/x/mobile/cmd/gomobile@${GOMOBILE_VERSION})..."
+    retry go install "golang.org/x/mobile/cmd/gomobile@${GOMOBILE_VERSION}"
     GOPATH="${GOPATH:-$HOME/go}"
     export PATH="$PATH:$GOPATH/bin"
     if ! command -v gomobile >/dev/null 2>&1; then
@@ -331,11 +337,29 @@ wrap_slice() {
 # extract a dSYM and App Store Connect rejects the archive. We keep symbols +
 # DWARF; Xcode's archive pipeline strips the embedded binary for distribution
 # while keeping the dSYM bundled for crash symbolication.
+# --- Reproducibility knobs ---------------------------------------------------
+#
+# Rendre les binaires Go byte-stables à entrées épinglées identiques (tag rclone
+# + go.sum + toolchain). Passés à chaque `gomobile bind` :
+#   -trimpath          : retire les chemins absolus $GOPATH/$HOME du binaire
+#   -ldflags=-buildid= : met à zéro le build id (sinon varie à chaque build)
+# et SOURCE_DATE_EPOCH épingle les timestamps embarqués sur la date du commit du
+# tag rclone. On garde symboles + DWARF (pas de -s -w) pour le dSYM.
+export CGO_ENABLED=1
+if [ -z "${SOURCE_DATE_EPOCH:-}" ]; then
+    SOURCE_DATE_EPOCH=$(git -C "$WORK_DIR/rclone" log -1 --format=%ct 2>/dev/null || echo 0)
+fi
+export SOURCE_DATE_EPOCH
+REPRO_BUILD_FLAGS=(-trimpath -ldflags=-buildid=)
+echo "SOURCE_DATE_EPOCH : $SOURCE_DATE_EPOCH"
+echo "Repro flags       : ${REPRO_BUILD_FLAGS[*]}"
+
 echo ""
 echo "Running 'gomobile bind' for ios/arm64 (5–15 min cold, 2–5 min warm)..."
 echo ""
 retry gomobile bind \
     -target=ios/arm64 \
+    "${REPRO_BUILD_FLAGS[@]}" \
     -o "$STAGE_DIR/ios/RcloneKit.xcframework" \
     -tags="rclone_no_serve_dlna" \
     .
@@ -346,6 +370,7 @@ if [ "$BUILD_IOS_SIMULATOR" = "1" ]; then
     echo ""
     retry gomobile bind \
         -target=iossimulator/arm64 \
+        "${REPRO_BUILD_FLAGS[@]}" \
         -o "$STAGE_DIR/iossimulator/RcloneKit.xcframework" \
         -tags="rclone_no_serve_dlna" \
         .
@@ -356,6 +381,7 @@ echo "Running 'gomobile bind' for macos/arm64 (5–15 min cold, 2–5 min warm).
 echo ""
 retry gomobile bind \
     -target=macos/arm64 \
+    "${REPRO_BUILD_FLAGS[@]}" \
     -o "$STAGE_DIR/macos/RcloneKit.xcframework" \
     -tags="rclone_no_serve_dlna" \
     .

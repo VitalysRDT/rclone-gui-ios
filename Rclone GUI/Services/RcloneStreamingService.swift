@@ -52,6 +52,13 @@ public actor RcloneStreamingService {
                   !id.isEmpty else {
                 return nil
             }
+            // Glass Engine : le pont rclone écoute en loopback (127.0.0.1). On
+            // enregistre l'egress (catégorie .loopback — reste sur l'appareil)
+            // sans envelopper le transport de download.
+            GlassEngineMonitor.record(
+                host: url.host,
+                purpose: String(localized: "Pont rclone local (streaming/téléchargement)")
+            )
             return StreamingSession(id: id, url: url, isLiveStream: true)
         } catch {
             await LogService.shared.log(

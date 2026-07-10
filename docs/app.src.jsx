@@ -1325,6 +1325,7 @@ const Footer = () => {
           <a href={APP_STORE_URL} target="_blank" rel="noopener">App Store</a>
           <a href={GITHUB_URL} target="_blank" rel="noopener">GitHub</a>
           <a href="privacy.html">{t('Confidentialité','Privacy')}</a>
+          <a href="transparency.html">{t('Transparence','Transparency')}</a>
           <a href="https://rclone.org" target="_blank" rel="noopener">rclone.org</a>
         </div>
         <p className="legal">{t('Rclone GUI est un client open-source (MPL-2.0) bâti sur rclone et SwiftUI. « rclone » est une marque de ses détenteurs respectifs ; cette application n\'est pas affiliée. Codes d\'essai limités, un par personne, dans la limite des stocks disponibles.','Rclone GUI is an open-source client (MPL-2.0) built on rclone and SwiftUI. “rclone” is a trademark of its respective owners; this app is not affiliated. Trial codes are limited, one per person, while supplies last.')}</p>
