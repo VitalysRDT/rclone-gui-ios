@@ -186,6 +186,84 @@ public actor RemoteService {
         }
     }
 
+    /// Liste récursive complète d'un dossier : renvoie TOUS les fichiers
+    /// (et sous-dossiers) sous `<remote>:<path>` en un seul appel RPC. Utilisé
+    /// par `BridgeFolderDownloader` pour télécharger un dossier via N workers
+    /// parallèles au lieu de `sync/copy` (qui sature l'iCloud Drive `bird`
+    /// daemon et gelait l'app). Renvoie uniquement les fichiers (pas les
+    /// dossiers — les dossiers sont recréés localement à la volée).
+    public func listRecursive(remote: String, path: String = "") async throws -> [RemoteEntryDTO] {
+        struct Input: Encodable {
+            let fs: String
+            let remote: String
+            let opt: ListOptions
+        }
+        struct ListOptions: Encodable {
+            let recurse: Bool
+            let noModTime: Bool
+            let showHash: Bool
+        }
+        struct Output: Decodable {
+            let list: [RawItem]
+        }
+        struct RawItem: Decodable {
+            let path: String
+            let name: String
+            let size: Int64
+            let mimeType: String?
+            let modTime: String?
+            let isDir: Bool
+            let hashes: [String: String]?
+            enum CodingKeys: String, CodingKey {
+                case path = "Path"
+                case name = "Name"
+                case size = "Size"
+                case mimeType = "MimeType"
+                case modTime = "ModTime"
+                case isDir = "IsDir"
+                case hashes = "Hashes"
+            }
+        }
+        let started = Date()
+        await LogService.shared.log(
+            .info, category: "list",
+            message: "operations/list RECURSIVE start remote=\(remote) path=\(path.isEmpty ? "/" : path)"
+        )
+        let output: Output
+        do {
+            output = try await RcloneCore.shared.rpc("operations/list", input: Input(
+                fs: "\(remote):",
+                remote: path,
+                opt: ListOptions(recurse: true, noModTime: true, showHash: false)
+            ))
+        } catch {
+            let ms = Int(Date().timeIntervalSince(started) * 1000)
+            await LogService.shared.log(
+                .error, category: "list",
+                message: "operations/list RECURSIVE FAIL remote=\(remote) path=\(path) after \(ms)ms : \(error.localizedDescription)"
+            )
+            throw error
+        }
+        let ms = Int(Date().timeIntervalSince(started) * 1000)
+        let files = output.list.filter { !$0.isDir }
+        await LogService.shared.log(
+            .info, category: "list",
+            message: "operations/list RECURSIVE ok remote=\(remote) path=\(path.isEmpty ? "/" : path) entries=\(output.list.count) files=\(files.count) in \(ms)ms"
+        )
+        return files.map { raw in
+            RemoteEntryDTO(
+                pathInRemote: raw.path,
+                name: raw.name,
+                isDirectory: raw.isDir,
+                size: max(raw.size, 0),
+                modTime: Self.parseRcloneTime(raw.modTime),
+                mimeType: raw.mimeType,
+                hashMD5: raw.hashes?["md5"],
+                hashSHA1: raw.hashes?["sha1"]
+            )
+        }
+    }
+
     public func stat(remote: String, path: String) async throws -> RemoteEntryDTO? {
         struct Input: Encodable {
             let fs: String

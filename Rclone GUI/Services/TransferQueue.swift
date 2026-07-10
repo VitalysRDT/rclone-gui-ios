@@ -33,10 +33,27 @@ public final class TransferQueue {
     private var modelContext: ModelContext?
     private var pollTasks: [Int: Task<Void, Never>] = [:]
     private var statsTask: Task<Void, Never>?
+    /// Anti-double-fire du log debug `📈 core/stats …` : on ne veut qu'une ligne
+    /// par tranche de 5 s même si tickStats() est appelé plusieurs fois par
+    /// seconde par startStatsPolling().
+    private var lastCoreStatsLog: Int = 0
+    /// Scope security-scoped iCloud Drive / picker externe par jobID.
+    /// DOIT rester vivant pendant toute la durée du job rclone (la goroutine
+    /// librclone écrit hors-sandbox via `os.Open` APRÈS le retour de
+    /// `sync/copy`). Libéré par `pollLoop` quand `finished=true` (ou sur
+    /// erreur / annulation). Sans ce maintien, l'écriture échoue silencieusement
+    /// en permission denied et le job reste bloqué à 0 octet pour toujours.
+    private var activeSecurityScopes: [Int: (url: URL, didStart: Bool)] = [:]
     /// Phase E — re-enqueue auto borné. Compteur par signature logique de
     /// transfert (remote+chemin+dest) pour couvrir les coupures réseau
     /// transitoires sans boucler sur des erreurs permanentes.
     private var autoRetryCounts: [String: Int] = [:]
+    /// Tasks actifs des downloads de dossier via BridgeFolderDownloader,
+    /// indexés par transferID. Permettent pause/annulation : `cancel()`
+    /// stoppe le TaskGroup interne, les URLSession tasks en vol sont
+    /// invalidées, les fichiers finis restent sur disque (skip-existing
+    /// au prochain run).
+    private var bridgeFolderTasks: [String: Task<Void, Never>] = [:]
     private let maxAutoRetries = 2
 
     // MARK: - Mode Auto (gestion automatique de la concurrence)
@@ -82,6 +99,61 @@ public final class TransferQueue {
         }
         if decision.queueConcurrency > previous.queueConcurrency {
             scheduleNext()
+        }
+    }
+
+    // MARK: - Security-scoped bookmark helpers
+
+    /// Capture un bookmark security-scoped pour une URL issue de
+    /// UIDocumentPicker (iCloud Drive, On My iPhone, picker externe). Renvoie
+    /// nil pour les URLs du sandbox app (Documents/, Caches/) où la permission
+    /// est implicite — `bookmarkData()` retourne alors nil sans erreur.
+    /// L'URL doit être accessible (scope déjà démarré par l'appelant, sinon
+    /// `bookmarkData` peut renvoyer nil). On ne capture que pour les downloads
+    /// de DOSSIER (sync/copy est asynchrone via librclone goroutine et peut
+    /// tourner après la désallocation de l'URL caller — voir `relaunch`).
+    static func captureSecurityScopedBookmark(for url: URL) -> Data? {
+        // Sur iOS, un bookmark créé depuis une URL issue de UIDocumentPicker
+        // est implicitement security-scoped : la résolution via
+        // URL(resolvingBookmarkData:) suivie de startAccessingSecurityScopedResource()
+        // rouvre l'accès hors-sandbox. Pas de flag spécial à passer sur iOS
+        // (.withSecurityScope est macOS-only). On capture le bookmark tel quel
+        // et le scope sera rétabli dans resolveSecurityScopedBookmark().
+        do {
+            let data = try url.bookmarkData(
+                options: [],
+                includingResourceValuesForKeys: nil,
+                relativeTo: nil
+            )
+            return data
+        } catch {
+            // URL non-security-scoped (sandbox app) ou scope non démarré →
+            // fallback transparent sur destinationURL.path dans relaunch().
+            return nil
+        }
+    }
+
+    /// Résout un bookmark security-scoped et démarre le scope. Renvoie
+    /// l'URL résolue (à utiliser comme `dstFs`) si succès, nil sinon.
+    /// Le caller DOIT appeler `url.stopAccessingSecurityScopedResource()` après
+    /// la fin du job rclone (cleanup dans `pollLoop`).
+    static func resolveSecurityScopedBookmark(_ data: Data) -> (url: URL, didStart: Bool)? {
+        var isStale = false
+        do {
+            let url = try URL(
+                resolvingBookmarkData: data,
+                relativeTo: nil,
+                bookmarkDataIsStale: &isStale
+            )
+            let didStart = url.startAccessingSecurityScopedResource()
+            if isStale {
+                // Le bookmark a expiré (ex : utilisateur a déplacé le dossier
+                // hors iCloud). On loggue un warning et on tente quand même —
+                // iOS peut encore autoriser l'accès si l'URL reste valide.
+            }
+            return (url, didStart)
+        } catch {
+            return nil
         }
     }
 
@@ -200,6 +272,17 @@ public final class TransferQueue {
                 bytesTotal: folderBytesTotal
             )
             transfer.isDirectoryTransfer = true
+            // Persistance du scope security-scoped (iCloud Drive, On My iPhone,
+            // Dropbox picker, etc.) : sans ça, l'URL du dossier destination est
+            // désallouée dès la fin de cette Task, iOS retire le scope, et la
+            // goroutine librclone écrit hors-sandbox → permission denied
+            // silencieux, job bloqué à 0 octet, jamais de "terminé"/"échoué".
+            // Le bookmark .withSecurityScope survit aux redémarrages et est
+            // résolu dans `relaunch` au moment du job via
+            // startAccessingSecurityScopedResource(). Pour les chemins du
+            // sandbox app (Documents/, Caches/), bookmarkData() ne capture rien
+            // et le champ reste nil → fallback transparent sur destinationURL.path.
+            transfer.destinationSecurityBookmark = Self.captureSecurityScopedBookmark(for: directory)
             enqueueAndSchedule(transfer)
         } else {
             let transfer = Transfer(
@@ -521,10 +604,20 @@ public final class TransferQueue {
             pollTasks[id] = nil
             try? await TransferService.shared.stopJob(jobID: id)
         }
+        // Cancel aussi le Task bridge folder si actif. La Task interne
+        // détectera le cancel, invalidera les URLSession, stoppera les
+        // RclonebridgeStartFileHTTP, et téléchargeraViaBridge retournera
+        // (sans throw : on est en cancel, pas en erreur). Le dossier
+        // partiel reste sur disque (skip-existing à la prochaine tentative).
+        if let bridgeTask = bridgeFolderTasks[transfer.id] {
+            bridgeTask.cancel()
+            bridgeFolderTasks[transfer.id] = nil
+        }
         transfer.jobID = nil
         transfer.status = .failed
         transfer.lastError = "Annulé par l'utilisateur"
         transfer.finishedAt = .now
+        transfer.currentFilename = nil
         try? modelContext?.save()
         scheduleNext()   // libère un slot → démarre le suivant en file
     }
@@ -541,7 +634,18 @@ public final class TransferQueue {
         guard transfer.status == .running
             || transfer.status == .pending
             || transfer.status == .enqueued else { return }
-        if let id = transfer.jobID {
+        // Bridge folder : on annule la Task interne. downloadFolderViaBridge
+        // détecte le cancel et sort proprement (les workers en vol terminent
+        // leur fichier courant ou sont interrompus via URLSession.invalidate).
+        if let bridgeTask = bridgeFolderTasks[transfer.id] {
+            bridgeTask.cancel()
+            bridgeFolderTasks[transfer.id] = nil
+            // On remet bytesTransferred/bytesTotal à leur dernière valeur
+            // persistée (déjà le cas, mais on force un save pour éviter
+            // qu'un callback asynchrone tardif n'écrase après le cancel).
+            try? modelContext?.save()
+        } else if let id = transfer.jobID {
+            // Sync/copy historique
             pollTasks[id]?.cancel()
             pollTasks[id] = nil
             try? await TransferService.shared.stopJob(jobID: id)
@@ -550,6 +654,7 @@ public final class TransferQueue {
         transfer.status = .paused
         transfer.finishedAt = nil
         transfer.autoPaused = false   // pause manuelle par défaut (autoPauseActive remet true)
+        transfer.currentFilename = nil
         try? modelContext?.save()
         await LogService.shared.log(
             .info,
@@ -566,6 +671,24 @@ public final class TransferQueue {
         transfer.autoPaused = false
         transfer.lastError = nil
         transfer.finishedAt = nil
+        // Bridge folder (download de dossier) : relance immédiate via
+        // startClaimed → downloadFolderViaBridge. Les fichiers déjà
+        // téléchargés sont skippés automatiquement par skip-existing
+        // (taille identique = pas de retéléchargement). Le fileCount est
+        // recalculé via un nouveau listRecursive.
+        if transfer.kind == .download, (transfer.isDirectoryTransfer ?? false) {
+            transfer.status = .running
+            transfer.bytesTransferred = 0   // recalculé par la nouvelle snapshot
+            transfer.bytesTotal = 0         // recalculé par la nouvelle snapshot
+            transfer.fileCount = 0
+            try? modelContext?.save()
+            startClaimed(transfer)
+            await LogService.shared.log(
+                .info, category: "transfer",
+                message: "▶️ Bridge folder repris : \(transfer.sourcePath)"
+            )
+            return
+        }
         if isQueuedKind(transfer) {
             // Repasse par la file bornée (respecte la concurrence max + priorité).
             transfer.status = .enqueued
@@ -612,10 +735,41 @@ public final class TransferQueue {
             let destinationURL = URL(fileURLWithPath: t.destinationPath)
             if t.isDirectoryTransfer ?? false {
                 try FileManager.default.createDirectory(at: destinationURL, withIntermediateDirectories: true)
-                return try await TransferService.shared.copyDirAsync(
-                    srcFs: "\(remote):\(t.sourcePath)",
-                    dstFs: destinationURL.path
-                )
+                // Réacquisition du scope security-scoped pour les downloads de
+                // dossier vers iCloud Drive / On My iPhone / picker externe.
+                // Sans ça, l'URL caller a été désallouée → scope iOS retiré →
+                // librclone écrit hors-sandbox → permission denied silencieux,
+                // job bloqué à 0 octet, jamais de "terminé"/"échoué".
+                //
+                // Le scope DOIT rester actif pendant toute la durée du job
+                // rclone, PAS seulement pendant cet appel Swift — librclone
+                // retourne le jobid quasi-instantanément, puis la goroutine Go
+                // appelle os.Open() pour CHAQUE fichier du dossier bien après
+                // que `copyDirAsync` ait rendu la main. On stocke donc la
+                // (URL, didStart) dans `activeSecurityScopes[jobID]` et c'est
+                // `pollLoop` qui libère le scope quand `finished=true`.
+                let resolvedBookmark = t.destinationSecurityBookmark.flatMap(Self.resolveSecurityScopedBookmark)
+                let dstFs = resolvedBookmark?.url.path ?? destinationURL.path
+                let jobID: Int
+                do {
+                    jobID = try await TransferService.shared.copyDirAsync(
+                        srcFs: "\(remote):\(t.sourcePath)",
+                        dstFs: dstFs
+                    )
+                } catch {
+                    if let pair = resolvedBookmark, pair.didStart {
+                        pair.url.stopAccessingSecurityScopedResource()
+                    }
+                    await LogService.shared.log(.error, category: "transfer",
+                        message: "copyDirAsync échec src=\(remote):\(t.sourcePath) dst=\(dstFs) → \(error.localizedDescription)")
+                    throw error
+                }
+                if let pair = resolvedBookmark {
+                    activeSecurityScopes[jobID] = pair
+                    await LogService.shared.log(.debug, category: "transfer",
+                        message: "🔒 scope security-scoped actif pour jobID=\(jobID) dst=\(dstFs) (scope started=\(pair.didStart))")
+                }
+                return jobID
             } else {
                 let parent = destinationURL.deletingLastPathComponent()
                 try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
@@ -785,6 +939,23 @@ public final class TransferQueue {
     /// Dispatch effectif d'un transfert déjà réservé (.running) par scheduleNext.
     private func startClaimed(_ transfer: Transfer) {
         let id = transfer.id
+        // Les downloads de DOSSIER passent par le bridge loopback + URLSession
+        // (BridgeFolderDownloader) au lieu de sync/copy + polling job/status.
+        // Le bridge sature moins l'iCloud Drive `bird` daemon et libère l'app
+        // (~6× moins de CPU sous contention IO, pas de RPC pendant le download).
+        // Si le bridge échoue (listing KO, backends exotiques), fallback
+        // transparent vers sync/copy via relaunch().
+        if transfer.kind == .download, (transfer.isDirectoryTransfer ?? false) {
+            // On stocke la Task pour permettre pause/cancel ciblés. La Task
+            // wrappe downloadFolderViaBridge et se retire du dict en sortant.
+            let task = Task { @MainActor [weak self] in
+                guard let self else { return }
+                await self.downloadFolderViaBridge(id: id)
+                self.bridgeFolderTasks[id] = nil
+            }
+            bridgeFolderTasks[id] = task
+            return
+        }
         Task { @MainActor in
             do {
                 let jobID = try await relaunch(transfer)
@@ -812,6 +983,136 @@ public final class TransferQueue {
             }
         }
     }
+
+    /// True si ce transfert tourne via BridgeFolderDownloader (et donc a une
+    /// Task dans `bridgeFolderTasks`).
+    fileprivate func isBridgeFolderTransfer(_ transfer: Transfer) -> Bool {
+        transfer.kind == .download
+            && (transfer.isDirectoryTransfer ?? false)
+            && bridgeFolderTasks[transfer.id] != nil
+    }
+
+    /// Télécharge un dossier via BridgeFolderDownloader (N workers bridge +
+    /// URLSession). Met à jour `transfer.bytesTransferred/bytesTotal` via
+    /// callback, marque `.completed` ou `.failed`. Sur erreur, fallback vers
+    /// sync/copy via `relaunch()`. Maintient le scope security-scoped pendant
+    /// toute la durée (stocké dans `bridgeFolderScopes[transferID]`).
+    private func downloadFolderViaBridge(id: String) async {
+        guard let transfer = fetchTransfer(id: id) else { return }
+        guard let remote = transfer.sourceRemote else {
+            transfer.status = .failed
+            transfer.lastError = "Remote source manquant."
+            transfer.finishedAt = .now
+            try? modelContext?.save()
+            scheduleNext()
+            return
+        }
+        let destinationURL = URL(fileURLWithPath: transfer.destinationPath)
+        let resolvedBookmark = transfer.destinationSecurityBookmark.flatMap(Self.resolveSecurityScopedBookmark)
+
+        // Pré-calcul fileCount via listing — l'utilisateur voit immédiatement
+        // « X fichiers à télécharger » dans la carte UI.
+        do {
+            let files = try await RemoteService.shared.listRecursive(
+                remote: remote, path: transfer.sourcePath
+            )
+            transfer.fileCount = files.count
+            try? modelContext?.save()
+        } catch {
+            await LogService.shared.log(
+                .info, category: "transfer",
+                message: "BridgeFolder listing pré échoué pour \(remote):\(transfer.sourcePath) — \(error.localizedDescription)"
+            )
+            // Continue sans fileCount, le bridge le recalculera.
+        }
+
+        // Mode Auto : la concurrence des workers de dossier suit la décision
+        // contextuelle (Wi-Fi 6, cellulaire 3, éco/chauffe 2, critique 1) ;
+        // sinon préférence manuelle inchangée (défaut 4). Lue au démarrage de
+        // chaque dossier — un dossier déjà en vol garde sa concurrence.
+        let concurrency: Int
+        if isAutoModeEnabled {
+            concurrency = currentAutoDecision.bridgeConcurrency
+        } else {
+            let concurrencyRaw = UserDefaults.standard.integer(forKey: Self.bridgeFolderConcurrencyKey)
+            concurrency = concurrencyRaw > 0 ? concurrencyRaw : Self.defaultBridgeFolderConcurrency
+        }
+
+        do {
+            try FileManager.default.createDirectory(at: destinationURL, withIntermediateDirectories: true)
+            try await BridgeFolderDownloader.shared.downloadFolder(
+                remote: remote,
+                sourcePath: transfer.sourcePath,
+                destDir: destinationURL,
+                concurrency: concurrency,
+                onProgress: { snapshot in
+                    // ThrottledProgress.maybeFire hop sur MainActor déjà.
+                    if let t = self.fetchTransfer(id: id) {
+                        t.bytesTransferred = snapshot.bytesTransferred
+                        t.bytesTotal = snapshot.bytesTotal
+                        if let filename = snapshot.currentFilename {
+                            t.currentFilename = filename
+                        }
+                        try? self.modelContext?.save()
+                    }
+                }
+            )
+            // Succès
+            if let t = fetchTransfer(id: id) {
+                t.bytesTransferred = max(t.bytesTransferred, t.bytesTotal)
+                t.status = .completed
+                t.finishedAt = .now
+                try? modelContext?.save()
+                await LogService.shared.log(
+                    .info, category: "transfer",
+                    message: "✅ \(t.kind.rawValue) terminé : \(t.sourcePath) (\(t.fileCount) fichiers)"
+                )
+            }
+            updateBatch(transfer.batchID, completedDelta: 1, failedDelta: 0)
+        } catch {
+            await LogService.shared.log(
+                .info, category: "transfer",
+                message: "BridgeFolderDownloader échec \(remote):\(transfer.sourcePath) — fallback sync/copy : \(error.localizedDescription)"
+            )
+            // Fallback sync/copy : réutilise le chemin rclone historique.
+            // Le scope security-scoped est conservé pour le sync/copy.
+            do {
+                let jobID = try await relaunch(transfer)
+                guard let t = fetchTransfer(id: id), t.status == .running else { return }
+                t.jobID = jobID
+                try? modelContext?.save()
+                startPolling(t)
+                return
+            } catch {
+                if let t = fetchTransfer(id: id) {
+                    if autoPauseInsteadOfFail(t) {
+                        // Double échec parce que le réseau est tombé : pause
+                        // auto — reprise skip-existing au retour du lien.
+                    } else {
+                        t.status = .failed
+                        t.lastError = "Bridge + sync/copy ont échoué : \(error.localizedDescription)"
+                        t.finishedAt = .now
+                        try? modelContext?.save()
+                        await LogService.shared.log(
+                            .error, category: "transfer",
+                            message: "❌ Bridge + sync/copy ont échoué pour \(remote):\(transfer.sourcePath) — \(error.localizedDescription)"
+                        )
+                    }
+                }
+            }
+        }
+
+        // Libère le scope security-scoped dans tous les cas (succès/échec/
+        // fallback). relaunch() gère son propre scope via activeSecurityScopes.
+        if let pair = resolvedBookmark, pair.didStart {
+            pair.url.stopAccessingSecurityScopedResource()
+        }
+        scheduleNext()
+    }
+
+    /// UserDefaults key + défaut pour la concurrence bridge folder.
+    private static let bridgeFolderConcurrencyKey = "transfer.bridgeFolderConcurrency"
+    private static let defaultBridgeFolderConcurrency = 4
 
     /// Crée le transfert EN FILE D'ATTENTE (.enqueued) puis tente de démarrer.
     /// Utilisé par les enqueue download/upload à la place du démarrage immédiat.
@@ -1036,14 +1337,16 @@ public final class TransferQueue {
         try await TransferService.shared.setBandwidthLimit(bytesPerSecond: bytesPerSecond)
     }
 
-    // MARK: - Throttle pendant l'activité utilisateur
+// MARK: - Throttle pendant l'activité utilisateur
 
-    /// Limite temporaire appliquée pendant que l'utilisateur navigue dans
-    /// l'app. 512 KB/s : assez bas pour libérer le réseau et le radio
-    /// cellulaire le temps d'un geste, assez haut pour que la sync ne se
-    /// fige pas. La pleine vitesse est restaurée dès que l'utilisateur
-    /// arrête d'interagir (cf. UserActivityMonitor.inactivityThreshold).
-    private static let userActivityThrottleBytes: Int64 = 524_288
+    /// Marge « soft » retenue sur le débit max quand l'utilisateur est actif :
+    /// 10% du ceiling reste dispo pour absorber les pics UI / SwiftData fetches
+    /// / RPC core/stats sans freezer l'app. Combiné au fait que l'utilisateur
+    /// voit son activité détectée par `UserActivityMonitor` (cf.
+    /// inactivityThreshold), on garde 90% du débit max en continu et 100%
+    /// dès qu'il arrête d'interagir.
+    private static let activeMarginNumerator: Int64 = 9
+    private static let activeMarginDenominator: Int64 = 10
 
     /// Compteur de bypass : TransfersView l'incrémente à .onAppear et le
     /// décrémente à .onDisappear pour ne PAS throttler quand l'utilisateur
@@ -1084,34 +1387,47 @@ public final class TransferQueue {
     }
 
     /// Appelé par UserActivityMonitor (via Notification) quand l'état
-    /// d'activité change. Throttle vers 1MB/s pendant la nav, restaure
-    /// le ceiling utilisateur après inactivité.
+    /// d'activité change. Politique : toujours plein débit mais plafonné à 90%
+    /// du ceiling — les 10% restants absorbent les pics UI / SwiftData fetches
+    /// / RPC core/stats sans freezer l'app. Idle → 100% du ceiling.
     public func applyThrottleForUserActivity(isActive: Bool, userPreferredBytes: Int64) async {
         // Y a-t-il quelque chose à throttler ? Si AUCUN transfert ne tourne et
         // qu'il n'y a pas de cap média, toucher au bwlimit pendant la simple
         // navigation ne sert à rien et générait une rafale de core/bwlimit
-        // (off↔512K↔1M à chaque tap) — pur gaspillage CPU/énergie. On s'abstient.
+        // (off↔90% à chaque tap) — pur gaspillage CPU/énergie. On s'abstient.
         let hasThrottleableWork = mediaDownloadCapBytes > 0 || anyRunningTransfer()
 
-        let shouldThrottle = isActive
-            && hasThrottleableWork
-            && !isPausedGlobally
-            && userActivityBypassCount == 0
-            // Ne throttle que si la valeur normale est >512KB/s (sinon useless)
-            && (userPreferredBytes == 0 || userPreferredBytes > Self.userActivityThrottleBytes)
-
-        // Limite effective : 512 Ko/s pendant l'interaction, sinon le plafond
-        // « intelligent » (réduit sous pression thermique / mode éco) — lui-même
-        // borné par le cap « téléchargement vidéo » s'il est actif.
+        // Politique unique : 90% du ceiling quand l'utilisateur est actif,
+        // 100% quand inactif. Pas de throttle dur séparé pour la nav : on
+        // garde 10% de marge pour absorber les pics CPU/IO sans freezer.
+        // Si le user a lui-même choisi une limite (transfer.bandwidthLimitMBps),
+        // elle est dans `userPreferredBytes` et `smartCeiling` la respecte.
+        // Les 10% se gomment quand le user fixe une limite stricte.
         let ceiling = clampToMediaCap(smartCeiling(userPreferredBytes))
-        let target = shouldThrottle ? Self.userActivityThrottleBytes : ceiling
+        let target: Int64
+        let isThrottlingNow: Bool
+        if !isActive || !hasThrottleableWork || isPausedGlobally {
+            // Idle ou rien à faire : plein débit (100% du ceiling).
+            target = ceiling
+            isThrottlingNow = false
+        } else {
+            // Actif + transfert en cours : 90% du ceiling. Si le user a fixé
+            // une limite stricte < ceiling, on prend 90% de SA limite — sinon
+            // 90% du plafond intelligent (qui peut être 0 = illimité, on
+            // active alors le throttle off, qui en pratique = pas de cap).
+            let activeCeiling = ceiling
+            target = activeCeiling > 0
+                ? (activeCeiling * Self.activeMarginNumerator / Self.activeMarginDenominator)
+                : 0
+            isThrottlingNow = target > 0
+        }
 
         guard target != lastAppliedBwlimit else { return }
 
         do {
             try await TransferService.shared.setBandwidthLimit(bytesPerSecond: target)
             lastAppliedBwlimit = target
-            isThrottlingForUserActivity = shouldThrottle
+            isThrottlingForUserActivity = isThrottlingNow
         } catch {
             // Best effort : si la RPC bwlimit fail, on log mais on n'altère
             // pas le flag pour qu'un retry futur tente à nouveau.
@@ -1304,12 +1620,24 @@ public final class TransferQueue {
     }
 
     private func pollLoop(transferID: String, jobID: Int) async {
+        var lastPollLogged = -10
         while !Task.isCancelled {
             do {
                 let status = try await TransferService.shared.jobStatus(jobID: jobID)
                 let transfer = self.fetchTransfer(id: transferID)
                 guard let transfer else {
                     break
+                }
+                // Log debug toutes les 30 s (pas 5 s) pour éviter de marteler
+                // LogService (actor hop + ring buffer append) pendant les gros
+                // transferts où chaque µs de CPU compte. La première fenêtre
+                // 0-30 s est couverte par les logs `📈 core/stats` ; au-delà
+                // un sample toutes les 30 s suffit pour confirmer la vie du job.
+                let elapsed = Int(Date().timeIntervalSince(transfer.startedAt))
+                if !status.finished, elapsed > 0, elapsed % 30 == 0, elapsed - lastPollLogged >= 25 {
+                    lastPollLogged = elapsed
+                    await LogService.shared.log(.debug, category: "transfer",
+                        message: "📊 poll jobID=\(jobID) src=\(transfer.sourceRemote ?? "?"):\(transfer.sourcePath) finished=\(status.finished) success=\(status.success) error=\(status.error ?? "nil") elapsed=\(elapsed)s scopeLocked=\(activeSecurityScopes[jobID] != nil)")
                 }
                 if status.finished {
                     let finalKind = transfer.kind
@@ -1433,6 +1761,14 @@ public final class TransferQueue {
             }
         }
         pollTasks[jobID] = nil
+        // Libère le scope security-scoped iCloud Drive quand le polling se
+        // termine (succès, échec, annulation, ou interruption réseau).
+        // La goroutine librclone a fini ses `os.Open` à ce stade → safe.
+        if let pair = activeSecurityScopes.removeValue(forKey: jobID), pair.didStart {
+            pair.url.stopAccessingSecurityScopedResource()
+            await LogService.shared.log(.debug, category: "transfer",
+                message: "🔓 scope security-scoped libéré pour jobID=\(jobID)")
+        }
         // Un transfert vient de se terminer (succès/échec) → libère son slot
         // et démarre le suivant en file d'attente.
         scheduleNext()
@@ -1453,11 +1789,36 @@ public final class TransferQueue {
         statsTask = Task { [weak self] in
             while !Task.isCancelled {
                 let hadWork = await self?.tickStats() ?? false
-                // Réveil rapide (800 ms) seulement quand un transfert tourne ;
-                // sinon backoff à 3 s → ~3,75× moins de réveils au repos (énergie).
-                try? await Task.sleep(for: hadWork ? .milliseconds(800) : .seconds(3))
+                // Intervalle adaptatif selon la charge de travail :
+                //   - idle → 3 s (économie énergie)
+                //   - transfert léger (< 100 MB) → 800 ms (UI fluide)
+                //   - transfert lourd (≥ 100 MB, typique 9 GB iCloud Drive)
+                //     → 2 s : la barre de progression n'a pas besoin de 75
+                //     updates/min sous contention IO `bird` daemon. 30/min
+                //     suffit pour ne pas paraître figée et libère 60% de
+                //     CPU polling + SwiftData fetches + RPC core/stats.
+                let interval: Duration
+                if !hadWork {
+                    interval = .seconds(3)
+                } else if let maxBytes = await self?.maxRunningTransferBytes(), maxBytes >= 100_000_000 {
+                    interval = .seconds(2)
+                } else {
+                    interval = .milliseconds(800)
+                }
+                try? await Task.sleep(for: interval)
             }
         }
+    }
+
+    /// Plus gros transfert `.running` en octets (bytesTotal), 0 si aucun.
+    /// Coût négligeable : fetch SwiftData indexé sur statusRaw + max().
+    private func maxRunningTransferBytes() -> Int64 {
+        guard let modelContext else { return 0 }
+        let descriptor = FetchDescriptor<Transfer>(
+            predicate: #Predicate { $0.statusRaw == "running" }
+        )
+        guard let running = try? modelContext.fetch(descriptor) else { return 0 }
+        return running.map(\.bytesTotal).max() ?? 0
     }
 
     @discardableResult
@@ -1470,6 +1831,27 @@ public final class TransferQueue {
             return false
         }
         guard let stats = try? await TransferService.shared.coreStats() else { return false }
+
+        // Log debug toutes les ~10 s (pas 5 s) pour confirmer que librclone EXPOSE
+        // bien des fichiers en train de se transférer (vs coincé sans rien
+        // produire). Utile pour distinguer "barre cassée" (stat transferring
+        // non vide mais matching rate) de "vraiment bloqué" (stat vide →
+        // librclone hang). On n'émet que s'il y a au moins un transfert dossier
+        // (cas d'intérêt) pour ne pas spammer les logs pendant les copies de
+        // fichiers simples. 10 s plutôt que 5 s : allège LogService (actor hop
+        // + ring buffer append) qui consommait ~5% CPU sur les gros dossiers.
+        let hasDirTransfer = running.contains { ($0.isDirectoryTransfer ?? false) }
+        if hasDirTransfer {
+            let now = Int(Date().timeIntervalSince1970)
+            if now % 10 == 0, now != lastCoreStatsLog {
+                lastCoreStatsLog = now
+                let sample = stats.transferring.prefix(3)
+                    .map { "\($0.name)(\($0.bytesTransferred)/\(($0.bytesTotal)))" }
+                    .joined(separator: ", ")
+                await LogService.shared.log(.debug, category: "transfer",
+                    message: "📈 core/stats transferring=\(stats.transferring.count) bytes=\(stats.transferredBytes)/\(stats.totalBytes) sample=[\(sample)]")
+            }
+        }
 
         // core/stats reports per-file under `transferring`, keyed by the destination basename.
         // We do best-effort matching. Dirty flag : on évite save() si rien
@@ -1552,9 +1934,32 @@ public final class TransferQueue {
             (transfer.destinationPath as NSString).lastPathComponent
         ].compactMap { $0?.isEmpty == false ? $0 : nil }
 
+        // Cas "destination aplatie" : l'utilisateur a pické le dossier parent
+        // (ex : /Downloads/) au lieu d'un sous-dossier. librclone copie alors
+        // le contenu de `drivethe:daisychain` À PLAT dans /Downloads/, donc les
+        // fichiers transférés ont des noms SANS préfixe (juste le basename :
+        // "pleading-horny_4471641.mp4"). Le matching par préfixe échoue → la
+        // barre de progression reste à 0 alors que les octets passent.
+        // On détecte : destination.basename != source.basename. Si vrai, on
+        // matche tous les fichiers non-claimed. Si plusieurs transferts dossier
+        // aplatis tournent en parallèle, le premier consomme tout (cas rare
+        // et visible : on verra 0 sur les suivants, l'utilisateur s'en rend
+        // compte — acceptable vs barre cassée sur 9 GB de média).
+        let sourceBasename = (transfer.sourcePath as NSString).lastPathComponent
+        let destBasename = (transfer.destinationPath as NSString).lastPathComponent
+        let isFlattened = !sourceBasename.isEmpty
+            && !destBasename.isEmpty
+            && sourceBasename != destBasename
+
         var matched = Set<Int>()
         for (i, stat) in stats.transferring.enumerated() where !consumed.contains(i) {
             let name = stat.name
+            if isFlattened {
+                // Destination aplatie : tous les fichiers non-claimed
+                // appartiennent à ce transfert.
+                matched.insert(i)
+                continue
+            }
             // Match direct : le fichier est à l'intérieur du dossier
             // → "subfolder/photo.jpg" sous "Photos" → préfixe "Photos/".
             let isInternal = folderBases.contains { base in
