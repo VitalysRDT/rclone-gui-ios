@@ -33,10 +33,10 @@ struct AutoTransferPolicyDecideTests {
         )
     }
 
-    @Test("Wi-Fi nominal → 4 en file, 6 en bridge")
+    @Test("Wi-Fi nominal → 4 en file, 8 en bridge")
     func nominalWiFi() {
         let d = AutoTransferPolicy.decide(inputs())
-        #expect(d == AutoTransferPolicy.Decision(queueConcurrency: 4, bridgeConcurrency: 6, reason: .nominal))
+        #expect(d == AutoTransferPolicy.Decision(queueConcurrency: 4, bridgeConcurrency: 8, reason: .nominal))
     }
 
     @Test("Cellulaire → 2 en file, 3 en bridge")
