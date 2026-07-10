@@ -48,9 +48,18 @@ struct FieldSpec: Identifiable, Hashable, Sendable {
     /// currently-selected provider is not in the list.
     let providerFilter: String?
 
+    /// Product-side override: render the examples as an exclusive picker
+    /// even when rclone doesn't flag the option `Exclusive` (e.g. iCloud
+    /// `service` where drive/photos are the only meaningful values).
+    let forcedPicker: Bool
+
     // MARK: - Lifting from rclone schema
 
-    nonisolated init(from option: RcloneOptionSchema, label overrideLabel: String? = nil) {
+    nonisolated init(
+        from option: RcloneOptionSchema,
+        label overrideLabel: String? = nil,
+        forcePicker: Bool = false
+    ) {
         self.id = option.name
         self.name = option.name
         self.label = overrideLabel ?? Self.humanize(option.name)
@@ -65,6 +74,7 @@ struct FieldSpec: Identifiable, Hashable, Sendable {
         self.hide = option.hide
         self.examples = option.examples ?? []
         self.providerFilter = option.provider
+        self.forcedPicker = forcePicker
     }
 
     private nonisolated static func humanize(_ raw: String) -> String {
@@ -163,7 +173,7 @@ struct FieldSpec: Identifiable, Hashable, Sendable {
         if sensitive || isPassword { return .secureInput }
 
         if !examples.isEmpty {
-            return exclusive ? .picker : .combobox
+            return (exclusive || forcedPicker) ? .picker : .combobox
         }
 
         switch type {
