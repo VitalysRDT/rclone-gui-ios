@@ -429,6 +429,9 @@
           }
         }
       }
+    },
+    "Sauvegarde chiffrée Rclone GUI" : {
+
     }
   },
   "version" : "1.3"
