@@ -1251,18 +1251,21 @@ const Roadmap = ({ lang }) => {
             <div key={col.key} className={'rm-col rm-' + col.key}>
               <div className="rm-head">
                 <span className="rm-label">{col.label[lang] || col.label.en}</span>
-                <span className="rm-tag">{col.tag[lang] || col.tag.en}</span>
+                <span className="rm-tag">{col.key === 'short' ? t('✓ Livré','✓ Shipped') : (col.tag[lang] || col.tag.en)}</span>
               </div>
               <div className="rm-items">
-                {col.items.map(it => (
-                  <div key={it.n.en} className="rm-item">
+                {col.items.map(it => {
+                  const done = col.key === 'short';
+                  return (
+                  <div key={it.n.en} className={'rm-item' + (done ? ' rm-done' : '')}>
                     <div className="rm-item-head">
                       <h5>{it.n[lang] || it.n.en}</h5>
-                      <span className="rm-when">{(it.when && (it.when[lang] || it.when.en)) || ''}</span>
+                      <span className="rm-when" style={done ? { color: '#1a7f37', fontWeight: 700 } : undefined}>{done ? t('✓ Livré','✓ Shipped') : ((it.when && (it.when[lang] || it.when.en)) || '')}</span>
                     </div>
                     <p>{it.d[lang] || it.d.en}</p>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ))}
