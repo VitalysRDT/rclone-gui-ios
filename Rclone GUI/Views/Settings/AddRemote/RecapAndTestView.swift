@@ -26,6 +26,19 @@ struct RecapAndTestView: View {
     @State private var isTesting = false
     @State private var isFinalizing = false
 
+    // Post-config question raised by rclone's non-interactive state machine
+    // (e.g. iCloud Drive `config_2fa`). The continuation resumes the
+    // ConfigCreateFlow loop with the user's answer (nil = cancel).
+    @State private var pendingQuestion: PendingConfigQuestion?
+    @State private var questionAnswer = ""
+
+    private struct PendingConfigQuestion: Identifiable {
+        let id = UUID()
+        let option: RcloneOptionSchema
+        let lastError: String?
+        let continuation: CheckedContinuation<String?, Never>
+    }
+
     var body: some View {
         Form {
             if let backend = state.selectedBackend {
@@ -41,6 +54,46 @@ struct RecapAndTestView: View {
             }
         }
         .scrollDismissesKeyboard(.interactively)
+        .alert(
+            questionTitle(for: pendingQuestion?.option),
+            isPresented: Binding(
+                get: { pendingQuestion != nil },
+                set: { presented in
+                    if !presented { resolveQuestion(with: nil) }
+                }
+            ),
+            presenting: pendingQuestion
+        ) { question in
+            TextField(questionTitle(for: question.option), text: $questionAnswer)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+            Button("Valider") {
+                resolveQuestion(with: questionAnswer)
+            }
+            Button("Annuler", role: .cancel) {
+                resolveQuestion(with: nil)
+            }
+        } message: { question in
+            if let lastError = question.lastError, !lastError.isEmpty {
+                Text("\(lastError)\n\n\(question.option.help)")
+            } else {
+                Text(question.option.help)
+            }
+        }
+        .onDisappear {
+            // Never strand the flow's continuation if the wizard is closed
+            // while a question is on screen.
+            resolveQuestion(with: nil)
+        }
+    }
+
+    /// Resumes the suspended ConfigCreateFlow exactly once, whichever path
+    /// dismisses the alert first (button action, isPresented reset, or the
+    /// view disappearing) — a CheckedContinuation must never resume twice.
+    private func resolveQuestion(with answer: String?) {
+        guard let question = pendingQuestion else { return }
+        pendingQuestion = nil
+        question.continuation.resume(returning: answer)
     }
 
     // MARK: - Sections
@@ -292,17 +345,53 @@ struct RecapAndTestView: View {
         )
         let needsObscure = backend.name == "crypt"
             || params.keys.contains { passwordFieldNames.contains($0) }
-        let input = ConfigCreateInput(
+
+        // Some backends (iCloud Drive → config_2fa) answer config/create with
+        // follow-up questions instead of completing. ConfigCreateFlow loops on
+        // the state machine, surfacing each question via askQuestion (alert).
+        let flow = ConfigCreateFlow(rpc: { method, input in
+            try await RcloneCore.shared.rpc(method, input: input)
+        })
+        try await flow.run(
             name: state.name,
             type: backend.name,
             parameters: params,
-            opt: ConfigCreateOpt(nonInteractive: true, obscure: needsObscure ? true : nil)
-        )
-        let _: ConfigCreateResponse = try await RcloneCore.shared.rpc(
-            "config/create",
-            input: input
+            obscure: needsObscure,
+            onRemoteWritten: {
+                // A (possibly partial) section now exists in rclone.conf —
+                // arm the config/delete cleanup even if a question is
+                // cancelled or fails after this point.
+                state.remoteWasPreCreated = true
+            },
+            ask: { option, lastError in
+                await askQuestion(option, lastError: lastError)
+            }
         )
         await RcloneCore.shared.invalidateConfigCache()
+    }
+
+    /// Suspends the ConfigCreateFlow loop while the alert collects the
+    /// user's answer to a post-config question (nil = cancelled).
+    private func askQuestion(_ option: RcloneOptionSchema, lastError: String?) async -> String? {
+        await withCheckedContinuation { continuation in
+            questionAnswer = ""
+            pendingQuestion = PendingConfigQuestion(
+                option: option,
+                lastError: lastError,
+                continuation: continuation
+            )
+        }
+    }
+
+    private func questionTitle(for option: RcloneOptionSchema?) -> String {
+        switch option?.name {
+        case "config_2fa":
+            return String(localized: "Code de vérification Apple (2FA)")
+        case nil:
+            return String(localized: "Question rclone")
+        case .some(let name):
+            return name
+        }
     }
 
     private func finalizeCreation() async {
