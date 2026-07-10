@@ -604,11 +604,10 @@ public final class TransferQueue {
             pollTasks[id] = nil
             try? await TransferService.shared.stopJob(jobID: id)
         }
-        // Cancel aussi le Task bridge folder si actif. La Task interne
-        // détectera le cancel, invalidera les URLSession, stoppera les
-        // RclonebridgeStartFileHTTP, et téléchargeraViaBridge retournera
-        // (sans throw : on est en cancel, pas en erreur). Le dossier
-        // partiel reste sur disque (skip-existing à la prochaine tentative).
+        // Cancel aussi le Task du download de dossier si actif. La Task
+        // détecte le cancel via Task.checkCancellation() dans copyFileAndWait
+        // et sort proprement. Le dossier partiel reste sur disque
+        // (skip-existing à la prochaine tentative).
         if let bridgeTask = bridgeFolderTasks[transfer.id] {
             bridgeTask.cancel()
             bridgeFolderTasks[transfer.id] = nil
@@ -634,9 +633,9 @@ public final class TransferQueue {
         guard transfer.status == .running
             || transfer.status == .pending
             || transfer.status == .enqueued else { return }
-        // Bridge folder : on annule la Task interne. downloadFolderViaBridge
-        // détecte le cancel et sort proprement (les workers en vol terminent
-        // leur fichier courant ou sont interrompus via URLSession.invalidate).
+        // Download de dossier : on annule la Task. downloadFolderViaFiles
+        // détecte le cancel (Task.checkCancellation dans copyFileAndWait) et
+        // sort proprement ; le fichier en cours sera re-téléchargé au skip.
         if let bridgeTask = bridgeFolderTasks[transfer.id] {
             bridgeTask.cancel()
             bridgeFolderTasks[transfer.id] = nil
@@ -671,11 +670,9 @@ public final class TransferQueue {
         transfer.autoPaused = false
         transfer.lastError = nil
         transfer.finishedAt = nil
-        // Bridge folder (download de dossier) : relance immédiate via
-        // startClaimed → downloadFolderViaBridge. Les fichiers déjà
-        // téléchargés sont skippés automatiquement par skip-existing
-        // (taille identique = pas de retéléchargement). Le fileCount est
-        // recalculé via un nouveau listRecursive.
+        // Download de dossier : relance immédiate via startClaimed →
+        // downloadFolderViaFiles. Les fichiers déjà téléchargés sont skippés
+        // (taille identique) ; le fileCount est recalculé par listRecursive.
         if transfer.kind == .download, (transfer.isDirectoryTransfer ?? false) {
             transfer.status = .running
             transfer.bytesTransferred = 0   // recalculé par la nouvelle snapshot
@@ -939,18 +936,17 @@ public final class TransferQueue {
     /// Dispatch effectif d'un transfert déjà réservé (.running) par scheduleNext.
     private func startClaimed(_ transfer: Transfer) {
         let id = transfer.id
-        // Les downloads de DOSSIER passent par le bridge loopback + URLSession
-        // (BridgeFolderDownloader) au lieu de sync/copy + polling job/status.
-        // Le bridge sature moins l'iCloud Drive `bird` daemon et libère l'app
-        // (~6× moins de CPU sous contention IO, pas de RPC pendant le download).
-        // Si le bridge échoue (listing KO, backends exotiques), fallback
-        // transparent vers sync/copy via relaunch().
+        // Les downloads de DOSSIER sont développés en une file de copyfile PAR
+        // FICHIER, bornée et passant par le bouclier cgoQueue (comme la synchro
+        // photos). On abandonne les workers URLSession hors-bouclier et le
+        // sync/copy global de tout l'arbre : les deux figeaient l'app (pool GCD
+        // épuisé / daemon iCloud `bird` saturé sur les gros dossiers).
         if transfer.kind == .download, (transfer.isDirectoryTransfer ?? false) {
-            // On stocke la Task pour permettre pause/cancel ciblés. La Task
-            // wrappe downloadFolderViaBridge et se retire du dict en sortant.
+            // On stocke la Task pour permettre pause/cancel ciblés. La Task se
+            // retire du dict en sortant.
             let task = Task { @MainActor [weak self] in
                 guard let self else { return }
-                await self.downloadFolderViaBridge(id: id)
+                await self.downloadFolderViaFiles(id: id)
                 self.bridgeFolderTasks[id] = nil
             }
             bridgeFolderTasks[id] = task
@@ -992,12 +988,17 @@ public final class TransferQueue {
             && bridgeFolderTasks[transfer.id] != nil
     }
 
-    /// Télécharge un dossier via BridgeFolderDownloader (N workers bridge +
-    /// URLSession). Met à jour `transfer.bytesTransferred/bytesTotal` via
-    /// callback, marque `.completed` ou `.failed`. Sur erreur, fallback vers
-    /// sync/copy via `relaunch()`. Maintient le scope security-scoped pendant
-    /// toute la durée (stocké dans `bridgeFolderScopes[transferID]`).
-    private func downloadFolderViaBridge(id: String) async {
+    /// Télécharge un dossier comme la synchro PHOTOS : une file de
+    /// `operations/copyfile` (RPC async + poll job/status) PAR FICHIER, bornée
+    /// à `maxConcurrent`, TOUS passant par le bouclier `cgoQueue`. Aucun worker
+    /// URLSession hors-bouclier (qui figeait l'app), aucun `sync/copy` global
+    /// de tout l'arbre (qui saturait le daemon iCloud `bird` sur 9 Go). Le
+    /// scope security-scoped du dossier destination est tenu pendant TOUTE la
+    /// durée (les goroutines librclone écrivent après le retour du copyfile).
+    /// Une seule ligne `Transfer` par dossier (pas d'explosion SwiftData sur
+    /// les gros dossiers) ; progression et `currentFilename` mis à jour à la
+    /// complétion de chaque fichier.
+    private func downloadFolderViaFiles(id: String) async {
         guard let transfer = fetchTransfer(id: id) else { return }
         guard let remote = transfer.sourceRemote else {
             transfer.status = .failed
@@ -1007,135 +1008,155 @@ public final class TransferQueue {
             scheduleNext()
             return
         }
+        let sourcePath = transfer.sourcePath
+        let batchID = transfer.batchID
         let destinationURL = URL(fileURLWithPath: transfer.destinationPath)
+        // Scope tenu pour tout le dossier (le bookmark vise le dossier parent
+        // choisi par l'utilisateur ; les fichiers s'écrivent en-dessous).
         let resolvedBookmark = transfer.destinationSecurityBookmark.flatMap(Self.resolveSecurityScopedBookmark)
-
-        // Pré-calcul fileCount via listing — l'utilisateur voit immédiatement
-        // « X fichiers à télécharger » dans la carte UI.
-        do {
-            let files = try await RemoteService.shared.listRecursive(
-                remote: remote, path: transfer.sourcePath
-            )
-            transfer.fileCount = files.count
-            try? modelContext?.save()
-        } catch {
-            await LogService.shared.log(
-                .info, category: "transfer",
-                message: "BridgeFolder listing pré échoué pour \(remote):\(transfer.sourcePath) — \(error.localizedDescription)"
-            )
-            // Continue sans fileCount, le bridge le recalculera.
-        }
-
-        // Mode Auto : la concurrence des workers de dossier suit la décision
-        // contextuelle (Wi-Fi 6, cellulaire 3, éco/chauffe 2, critique 1) ;
-        // sinon préférence manuelle inchangée (défaut 4). Lue au démarrage de
-        // chaque dossier — un dossier déjà en vol garde sa concurrence.
-        let concurrency: Int
-        if isAutoModeEnabled {
-            concurrency = currentAutoDecision.bridgeConcurrency
-        } else {
-            let concurrencyRaw = UserDefaults.standard.integer(forKey: Self.bridgeFolderConcurrencyKey)
-            concurrency = concurrencyRaw > 0 ? concurrencyRaw : Self.defaultBridgeFolderConcurrency
-        }
-
-        do {
-            try FileManager.default.createDirectory(at: destinationURL, withIntermediateDirectories: true)
-            try await BridgeFolderDownloader.shared.downloadFolder(
-                remote: remote,
-                sourcePath: transfer.sourcePath,
-                destDir: destinationURL,
-                concurrency: concurrency,
-                onProgress: { snapshot in
-                    // ThrottledProgress.maybeFire hop sur MainActor déjà.
-                    if let t = self.fetchTransfer(id: id) {
-                        t.bytesTransferred = snapshot.bytesTransferred
-                        t.bytesTotal = snapshot.bytesTotal
-                        if let filename = snapshot.currentFilename {
-                            t.currentFilename = filename
-                        }
-                        try? self.modelContext?.save()
-                    }
-                }
-            )
-            // Succès
-            if let t = fetchTransfer(id: id) {
-                t.bytesTransferred = max(t.bytesTransferred, t.bytesTotal)
-                t.status = .completed
-                t.finishedAt = .now
-                try? modelContext?.save()
-                await LogService.shared.log(
-                    .info, category: "transfer",
-                    message: "✅ \(t.kind.rawValue) terminé : \(t.sourcePath) (\(t.fileCount) fichiers)"
-                )
-            }
-            updateBatch(transfer.batchID, completedDelta: 1, failedDelta: 0)
-        } catch is CancellationError {
-            // Pause/annulation utilisateur : ni échec ni fallback.
+        func releaseScope() {
             if let pair = resolvedBookmark, pair.didStart {
                 pair.url.stopAccessingSecurityScopedResource()
             }
-            return
+        }
+
+        // 1) Listing récursif (fichiers seulement).
+        let files: [RemoteEntryDTO]
+        do {
+            files = try await RemoteService.shared.listRecursive(remote: remote, path: sourcePath)
+                .filter { !$0.isDirectory }
         } catch {
-            // GARDE-FOU ANTI-GEL : vers iCloud Drive, on NE retombe PAS sur
-            // sync/copy. C'est précisément le chemin que le bridge remplace :
-            // rclone écrivant un gros dossier dans com~apple~CloudDocs réveille
-            // le daemon `bird` et FIGE l'app (9 GB). Mieux vaut un échec clair.
-            if Self.isICloudDrivePath(transfer.destinationPath) {
-                if let t = fetchTransfer(id: id), !autoPauseInsteadOfFail(t) {
-                    t.status = .failed
-                    t.lastError = String(localized: "Téléchargement du dossier interrompu. Réessayez vers « Sur mon iPhone » : le repli iCloud Drive est désactivé car il peut figer l'app sur les gros dossiers.")
-                    t.finishedAt = .now
-                    try? modelContext?.save()
-                }
-                await LogService.shared.log(
-                    .error, category: "transfer",
-                    message: "❌ Bridge échoué + destination iCloud Drive → repli sync/copy DÉSACTIVÉ (anti-gel bird) : \(remote):\(transfer.sourcePath) — \(error.localizedDescription)"
-                )
-            } else {
-                await LogService.shared.log(
-                    .info, category: "transfer",
-                    message: "BridgeFolderDownloader échec \(remote):\(transfer.sourcePath) — fallback sync/copy : \(error.localizedDescription)"
-                )
-                // Fallback sync/copy (destination locale) : réutilise le chemin
-                // rclone historique. Le scope security-scoped est conservé.
-                do {
-                    let jobID = try await relaunch(transfer)
-                    guard let t = fetchTransfer(id: id), t.status == .running else { return }
-                    t.jobID = jobID
-                    try? modelContext?.save()
-                    startPolling(t)
-                    return
-                } catch {
-                    if let t = fetchTransfer(id: id) {
-                        if autoPauseInsteadOfFail(t) {
-                            // Double échec parce que le réseau est tombé : pause
-                            // auto — reprise skip-existing au retour du lien.
-                        } else {
-                            t.status = .failed
-                            t.lastError = "Bridge + sync/copy ont échoué : \(error.localizedDescription)"
-                            t.finishedAt = .now
-                            try? modelContext?.save()
-                            await LogService.shared.log(
-                                .error, category: "transfer",
-                                message: "❌ Bridge + sync/copy ont échoué pour \(remote):\(transfer.sourcePath) — \(error.localizedDescription)"
-                            )
-                        }
+            releaseScope()
+            if let t = fetchTransfer(id: id), !autoPauseInsteadOfFail(t) {
+                t.status = .failed
+                t.lastError = error.localizedDescription
+                t.finishedAt = .now
+                try? modelContext?.save()
+            }
+            await LogService.shared.log(.error, category: "transfer",
+                message: "Listing dossier échoué \(remote):\(sourcePath) — \(error.localizedDescription)")
+            scheduleNext()
+            return
+        }
+        let bytesTotal = files.reduce(Int64(0)) { $0 + max($1.size, 0) }
+        transfer.fileCount = files.count
+        transfer.bytesTotal = max(bytesTotal, transfer.bytesTotal)
+        try? modelContext?.save()
+
+        // 2) Skip des fichiers déjà présents avec la même taille (reprise sans
+        //    tout retélécharger). destDir = racine locale du dossier.
+        let partition = BridgeFolderDownloader.partitionByExistence(
+            files: files, sourcePath: sourcePath, destDir: destinationURL
+        )
+        var doneBytes = partition.skippedBytes
+        transfer.bytesTransferred = doneBytes
+        try? modelContext?.save()
+
+        await LogService.shared.log(.info, category: "transfer",
+            message: "📁 Download dossier (par fichiers) \(remote):\(sourcePath) files=\(files.count) skip=\(partition.skippedCount) concurrency=\(min(max(maxConcurrent,1),8)) bytesTotal=\(bytesTotal)")
+
+        // 3) File bornée de copyfile+poll. maxConcurrent respecte le mode Auto
+        //    / le réglage manuel, borné 1…8. Chaque copyfile passe par le
+        //    bouclier cgoQueue → jamais d'épuisement du pool GCD → pas de gel.
+        let concurrency = min(max(maxConcurrent, 1), 8)
+        var iterator = partition.todo.makeIterator()
+        var firstError: Error?
+
+        await withTaskGroup(of: (name: String, size: Int64, error: Error?).self) { group in
+            @discardableResult
+            func addNext() -> Bool {
+                guard let next = iterator.next() else { return false }
+                let srcPath = next.entry.pathInRemote
+                let size = max(next.entry.size, 0)
+                let destURL = next.destURL
+                let name = next.entry.name
+                group.addTask { [self] in
+                    do {
+                        try await self.copyFileAndWait(remote: remote, srcPath: srcPath, destURL: destURL)
+                        return (name, size, nil)
+                    } catch {
+                        return (name, size, error)
                     }
                 }
+                return true
+            }
+
+            for _ in 0..<concurrency where addNext() {}
+
+            while let result = await group.next() {
+                if let err = result.error {
+                    if firstError == nil { firstError = err }
+                    group.cancelAll()
+                    continue
+                }
+                doneBytes += result.size
+                if let t = fetchTransfer(id: id) {
+                    t.bytesTransferred = doneBytes
+                    t.currentFilename = result.name
+                    try? modelContext?.save()
+                }
+                if Task.isCancelled { group.cancelAll(); continue }
+                addNext()
             }
         }
 
-        // Libère le scope security-scoped dans tous les cas (succès/échec/
-        // fallback). relaunch() gère son propre scope via activeSecurityScopes.
-        if let pair = resolvedBookmark, pair.didStart {
-            pair.url.stopAccessingSecurityScopedResource()
+        releaseScope()
+
+        // 4) Finalisation.
+        if Task.isCancelled {
+            // Pause/annulation : l'état (.paused) est posé par pause()/cancel().
+            scheduleNext()
+            return
+        }
+        if let err = firstError {
+            if let t = fetchTransfer(id: id), !autoPauseInsteadOfFail(t) {
+                t.status = .failed
+                t.lastError = err.localizedDescription
+                t.finishedAt = .now
+                try? modelContext?.save()
+                updateBatch(batchID, completedDelta: 0, failedDelta: 1)
+                await LogService.shared.log(.error, category: "transfer",
+                    message: "❌ Download dossier échoué \(remote):\(sourcePath) — \(err.localizedDescription)")
+            }
+        } else if let t = fetchTransfer(id: id) {
+            t.bytesTransferred = max(t.bytesTransferred, t.bytesTotal)
+            t.status = .completed
+            t.finishedAt = .now
+            try? modelContext?.save()
+            updateBatch(batchID, completedDelta: 1, failedDelta: 0)
+            await LogService.shared.log(.info, category: "transfer",
+                message: "✅ Download dossier terminé \(remote):\(sourcePath) (\(t.fileCount) fichiers)")
         }
         scheduleNext()
     }
 
-    /// UserDefaults key + défaut pour la concurrence bridge folder.
-    private static let bridgeFolderConcurrencyKey = "transfer.bridgeFolderConcurrency"
-    private static let defaultBridgeFolderConcurrency = 4
+    /// Copie UN fichier via `operations/copyfile` (async) puis attend la fin en
+    /// pollant `job/status` (500 ms). Le copyfile rend la main quasi
+    /// instantanément (jobID) → la lane du bouclier est libérée aussitôt, seul
+    /// le poll — léger — reste. `Task.checkCancellation()` stoppe le poll sur
+    /// pause/annulation (le fichier partiel sera re-téléchargé au skip-existing).
+    private func copyFileAndWait(remote: String, srcPath: String, destURL: URL) async throws {
+        let parent = destURL.deletingLastPathComponent()
+        try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
+        let jobID = try await TransferService.shared.copyFileAsync(
+            srcFs: "\(remote):", srcPath: srcPath,
+            dstFs: parent.path, dstPath: destURL.lastPathComponent
+        )
+        while true {
+            try Task.checkCancellation()
+            let status = try await TransferService.shared.jobStatus(jobID: jobID)
+            if status.finished {
+                if !status.success {
+                    throw RcloneError.rcloneError(
+                        code: 0, method: "operations/copyfile",
+                        message: status.error ?? "échec du téléchargement de \(destURL.lastPathComponent)"
+                    )
+                }
+                return
+            }
+            try await Task.sleep(for: .milliseconds(500))
+        }
+    }
 
     /// Crée le transfert EN FILE D'ATTENTE (.enqueued) puis tente de démarrer.
     /// Utilisé par les enqueue download/upload à la place du démarrage immédiat.
