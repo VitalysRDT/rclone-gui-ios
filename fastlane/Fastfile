@@ -88,11 +88,12 @@ platform :ios do
     deliver(
       api_key: asc_key,
       app_version: "2.0",
-      build_number: "139",
+      build_number: "141",
       skip_binary_upload: true,
       skip_screenshots: true,
       skip_metadata: false,
       submit_for_review: true,
+      reject_if_possible: true,   # annule la revue 2.0 en cours pour attacher 141
       automatic_release: true,
       force: true,
       precheck_include_in_app_purchases: false,
@@ -214,8 +215,9 @@ platform :mac do
       api_key: asc_key,
       platform: "osx",
       app_version: "2.0",
-      build_number: "139",
+      build_number: "141",
       submit_for_review: true,
+      reject_if_possible: true,   # annule la revue macOS 2.0 en cours pour attacher 141
       automatic_release: true,
       skip_binary_upload: true,
       skip_screenshots: true,
