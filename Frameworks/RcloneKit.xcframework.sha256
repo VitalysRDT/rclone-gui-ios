@@ -1,0 +1,15 @@
+# Glass Engine — empreintes SHA-256 du framework natif rclone (RcloneKit.xcframework)
+#
+# Prouve exactement quel binaire natif entre dans l'app. Régénéré par un build
+# propre et déterministe :
+#     ./scripts/build-rclone.sh
+#     ./scripts/verify-reproducible.sh --record
+#
+# Toolchain de référence : voir .xcode-version + scripts/rclone-bridge/go.mod
+# (rclone v1.74.3, golang.org/x/mobile épinglé). Seules les tranches LIVRÉES
+# (device iOS + macOS) sont couvertes par la garantie de reproductibilité ; la
+# tranche simulateur (BUILD_IOS_SIMULATOR=1) est un confort de dev, hors garantie.
+#
+# format : <slice>  <sha256>
+ios-arm64    f9a58b89952faac6c8892bd83cc05e230550b4985c6961328a9a7bf13dde3c67
+macos-arm64  3279006d2b0f513a76349e2b28ee90ec54e8161fecbdd7c42e18e9d1c26eb740

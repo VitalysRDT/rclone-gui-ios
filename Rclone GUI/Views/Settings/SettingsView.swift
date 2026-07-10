@@ -203,6 +203,16 @@ struct SettingsView: View {
                     )
                 }
                 NavigationLink {
+                    GlassEngineView()
+                } label: {
+                    SettingsNavigationRow(
+                        icon: "lock.shield",
+                        title: "Transparence",
+                        subtitle: "Glass Engine — prouver le « 0 appel maison »",
+                        tint: .green
+                    )
+                }
+                NavigationLink {
                     AboutView()
                 } label: {
                     SettingsNavigationRow(
