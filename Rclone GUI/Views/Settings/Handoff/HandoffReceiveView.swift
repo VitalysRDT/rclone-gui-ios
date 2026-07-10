@@ -15,6 +15,8 @@ import UniformTypeIdentifiers
 
 #if canImport(UIKit)
 import UIKit
+#elseif canImport(AppKit)
+import AppKit
 #endif
 
 struct HandoffReceiveView: View {
@@ -188,7 +190,9 @@ struct HandoffReceiveView: View {
                 TextEditor(text: $payload)
                     .frame(minHeight: 100)
                     .font(.system(size: 12, design: .monospaced))
+                    #if os(iOS)
                     .textInputAutocapitalization(.never)
+                    #endif
                     .autocorrectionDisabled()
                     .overlay {
                         if payload.isEmpty {
@@ -232,7 +236,9 @@ struct HandoffReceiveView: View {
                             .foregroundStyle(.tertiary)
                             .frame(width: 22, alignment: .trailing)
                         TextField("Mot \(idx + 1)", text: bindingForWord(at: idx))
+                            #if os(iOS)
                             .textInputAutocapitalization(.never)
+                            #endif
                             .autocorrectionDisabled()
                             .padding(.horizontal, 10)
                             .padding(.vertical, 8)
@@ -401,7 +407,14 @@ struct HandoffReceiveView: View {
         case .file:
             showFilePicker = true
         case .clipboard:
-            if let text = UIPasteboard.general.string, let extracted = HandoffEnvelope.extract(from: text) {
+            #if os(iOS)
+            let clip = UIPasteboard.general.string
+            #elseif os(macOS)
+            let clip = NSPasteboard.general.string(forType: .string)
+            #else
+            let clip: String? = nil
+            #endif
+            if let text = clip, let extracted = HandoffEnvelope.extract(from: text) {
                 payload = extracted
                 Task { await inspect() }
             } else {
