@@ -82,7 +82,13 @@ actor RemoteCatalogService {
                         .map { NSLocalizedString($0, comment: "Backend description") }
                         ?? rclone.description
                     let oauth = BackendOverrides.oauthConfigs[rclone.name]
-                    let fields = rclone.options.map { FieldSpec(from: $0) }
+                    let fields = rclone.options.map { option in
+                        FieldSpec(
+                            from: option,
+                            label: BackendOverrides.fieldLabel(backend: rclone.name, field: option.name),
+                            forcePicker: BackendOverrides.forcesPicker(backend: rclone.name, field: option.name)
+                        )
+                    }
                     return BackendSchema(
                         name: rclone.name,
                         prefix: rclone.prefix,

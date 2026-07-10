@@ -149,6 +149,12 @@ struct RecapAndTestView: View {
 
     private var testSection: some View {
         Section {
+            if state.selectedBackend?.name == "iclouddrive" {
+                Label("iCloud : après le code 2FA, l'obtention du jeton de session Apple peut prendre plusieurs minutes. Laisse l'écran ouvert pendant le test.",
+                      systemImage: "clock.badge.exclamationmark")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
             Button {
                 Task { await runTest() }
             } label: {
@@ -281,9 +287,15 @@ struct RecapAndTestView: View {
             return
         }
 
-        // 2. Run operations/list with timeout.
+        // 2. Run operations/list with timeout. iCloud gets a much longer
+        // window: right after 2FA, Apple can take minutes to mint the
+        // session token before the first listing answers.
+        let timeoutSeconds = backend.name == "iclouddrive" ? 180 : 10
         do {
-            let result = try await RemoteConnectionTester.test(remote: state.name)
+            let result = try await RemoteConnectionTester.test(
+                remote: state.name,
+                timeoutSeconds: timeoutSeconds
+            )
             state.testResult = .success(itemCount: result.itemCount, sample: result.sample)
         } catch RemoteConnectionTester.TestError.timeout(let secs) {
             state.testResult = .timeout

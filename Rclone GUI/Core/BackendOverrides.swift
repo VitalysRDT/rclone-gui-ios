@@ -469,15 +469,16 @@ enum BackendOverrides {
             setupURL: URL(string: "https://appleid.apple.com/account/manage"),
             setupSteps: [
                 "Active la 2FA sur ton compte Apple si pas déjà fait (obligatoire).",
-                "Utilise ton mot de passe Apple ID NORMAL — Apple refuse les mots de passe « spécifiques à une app » pour iCloud Drive.",
+                "Utilise ton mot de passe Apple ID HABITUEL (celui de ton compte) — Apple refuse les mots de passe « spécifiques à une app » et les mots de passe uniques.",
                 "Sur ton iPhone : Réglages → [ton nom] → iCloud → active « Accéder aux données iCloud sur le web ».",
-                "Colle ton mot de passe ci-dessous (champ « password »).",
+                "Colle ton mot de passe ci-dessous.",
                 "Un code 2FA te sera demandé à l'étape « Récapitulatif » (test ou création).",
-                "À l'étape précédente du wizard, remplis aussi « apple_id » avec ton email Apple ID."
+                "L'obtention du jeton de session Apple après le code 2FA peut prendre plusieurs minutes — laisse l'écran ouvert.",
+                "À l'étape précédente du wizard, remplis aussi « Email Apple ID » et choisis le service (iCloud Drive ou iCloud Photos)."
             ],
-            tokenLabel: "Mot de passe Apple ID",
+            tokenLabel: "Mot de passe Apple ID (habituel)",
             tokenFieldName: "password",
-            tokenHint: "Ton mot de passe Apple ID complet — PAS un mot de passe d'app (rejeté par Apple). Le champ « apple_id » est rempli dans le formulaire principal."
+            tokenHint: "Le mot de passe normal de ton compte Apple — PAS un mot de passe d'app ni un mot de passe unique (rejetés par Apple). L'email Apple ID se remplit dans le formulaire principal."
         ),
 
         // ───────── Dropbox / Box / pCloud ─────────
@@ -831,6 +832,35 @@ enum BackendOverrides {
             tokenHint: "⚠️ La clé API s'obtient seulement via le CLI Filen sur ordinateur. Email + mot de passe se saisissent à l'étape Formulaire."
         ),
     ]
+
+    // MARK: - Field-level overrides (labels + rendu)
+
+    /// Labels par backend/champ quand le nom rclone humanisé est trompeur —
+    /// ex. iCloud attend le mot de passe HABITUEL du compte (pas un mot de
+    /// passe d'app) et `service` choisit entre Drive et Photos. Chaînes FR
+    /// sources, résolues via le String Catalog.
+    nonisolated static func fieldLabel(backend: String, field: String) -> String? {
+        switch (backend, field) {
+        case ("iclouddrive", "apple_id"):
+            return String(localized: "Email Apple ID")
+        case ("iclouddrive", "password"):
+            return String(localized: "Mot de passe Apple ID (habituel)")
+        case ("iclouddrive", "service"):
+            return String(localized: "Service iCloud (Drive ou Photos)")
+        default:
+            return nil
+        }
+    }
+
+    /// Champs à présenter en sélecteur exclusif même quand rclone ne marque
+    /// pas l'option `Exclusive` (une valeur libre n'aurait aucun sens).
+    private nonisolated static let forcedPickerFields: [String: Set<String>] = [
+        "iclouddrive": ["service"],
+    ]
+
+    nonisolated static func forcesPicker(backend: String, field: String) -> Bool {
+        forcedPickerFields[backend]?.contains(field) ?? false
+    }
 
     // MARK: - Backends to hide on iOS
 
