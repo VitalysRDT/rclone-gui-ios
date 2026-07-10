@@ -1,2 +1,6 @@
-Nouveautés de la version 1.9.2 :
-- Avancement des téléchargements de dossier : la barre de progression s'affiche enfin (la taille du dossier est pré-calculée avant le transfert).
+Nouveautés de la version 2.0 :
+- Transparence « 0 appel maison » : un nouvel écran prouve en direct que l'app ne contacte aucun serveur maison, et le moteur rclone devient reproductible et vérifiable.
+- Handoff : transférez votre configuration chiffrée entre appareils par QR code, AirDrop ou fichier.
+- Ghost Vault : sauvegarde chiffrée de votre configuration dans l'un de vos propres remotes.
+- Téléchargements plus intelligents : gestion automatique (réseau, batterie, température) et téléchargements de dossiers fiabilisés.
+- Synchro photo : les photos ignorées sont enfin visibles, avec un bouton « Réessayer les ignorées ».

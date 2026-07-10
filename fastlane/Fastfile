@@ -87,8 +87,8 @@ platform :ios do
   lane :ship do
     deliver(
       api_key: asc_key,
-      app_version: "1.9.2",
-      build_number: "136",
+      app_version: "2.0",
+      build_number: "139",
       skip_binary_upload: true,
       skip_screenshots: true,
       skip_metadata: false,
@@ -213,8 +213,8 @@ platform :mac do
     deliver(
       api_key: asc_key,
       platform: "osx",
-      app_version: "1.9.2",
-      build_number: "136",
+      app_version: "2.0",
+      build_number: "139",
       submit_for_review: true,
       automatic_release: true,
       skip_binary_upload: true,

@@ -1,2 +1,6 @@
-What's new in 1.9.2:
-- Folder download progress: the progress bar is finally shown (the folder size is precomputed before the transfer starts).
+What's new in 2.0:
+- Transparency, zero phone-home: a new screen proves live that the app contacts no home server, and the rclone engine is now reproducible and verifiable.
+- Handoff: move your encrypted configuration between devices via QR code, AirDrop or file.
+- Ghost Vault: encrypted backup of your configuration into one of your own remotes.
+- Smarter downloads: automatic management (network, battery, temperature) and reliable folder downloads.
+- Photo sync: skipped photos are finally visible, with a "Retry skipped" button.

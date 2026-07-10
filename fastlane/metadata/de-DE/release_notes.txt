@@ -1,2 +1,6 @@
-Neu in Version 1.9.2:
-- Ordner-Download-Fortschritt: Die Fortschrittsanzeige wird endlich angezeigt (die Ordnergröße wird vor dem Transfer vorab berechnet).
+Neu in Version 2.0:
+- Transparenz, kein „Nach-Hause-Telefonieren": ein neuer Bildschirm beweist live, dass die App keinen eigenen Server kontaktiert, und die rclone-Engine ist jetzt reproduzierbar und überprüfbar.
+- Handoff: Übertrage deine verschlüsselte Konfiguration zwischen Geräten per QR-Code, AirDrop oder Datei.
+- Ghost Vault: verschlüsseltes Backup deiner Konfiguration in einem deiner eigenen Remotes.
+- Intelligentere Downloads: automatische Steuerung (Netzwerk, Akku, Temperatur) und zuverlässige Ordner-Downloads.
+- Fotosync: übersprungene Fotos sind endlich sichtbar, mit einer Schaltfläche „Übersprungene erneut versuchen".
