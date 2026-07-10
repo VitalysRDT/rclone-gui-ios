@@ -54,6 +54,13 @@ public final class TransferQueue {
     /// invalidées, les fichiers finis restent sur disque (skip-existing
     /// au prochain run).
     private var bridgeFolderTasks: [String: Task<Void, Never>] = [:]
+    /// Octets des fichiers DÉJÀ TERMINÉS d'un download de dossier (par
+    /// transferID), maintenu par `downloadFolderViaFiles`. `tickStats` y ajoute
+    /// les octets EN COURS (core/stats) pour une barre LISSE et MONOTONE :
+    /// sans ce cumul, tickStats n'affichait que l'in-flight, qui retombait à ~0
+    /// à chaque rotation de fichier → la progression « alternait entre des Mo
+    /// et 0 ».
+    private var folderCompletedBytes: [String: Int64] = [:]
     private let maxAutoRetries = 2
 
     // MARK: - Mode Auto (gestion automatique de la concurrence)
@@ -1161,6 +1168,9 @@ public final class TransferQueue {
         )
         var doneBytes = partition.skippedBytes
         transfer.bytesTransferred = doneBytes
+        // Cumul terminé partagé avec tickStats (qui y ajoute l'in-flight pour
+        // une barre lisse). Nettoyé à la fin.
+        folderCompletedBytes[id] = doneBytes
         try? modelContext?.save()
 
         // Staging Caches quand la destination est iCloud Drive : on télécharge
@@ -1216,8 +1226,11 @@ public final class TransferQueue {
                     continue
                 }
                 doneBytes += result.size
+                // Cumul terminé = plancher MONOTONE de la barre. tickStats y
+                // ajoute l'in-flight des fichiers en cours (barre lisse).
+                folderCompletedBytes[id] = doneBytes
                 if let t = fetchTransfer(id: id) {
-                    t.bytesTransferred = doneBytes
+                    t.bytesTransferred = min(doneBytes, t.bytesTotal)
                     t.currentFilename = result.name
                     try? modelContext?.save()
                 }
@@ -1230,6 +1243,7 @@ public final class TransferQueue {
         // Nettoyage du staging (fichiers publiés = déplacés ; restes partiels
         // sur erreur/annulation = à jeter, re-téléchargés à la reprise).
         await cleanupStaging()
+        folderCompletedBytes[id] = nil
 
         // 4) Finalisation.
         if Task.isCancelled {
@@ -1257,6 +1271,15 @@ public final class TransferQueue {
                 message: "✅ Download dossier terminé \(remote):\(sourcePath) (\(t.fileCount) fichiers)")
         }
         scheduleNext()
+    }
+
+    /// Octets AFFICHÉS pour un download de dossier piloté par fichier : cumul
+    /// des fichiers terminés + octets en cours, borné au total. Pur → testable.
+    /// Monotone en pratique : quand un fichier finit, il quitte l'in-flight mais
+    /// entre dans `completed` (somme stable) → pas de retour à 0.
+    nonisolated static func folderDisplayedBytes(completed: Int64, inFlight: Int64, total: Int64) -> Int64 {
+        let raw = max(completed, 0) + max(inFlight, 0)
+        return total > 0 ? min(raw, total) : raw
     }
 
     /// Copie UN fichier via `operations/copyfile` (async) puis attend la fin en
@@ -2115,22 +2138,36 @@ public final class TransferQueue {
 
         // Passe 2 — transferts dossier : agrégation des fichiers internes.
         for transfer in running where (transfer.isDirectoryTransfer ?? false) {
+            // Dossier piloté PAR FICHIER (downloadFolderViaFiles) : le cumul des
+            // fichiers TERMINÉS est la source de vérité (folderCompletedBytes) ;
+            // on n'ajoute que l'in-flight des fichiers en cours. Sans ce cumul,
+            // on n'affichait que l'in-flight → retour à ~0 à chaque rotation de
+            // fichier (« alterne entre des Mo et 0 »).
+            let perFileBase = isBridgeFolderTransfer(transfer)
+                ? folderCompletedBytes[transfer.id]
+                : nil
+
             let matchedIndexes = directoryInternalStatIndexes(
                 stats: stats,
                 transfer: transfer,
                 excluding: consumedStatIndexes
             )
-            guard !matchedIndexes.isEmpty else { continue }
+            // Legacy (copyDirAsync) : pas de cumul connu → on garde l'ancien
+            // comportement (skip si aucun stat matché). Par-fichier : on écrit
+            // toujours au moins le plancher `perFileBase`.
+            if perFileBase == nil, matchedIndexes.isEmpty { continue }
             let aggBytes = matchedIndexes.reduce(Int64(0)) { $0 + stats.transferring[$1].bytesTransferred }
             let aggFileTotal = matchedIndexes.reduce(Int64(0)) { $0 + stats.transferring[$1].bytesTotal }
             consumedStatIndexes.formUnion(matchedIndexes)
-            // bytesTransferred = somme des bytes déjà transmis des fichiers internes.
-            let newBytes = aggBytes
-            // bytesTotal : on garde le max entre le pré-calcul operations/size
-            // et la somme des tailles des fichiers actuellement transférés
-            // (rclone peut découvrir des fichiers au fil de l'eau, et certains
-            // peuvent être sizeless si operations/size a échoué → fallback).
+            // bytesTotal : max entre le pré-calcul operations/size et la somme
+            // des tailles des fichiers en cours (rclone peut découvrir des
+            // fichiers au fil de l'eau / sizeless si operations/size a échoué).
             let newTotal = max(aggFileTotal, transfer.bytesTotal)
+            // Par-fichier : cumul terminé + in-flight, borné au total (jamais de
+            // retour en arrière). Legacy : in-flight brut comme avant.
+            let newBytes: Int64 = perFileBase.map {
+                Self.folderDisplayedBytes(completed: $0, inFlight: aggBytes, total: newTotal)
+            } ?? aggBytes
             if transfer.bytesTransferred != newBytes || transfer.bytesTotal != newTotal {
                 transfer.bytesTransferred = newBytes
                 transfer.bytesTotal = newTotal
