@@ -79,6 +79,23 @@ struct ChangelogView: View {
     // Historique aligné sur rclone.rougetet.com (le plus récent en premier).
     private static let releases: [Release] = [
         Release(
+            version: "2.0", dateFR: "Juillet 2026", dateEN: "July 2026",
+            itemsFR: [
+                "Transparence « 0 appel maison » : un nouvel écran (Réglages → Transparence) prouve en direct que l'app ne contacte aucun serveur maison — et le binaire natif rclone est désormais reproductible et vérifiable par un tiers.",
+                "Handoff : transférez votre configuration chiffrée d'un appareil à l'autre par QR code, AirDrop ou fichier.",
+                "Ghost Vault : sauvegarde chiffrée de votre configuration rclone dans l'un de vos propres remotes.",
+                "Téléchargements plus intelligents : gestion automatique selon le réseau, la batterie et la température, et téléchargements de dossiers fiabilisés (fini les gels sur iCloud Drive).",
+                "Synchro photo : les photos ignorées (supprimées, accès partiel, illisibles) sont enfin visibles, avec un bouton « Réessayer les ignorées » — fini le compteur qui plafonne sans explication.",
+            ],
+            itemsEN: [
+                "Transparency, zero phone-home: a new screen (Settings → Transparency) proves live that the app contacts no home server — and the native rclone binary is now reproducible and independently verifiable.",
+                "Handoff: move your encrypted configuration between devices via QR code, AirDrop or file.",
+                "Ghost Vault: encrypted backup of your rclone configuration into one of your own remotes.",
+                "Smarter downloads: automatic management based on network, battery and temperature, plus reliable folder downloads (no more freezes on iCloud Drive).",
+                "Photo sync: skipped photos (deleted, partial access, unreadable) are finally visible, with a \"Retry skipped\" button — no more counter stuck without explanation.",
+            ]
+        ),
+        Release(
             version: "1.9.2", dateFR: "Juillet 2026", dateEN: "July 2026",
             itemsFR: [
                 "Avancement des téléchargements de dossier : la barre de progression s'affiche enfin (la taille du dossier est pré-calculée avant le transfert).",
@@ -265,4 +282,27 @@ struct ChangelogView: View {
             ]
         ),
     ]
+}
+
+/// Présentation modale des « Nouveautés » à la première ouverture d'une nouvelle
+/// version (déclenchée par `RootGateView` après déverrouillage). Réutilise
+/// `ChangelogView` (le plus récent est en tête, badgé « ACTUELLE ») dans une
+/// `NavigationStack` avec un bouton de fermeture.
+struct WhatsNewSheet: View {
+    @Environment(\.dismiss) private var dismiss
+
+    private var useFrench: Bool {
+        Locale.current.language.languageCode?.identifier == "fr"
+    }
+
+    var body: some View {
+        NavigationStack {
+            ChangelogView()
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button(useFrench ? "Continuer" : "Continue") { dismiss() }
+                    }
+                }
+        }
+    }
 }

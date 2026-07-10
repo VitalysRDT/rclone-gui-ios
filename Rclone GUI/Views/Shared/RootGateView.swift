@@ -24,6 +24,12 @@ struct RootGateView<Content: View>: View {
     @State private var authInFlight = false
     @State private var lastBackgroundedAt: Date?
 
+    /// Dernière version pour laquelle l'écran « Nouveautés » a été présenté.
+    /// Vide au premier lancement → on présente une fois, puis on mémorise la
+    /// version courante pour ne plus l'afficher tant qu'il n'y a pas de MàJ.
+    @AppStorage("changelog.lastSeenVersion") private var lastSeenChangelogVersion: String = ""
+    @State private var showWhatsNew = false
+
     let content: () -> Content
 
     init(@ViewBuilder content: @escaping () -> Content) {
@@ -51,10 +57,33 @@ struct RootGateView<Content: View>: View {
         .onChange(of: scenePhase) { _, phase in
             handleScenePhase(phase)
         }
+        .sheet(isPresented: $showWhatsNew) {
+            WhatsNewSheet()
+        }
+        // Présente au lancement si l'app n'est pas verrouillée (pas de biométrie)…
+        .task { maybePresentWhatsNew() }
+        // …sinon dès que l'utilisateur déverrouille.
+        .onChange(of: unlocked) { _, isUnlocked in
+            if isUnlocked { maybePresentWhatsNew() }
+        }
     }
 
     private var shouldShowLockScreen: Bool {
         requireBiometrics && !unlocked
+    }
+
+    private var appVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
+    }
+
+    /// Présente les « Nouveautés » une seule fois par version, après
+    /// déverrouillage (ou immédiatement si la biométrie n'est pas requise).
+    private func maybePresentWhatsNew() {
+        guard unlocked else { return }
+        let v = appVersion
+        guard !v.isEmpty, lastSeenChangelogVersion != v else { return }
+        lastSeenChangelogVersion = v
+        showWhatsNew = true
     }
 
     private func authenticate() async {
