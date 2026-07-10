@@ -958,6 +958,12 @@ public final class TransferQueue {
     static let pauseOnCellularKey = "transfer.pauseOnCellular"
     static let cellularLimitKey = "transfer.cellularLimitMBps"
     static let wifiLimitKey = "transfer.bandwidthLimitMBps"
+    /// Concurrence INTERNE d'un download de dossier (nb de fichiers copiés en
+    /// parallèle), distincte de `maxConcurrent` (qui borne les transferts
+    /// SÉPARÉS). Un dossier = 1 transfert de la file, mais N fichiers en vol
+    /// en interne → cette concurrence-là doit être plus généreuse pour saturer
+    /// le lien (défaut manuel 6, borné 1…16).
+    static let folderConcurrencyKey = "transfer.bridgeFolderConcurrency"
 
     /// Nombre max de transferts download/upload simultanés. Mode Auto ON →
     /// valeur décidée par AutoTransferPolicy (réseau + énergie) ; OFF →
@@ -966,6 +972,18 @@ public final class TransferQueue {
         if isAutoModeEnabled { return currentAutoDecision.queueConcurrency }
         let v = UserDefaults.standard.integer(forKey: Self.maxConcurrentKey)
         return v <= 0 ? 3 : min(v, 8)
+    }
+
+    /// Concurrence des fichiers d'un download de DOSSIER. Mode Auto →
+    /// `bridgeConcurrency` contextuel (Wi-Fi 8, cellulaire 3, chauffe/éco 2,
+    /// critique 1) ; OFF → réglage manuel `transfer.bridgeFolderConcurrency`
+    /// (défaut 6, borné 1…16). Plus haut que `maxConcurrent` pour la vitesse :
+    /// dans un dossier, chaque fichier est un transfert léger (copyfile async)
+    /// et on veut remplir le tuyau.
+    public var folderDownloadConcurrency: Int {
+        if isAutoModeEnabled { return min(max(currentAutoDecision.bridgeConcurrency, 1), 16) }
+        let v = UserDefaults.standard.integer(forKey: Self.folderConcurrencyKey)
+        return v <= 0 ? 6 : min(v, 16)
     }
 
     /// Seuls les transferts « lourds » (download/upload) passent par la file
@@ -1189,12 +1207,12 @@ public final class TransferQueue {
         }
 
         await LogService.shared.log(.info, category: "transfer",
-            message: "📁 Download dossier (par fichiers\(stagingDir != nil ? ", staging iCloud" : "")) \(remote):\(sourcePath) files=\(files.count) skip=\(partition.skippedCount) concurrency=\(min(max(maxConcurrent,1),8)) bytesTotal=\(bytesTotal)")
+            message: "📁 Download dossier (par fichiers\(stagingDir != nil ? ", staging iCloud" : "")) \(remote):\(sourcePath) files=\(files.count) skip=\(partition.skippedCount) concurrency=\(folderDownloadConcurrency) bytesTotal=\(bytesTotal)")
 
         // 3) File bornée de copyfile+poll. maxConcurrent respecte le mode Auto
         //    / le réglage manuel, borné 1…8. Chaque copyfile passe par le
         //    bouclier cgoQueue → jamais d'épuisement du pool GCD → pas de gel.
-        let concurrency = min(max(maxConcurrent, 1), 8)
+        let concurrency = folderDownloadConcurrency
         var iterator = partition.todo.makeIterator()
         var firstError: Error?
 

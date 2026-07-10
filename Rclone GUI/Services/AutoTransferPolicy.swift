@@ -129,7 +129,11 @@ nonisolated public enum AutoTransferPolicy {
             // multiplier les connexions radio coûteuses en énergie.
             decision = Decision(queueConcurrency: 2, bridgeConcurrency: 3, reason: .cellular)
         } else {
-            decision = Decision(queueConcurrency: 4, bridgeConcurrency: 6, reason: .nominal)
+            // Wi-Fi + froid + non facturé : on pousse la concurrence des
+            // fichiers de dossier (8) pour saturer le lien — chaque fichier
+            // est un copyfile async léger. queueConcurrency (transferts
+            // séparés) reste à 4, plus conservateur.
+            decision = Decision(queueConcurrency: 4, bridgeConcurrency: 8, reason: .nominal)
         }
         return Decision(
             queueConcurrency: min(max(decision.queueConcurrency, 1), 8),
