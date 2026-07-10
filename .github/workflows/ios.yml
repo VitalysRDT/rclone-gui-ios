@@ -101,6 +101,38 @@ jobs:
           echo "Archive structure OK"
           du -sh "build/RcloneGUI-CI.xcarchive"
 
+  build-macos:
+    name: Build (macOS, unsigned)
+    # Garde de non-régression : l'app cible aussi macOS, mais seul le simulateur
+    # iOS était vérifié en CI. Des API iOS-only non gardées (ex. Handoff :
+    # textInputAutocapitalization, UIPasteboard, UIActivityViewController) ne
+    # cassaient donc qu'à l'archive macOS Xcode Cloud. Ce job compile la cible
+    # macOS à chaque PR pour attraper ces régressions plus tôt.
+    runs-on: macos-15
+    timeout-minutes: 25
+
+    env:
+      PROJECT: Rclone GUI.xcodeproj
+      SCHEME: Rclone GUI
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build for macOS (compile check, no signing)
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -destination 'generic/platform=macOS' \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="" \
+            PROVISIONING_PROFILE_SPECIFIER=""
+
   transparency-guard:
     name: Glass Engine — garde « 0 appel maison »
     runs-on: macos-15

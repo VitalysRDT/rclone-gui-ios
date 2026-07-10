@@ -76,9 +76,11 @@ struct HandoffSendView: View {
                     .disabled(preparing)
             }
         }
+        #if canImport(UIKit)
         .sheet(isPresented: $showShare) {
             HandoffShareSheet(items: shareItems)
         }
+        #endif
         .confirmationDialog(
             "As-tu noté les 6 mots ?",
             isPresented: $showPassphraseConfirm,
