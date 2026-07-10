@@ -18,6 +18,8 @@ public enum BiometricReason: Sendable {
     case revealRemoteCredentials
     case ghostVaultSeal
     case ghostVaultUnseal
+    case handoffSend
+    case handoffReceive
 
     nonisolated var localized: String {
         switch self {
@@ -33,6 +35,10 @@ public enum BiometricReason: Sendable {
             return NSLocalizedString("Sceller un Ghost Vault", comment: "FaceID prompt before sealing a Ghost Vault backup")
         case .ghostVaultUnseal:
             return NSLocalizedString("Ouvrir un Ghost Vault", comment: "FaceID prompt before restoring a Ghost Vault backup")
+        case .handoffSend:
+            return NSLocalizedString("Préparer un Handoff P2P", comment: "FaceID prompt before sealing a Handoff P2P payload")
+        case .handoffReceive:
+            return NSLocalizedString("Importer un Handoff P2P", comment: "FaceID prompt before applying a Handoff P2P payload")
         }
     }
 }

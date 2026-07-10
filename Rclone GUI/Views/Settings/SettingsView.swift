@@ -110,6 +110,17 @@ struct SettingsView: View {
                         tint: .indigo
                     )
                 }
+
+                NavigationLink {
+                    HandoffLandingView()
+                } label: {
+                    SettingsNavigationRow(
+                        icon: "iphone.and.arrow.forward",
+                        title: "Handoff P2P",
+                        subtitle: "Transfère une config chiffrée entre appareils via QR ou AirDrop",
+                        tint: .purple
+                    )
+                }
             }
 
             Section("Stockage") {
