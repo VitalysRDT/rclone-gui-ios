@@ -115,7 +115,13 @@ public actor HandoffSendService {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let url = directory.appending(path: filename)
         let body = Data(payload.utf8)
-        try body.write(to: url, options: [.atomic, .completeFileProtection])
+        // .completeUntilFirstUserAuthentication (pas .completeFileProtection) :
+        // AirDrop et l'aperçu de la share sheet lisent le fichier depuis un
+        // process hors-app (sharingd). Sous .completeFileProtection ce process
+        // échoue à le lire → share sheet vide, aucune cible AirDrop. Le payload
+        // est déjà chiffré (ChaCha20-Poly1305), la protection fichier n'est que
+        // de la défense en profondeur — cette classe suffit et débloque AirDrop.
+        try body.write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
         return url
     }
 }
