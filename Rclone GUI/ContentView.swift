@@ -16,6 +16,15 @@ struct ContentView: View {
     @State private var showOnboarding = false
     @State private var showReviewPrompt = false
     @State private var reviewPromptCheckTask: Task<Void, Never>?
+    @State private var incomingHandoff: IncomingHandoff?
+    @State private var handoffOpenError: String?
+
+    /// Fichier .rclonebackup reçu (AirDrop / Fichiers) dont le payload
+    /// HND1: a déjà été extrait — déclenche la sheet « Recevoir ».
+    private struct IncomingHandoff: Identifiable {
+        let id = UUID()
+        let payload: String
+    }
 
     var body: some View {
         SubscriptionGate {
@@ -68,6 +77,39 @@ struct ContentView: View {
                     break
                 }
             }
+            .onOpenURL { url in
+                handleIncomingFile(url)
+            }
+            .sheet(item: $incomingHandoff) { incoming in
+                NavigationStack {
+                    HandoffReceiveView(prefilledPayload: incoming.payload)
+                }
+            }
+            .alert(
+                "Impossible d'ouvrir ce fichier",
+                isPresented: Binding(
+                    get: { handoffOpenError != nil },
+                    set: { if !$0 { handoffOpenError = nil } }
+                )
+            ) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(handoffOpenError ?? "")
+            }
+    }
+
+    /// Fichier .rclonebackup ouvert depuis l'extérieur (AirDrop,
+    /// Fichiers, Mail…) : extrait le payload HND1: et ouvre le wizard
+    /// « Handoff P2P — recevoir » directement à l'étape passphrase.
+    private func handleIncomingFile(_ url: URL) {
+        guard HandoffInbox.isHandoffFile(url) else { return }
+        do {
+            let payload = try HandoffInbox.extractPayload(fromFileAt: url)
+            incomingHandoff = IncomingHandoff(payload: payload)
+        } catch {
+            handoffOpenError = (error as? LocalizedError)?.errorDescription
+                ?? error.localizedDescription
+        }
     }
 
     private func scheduleReviewPromptCheck() {
