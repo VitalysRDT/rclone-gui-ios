@@ -65,7 +65,7 @@ struct RecapAndTestView: View {
             presenting: pendingQuestion
         ) { question in
             TextField(questionTitle(for: question.option), text: $questionAnswer)
-                .textInputAutocapitalization(.never)
+                .rgNoAutocap()
                 .autocorrectionDisabled()
             Button("Valider") {
                 resolveQuestion(with: questionAnswer)
