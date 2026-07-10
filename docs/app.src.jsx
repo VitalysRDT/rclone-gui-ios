@@ -721,7 +721,7 @@ const Hero = () => {
     <section className="hero" id="top">
       <div className="wrap">
         <img className="icon" src="icon.png" alt="Rclone GUI"/>
-        <div><span className="pill"><Icon name="bolt.fill" size={14}/>{t('v1.9 · ESSAI GRATUIT','v1.9 · FREE TRIAL')}</span></div>
+        <div><span className="pill"><Icon name="bolt.fill" size={14}/>{t('v2.0 · ESSAI GRATUIT','v2.0 · FREE TRIAL')}</span></div>
         <h1 className="title">{ML(t('Tous vos clouds.\nChiffrés.','Every cloud.\nEncrypted.'))}</h1>
         <p className="sub">{t('Parcourez 80+ services cloud — y compris vos remotes rclone chiffrés — directement dans Fichiers. iPhone, iPad & Mac.','Browse 80+ cloud services — including your encrypted rclone crypt remotes — right inside Files. iPhone, iPad & Mac.')}</p>
         <div className="cta-row">
@@ -999,7 +999,14 @@ const FreeMonth = () => {
 };
 
 const VERSIONS = [
-  { v:'1.9.2', current:true, date:{ fr:'Juillet 2026', en:'July 2026' }, items:[
+  { v:'2.0', current:true, date:{ fr:'Juillet 2026', en:'July 2026' }, items:[
+    { fr:'Transparence « 0 appel maison » : un nouvel écran (Réglages → Transparence) prouve en direct que l\'app ne contacte aucun serveur maison — et le binaire natif rclone est désormais reproductible et vérifiable par un tiers.', en:'Transparency, zero phone-home: a new screen (Settings → Transparency) proves live that the app contacts no home server — and the native rclone binary is now reproducible and independently verifiable.' },
+    { fr:'Handoff : transférez votre configuration chiffrée d\'un appareil à l\'autre par QR code, AirDrop ou fichier.', en:'Handoff: move your encrypted configuration between devices via QR code, AirDrop or file.' },
+    { fr:'Ghost Vault : sauvegarde chiffrée de votre configuration rclone dans l\'un de vos propres remotes.', en:'Ghost Vault: encrypted backup of your rclone configuration into one of your own remotes.' },
+    { fr:'Téléchargements plus intelligents : gestion automatique selon le réseau, la batterie et la température, et téléchargements de dossiers fiabilisés (fini les gels sur iCloud Drive).', en:'Smarter downloads: automatic management based on network, battery and temperature, plus reliable folder downloads (no more freezes on iCloud Drive).' },
+    { fr:'Synchro photo : les photos ignorées (supprimées, accès partiel, illisibles) sont enfin visibles, avec un bouton « Réessayer les ignorées ».', en:'Photo sync: skipped photos (deleted, partial access, unreadable) are finally visible, with a "Retry skipped" button.' },
+  ] },
+  { v:'1.9.2', date:{ fr:'Juillet 2026', en:'July 2026' }, items:[
     { fr:'Avancement des téléchargements de dossier : la barre de progression s\'affiche enfin (la taille du dossier est pré-calculée avant le transfert).', en:'Folder download progress: the progress bar is finally shown (the folder size is precomputed before the transfer starts).' },
   ] },
   { v:'1.9.1', date:{ fr:'Juin 2026', en:'June 2026' }, items:[
