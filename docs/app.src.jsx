@@ -1004,6 +1004,7 @@ const VERSIONS = [
     { fr:'Handoff : transférez votre configuration chiffrée d\'un appareil à l\'autre par QR code, AirDrop ou fichier.', en:'Handoff: move your encrypted configuration between devices via QR code, AirDrop or file.' },
     { fr:'Ghost Vault : sauvegarde chiffrée de votre configuration rclone dans l\'un de vos propres remotes.', en:'Ghost Vault: encrypted backup of your rclone configuration into one of your own remotes.' },
     { fr:'Téléchargements plus intelligents : gestion automatique selon le réseau, la batterie et la température, et téléchargements de dossiers fiabilisés (fini les gels sur iCloud Drive).', en:'Smarter downloads: automatic management based on network, battery and temperature, plus reliable folder downloads (no more freezes on iCloud Drive).' },
+    { fr:'iCloud Drive réparé : l\'ajout de votre compte iCloud fonctionne à nouveau — connectez-vous avec votre mot de passe Apple ID habituel, l\'app vous demande ensuite votre code de vérification (2FA).', en:'iCloud Drive fixed: adding your iCloud account works again — sign in with your regular Apple ID password, then the app asks for your verification code (2FA).' },
     { fr:'Synchro photo : les photos ignorées (supprimées, accès partiel, illisibles) sont enfin visibles, avec un bouton « Réessayer les ignorées ».', en:'Photo sync: skipped photos (deleted, partial access, unreadable) are finally visible, with a "Retry skipped" button.' },
   ] },
   { v:'1.9.2', date:{ fr:'Juillet 2026', en:'July 2026' }, items:[

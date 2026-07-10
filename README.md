@@ -43,7 +43,8 @@ and in-app under **Settings → Version history**.
   independently verifiable native build. Plus Handoff (transfer your encrypted config
   between devices via QR/AirDrop/file), Ghost Vault (encrypted config backup to a remote),
   smarter downloads (automatic network/battery/thermal management + reliable folder
-  downloads), and visible skipped photos in PhotoSync.
+  downloads), fixed iCloud Drive sign-in (regular Apple ID password + in-app 2FA prompt),
+  and visible skipped photos in PhotoSync.
 - **1.9.2** — Folder-download progress bar (folder size precomputed before the transfer).
 - **1.9.1** — Fix: first-launch “rclone catalog unavailable” error when creating your first remote.
 - **1.9** — Rebuilt video player (VLCKit 4: robust 4K MKV/HEVC, crackle-free audio),

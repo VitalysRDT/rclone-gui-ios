@@ -85,6 +85,7 @@ struct ChangelogView: View {
                 "Handoff : transférez votre configuration chiffrée d'un appareil à l'autre par QR code, AirDrop ou fichier.",
                 "Ghost Vault : sauvegarde chiffrée de votre configuration rclone dans l'un de vos propres remotes.",
                 "Téléchargements plus intelligents : gestion automatique selon le réseau, la batterie et la température, et téléchargements de dossiers fiabilisés (fini les gels sur iCloud Drive).",
+                "iCloud Drive réparé : l'ajout de votre compte iCloud fonctionne à nouveau — connectez-vous avec votre mot de passe Apple ID habituel, l'app vous demande ensuite votre code de vérification (2FA).",
                 "Synchro photo : les photos ignorées (supprimées, accès partiel, illisibles) sont enfin visibles, avec un bouton « Réessayer les ignorées » — fini le compteur qui plafonne sans explication.",
             ],
             itemsEN: [
@@ -92,6 +93,7 @@ struct ChangelogView: View {
                 "Handoff: move your encrypted configuration between devices via QR code, AirDrop or file.",
                 "Ghost Vault: encrypted backup of your rclone configuration into one of your own remotes.",
                 "Smarter downloads: automatic management based on network, battery and temperature, plus reliable folder downloads (no more freezes on iCloud Drive).",
+                "iCloud Drive fixed: adding your iCloud account works again — sign in with your regular Apple ID password, then the app asks for your verification code (2FA).",
                 "Photo sync: skipped photos (deleted, partial access, unreadable) are finally visible, with a \"Retry skipped\" button — no more counter stuck without explanation.",
             ]
         ),
