@@ -103,6 +103,26 @@ public nonisolated enum MediaFormat {
         isImage(name) || isVideo(name)
     }
 
+    // Documents dont on sait rendre un aperçu (1re page). Pour l'instant PDF ;
+    // extensible plus tard (pages, docx…) si un moteur de rendu est ajouté.
+    static let documentExtensions: Set<String> = ["pdf"]
+
+    /// Vrai pour un PDF (détection par extension, avec repli sur le type système).
+    public static func isPDF(_ name: String) -> Bool {
+        let e = ext(name)
+        if documentExtensions.contains(e) { return true }
+        if let type = UTType(filenameExtension: e), type.conforms(to: .pdf) {
+            return true
+        }
+        return false
+    }
+
+    /// Fichiers éligibles à un aperçu « Remote Lens » (vignette + métadonnées
+    /// par range requests) : images et PDF. La vidéo garde son chemin galerie.
+    public static func hasLens(_ name: String) -> Bool {
+        isImage(name) || isPDF(name)
+    }
+
     /// Extensions de sous-titres « sidecar » qu'on cherche à côté du média.
     static let subtitleExtensions: Set<String> = [
         "srt", "ass", "ssa", "vtt", "sub", "idx"
