@@ -32,6 +32,7 @@ struct FolderView: View {
     @State private var externalOpenTarget: RemoteEntryDTO?
     @State private var moveTarget: RemoteEntryDTO?
     @State private var downloadTarget: RemoteEntryDTO?
+    @State private var lensTarget: RemoteEntryDTO?
     @State private var remoteTransferRequest: RemoteBatchTransferRequest?
     @State private var availableRemotes: [String] = []
     @State private var deleteIsRecursive = false
@@ -296,6 +297,10 @@ struct FolderView: View {
                 openingEntryID = nil
             }) { entry in
                 RemotePreviewHost(remote: remote, entry: entry)
+            }
+            .sheet(item: $lensTarget) { entry in
+                RemoteLensSheet(remote: remote, entry: entry)
+                    .rgMediumDetents()
             }
             .sheet(item: $externalOpenTarget, onDismiss: {
                 openingEntryID = nil
@@ -607,7 +612,8 @@ struct FolderView: View {
                     previewTarget: $previewTarget,
                     moveTarget: $moveTarget,
                     downloadTarget: $downloadTarget,
-                    externalOpenTarget: $externalOpenTarget
+                    externalOpenTarget: $externalOpenTarget,
+                    lensTarget: $lensTarget
                 )
             }
         }
@@ -652,7 +658,8 @@ struct FolderView: View {
                         previewTarget: $previewTarget,
                         moveTarget: $moveTarget,
                         downloadTarget: $downloadTarget,
-                        externalOpenTarget: $externalOpenTarget
+                        externalOpenTarget: $externalOpenTarget,
+                        lensTarget: $lensTarget
                     )
                 }
             }
@@ -687,7 +694,8 @@ struct FolderView: View {
                     previewTarget: $previewTarget,
                     moveTarget: $moveTarget,
                     downloadTarget: $downloadTarget,
-                    externalOpenTarget: $externalOpenTarget
+                    externalOpenTarget: $externalOpenTarget,
+                    lensTarget: $lensTarget
                 )
             }
         }

@@ -23,10 +23,15 @@ struct FileDetailView: View {
     var onShare: (() -> Void)? = nil
     var onPin: (() -> Void)? = nil
 
+    /// Aperçu Remote Lens (vignette réelle + EXIF/PDF), chargé à l'ouverture
+    /// pour les fichiers éligibles (images, PDF) par range requests.
+    @State private var lensPreview: RemoteLensPreview?
+
     var body: some View {
         Form {
             Section {
                 heroPreview
+                    .overlay { lensThumbnailOverlay }
                     .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                     .listRowBackground(Color.clear)
             }
@@ -48,6 +53,13 @@ struct FileDetailView: View {
                 infoRow(title: "Taille", value: sizeLabel)
                 infoRow(title: "Modifié", value: dateLabel)
                 infoRow(title: "Chemin", value: entry.pathInRemote.isEmpty ? "—" : entry.pathInRemote)
+            }
+
+            if let image = lensPreview?.image, !image.isEmpty {
+                lensImageSection(image)
+            }
+            if let pdf = lensPreview?.pdf, pdf.pageCount != nil {
+                lensPDFSection(pdf)
             }
 
             Section("Sécurité") {
@@ -105,7 +117,62 @@ struct FileDetailView: View {
                 }
             }
         }
+        .task(id: entry.id) {
+            guard MediaFormat.hasLens(entry.name) else { return }
+            lensPreview = await RemoteLensService.shared.preview(for: entry, remote: remote)
+        }
     }
+
+    // MARK: - Remote Lens
+
+    @ViewBuilder
+    private var lensThumbnailOverlay: some View {
+        if let box = lensPreview?.thumbnail {
+            RemoteLensImage(cgImage: box.image)
+                .scaledToFill()
+                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .allowsHitTesting(false)
+        }
+    }
+
+    private func lensImageSection(_ m: RemoteImageMetadata) -> some View {
+        Section("Informations média") {
+            if let w = m.pixelWidth, let h = m.pixelHeight {
+                infoRow(title: "Dimensions", value: "\(w) × \(h) px")
+            }
+            if let make = m.cameraMake, let model = m.cameraModel {
+                infoRow(title: "Appareil", value: "\(make) \(model)")
+            } else if let model = m.cameraModel {
+                infoRow(title: "Appareil", value: model)
+            }
+            if let lens = m.lensModel { infoRow(title: "Objectif", value: lens) }
+            if let date = m.captureDate {
+                infoRow(title: "Prise le", value: Self.mediaDateFormatter.string(from: date))
+            }
+            if let exp = m.exposure { infoRow(title: "Exposition", value: exp) }
+            if let f = m.fNumber { infoRow(title: "Ouverture", value: f) }
+            if let iso = m.iso { infoRow(title: "Sensibilité", value: iso) }
+            if let focal = m.focalLength { infoRow(title: "Focale", value: focal) }
+            if let lat = m.latitude, let lon = m.longitude {
+                infoRow(title: "Position", value: RemoteLensPlan.formatCoordinate(lat: lat, lon: lon))
+            }
+        }
+    }
+
+    private func lensPDFSection(_ m: RemotePDFMetadata) -> some View {
+        Section("Informations média") {
+            if let count = m.pageCount { infoRow(title: "Pages", value: "\(count)") }
+            if let title = m.title { infoRow(title: "Titre", value: title) }
+            if let author = m.author { infoRow(title: "Auteur", value: author) }
+        }
+    }
+
+    private static let mediaDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateStyle = .medium
+        f.timeStyle = .short
+        return f
+    }()
 
     private var heroPreview: some View {
         ZStack {
