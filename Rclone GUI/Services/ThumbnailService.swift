@@ -84,8 +84,10 @@ public actor ThumbnailService {
     private let memLimit = 300
 
     /// Vignette pour une entrée média. nil ⇒ afficher l'icône de repli.
+    /// Couvre images, vidéos ET PDF (1re page via Remote Lens) — tous partagent
+    /// le même cache mémoire/disque.
     public func thumbnail(for entry: RemoteEntryDTO, remote: String) async -> CGImageBox? {
-        guard MediaFormat.isVisualMedia(entry.name) else { return nil }
+        guard MediaFormat.isVisualMedia(entry.name) || MediaFormat.isPDF(entry.name) else { return nil }
         let key = Self.cacheKey(remote: remote, entry: entry)
 
         if let cached = memCache[key] { return cached }
@@ -153,7 +155,26 @@ public actor ThumbnailService {
         if MediaFormat.isVideo(entry.name) {
             return await generateVideoThumbnail(remote: remote, entry: entry)
         }
+        if MediaFormat.isPDF(entry.name) {
+            return await generatePDFThumbnail(remote: remote, entry: entry)
+        }
         return nil
+    }
+
+    /// Vignette = 1re page du PDF, rendue par plages (RemoteRangePDFProvider),
+    /// sans télécharger tout le fichier.
+    nonisolated static func generatePDFThumbnail(remote: String, entry: RemoteEntryDTO) async -> CGImageBox? {
+        let box: CGImageBox?? = await RemoteRangeReader.withSession(
+            remote: remote, path: entry.pathInRemote
+        ) { source in
+            let total = await source.size() ?? entry.size
+            guard total > 0,
+                  let render = await RemoteRangePDFProvider.render(
+                      source: source, totalSize: total, maxPixel: maxPixel
+                  ) else { return CGImageBox?.none }
+            return render.firstPage
+        }
+        return box ?? nil
     }
 
     nonisolated static func generateImageThumbnail(remote: String, entry: RemoteEntryDTO) async -> CGImageBox? {

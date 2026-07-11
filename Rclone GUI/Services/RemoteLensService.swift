@@ -115,15 +115,12 @@ public actor RemoteLensService {
 
         let result: RemoteLensPreview?
         if MediaFormat.isPDF(entry.name) {
-            // Chemin PDF branché en PR3 (RemoteRangePDFProvider).
-            result = RemoteLensPreview(kind: .pdf, pdf: RemotePDFMetadata(
-                pageCount: nil, title: nil, author: nil, firstPageAvailable: false
-            ))
+            result = await Self.buildPDFPreview(remote: remote, entry: entry)
         } else {
             result = await Self.buildImagePreview(remote: remote, entry: entry)
         }
 
-        if let result, result.thumbnail != nil || result.image != nil {
+        if let result, result.thumbnail != nil || result.image != nil || result.pdf != nil {
             store(result, key: key)
         }
         return result
@@ -183,6 +180,40 @@ public actor RemoteLensService {
 
         // withSession renvoie nil si le bridge est indisponible.
         return built ?? RemoteLensPreview(kind: .image,
+                                          note: String(localized: "Aperçu indisponible (pont hors ligne)."))
+    }
+
+    // MARK: - PDF (hors acteur)
+
+    nonisolated static func buildPDFPreview(remote: String, entry: RemoteEntryDTO) async -> RemoteLensPreview? {
+        let built: RemoteLensPreview? = await RemoteRangeReader.withSession(
+            remote: remote, path: entry.pathInRemote
+        ) { source in
+            let total = await source.size() ?? entry.size
+            guard total > 0 else {
+                return RemoteLensPreview(kind: .pdf,
+                                         note: String(localized: "Aperçu indisponible."))
+            }
+            guard let render = await RemoteRangePDFProvider.render(source: source, totalSize: total) else {
+                return RemoteLensPreview(
+                    kind: .pdf,
+                    pdf: RemotePDFMetadata(pageCount: nil, title: nil, author: nil, firstPageAvailable: false),
+                    note: String(localized: "Aperçu PDF indisponible.")
+                )
+            }
+            let box = render.firstPage
+            persistThumbnail(box, remote: remote, entry: entry)
+            return RemoteLensPreview(
+                kind: .pdf,
+                thumbnail: box,
+                pdf: RemotePDFMetadata(
+                    pageCount: render.pageCount, title: nil, author: nil,
+                    firstPageAvailable: box != nil
+                ),
+                note: box == nil ? String(localized: "Première page non rendue.") : nil
+            )
+        }
+        return built ?? RemoteLensPreview(kind: .pdf,
                                           note: String(localized: "Aperçu indisponible (pont hors ligne)."))
     }
 
