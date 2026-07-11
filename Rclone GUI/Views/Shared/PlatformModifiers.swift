@@ -44,6 +44,18 @@ extension View {
         #endif
     }
 
+    /// `presentationDetents([.medium, .large])` on iOS, no-op on macOS (modal
+    /// windows have no detents). Never call `.presentationDetents` unguarded —
+    /// it is iOS-only and breaks the macOS build.
+    @ViewBuilder
+    func rgMediumDetents() -> some View {
+        #if os(iOS)
+        self.presentationDetents([.medium, .large])
+        #else
+        self
+        #endif
+    }
+
     /// `fullScreenCover(item:)` on iOS (unavailable on macOS); falls back to a
     /// `sheet(item:)` on macOS, where modal windows are the native equivalent.
     @ViewBuilder

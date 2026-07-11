@@ -20,6 +20,7 @@ struct RoadmapView: View {
         let id = UUID()
         let name: LocalizedStringKey
         let date: String   // locale-neutral, e.g. "07/2026", "Q1 2027"
+        var done: Bool = false
     }
 
     var body: some View {
@@ -38,7 +39,7 @@ struct RoadmapView: View {
                 Item(name: "Glass Engine", date: "09/2026"),
             ])
             horizon(label: "Moyen terme", window: "10–12 / 2026", tint: .blue, items: [
-                Item(name: "Remote Lens", date: "10/2026"),
+                Item(name: "Remote Lens", date: "10/2026", done: true),
                 Item(name: "Sealed Share", date: "10/2026"),
                 Item(name: "Recherche sémantique on-device", date: "11/2026"),
                 Item(name: "Règles de sync", date: "11/2026"),
@@ -73,12 +74,19 @@ struct RoadmapView: View {
         Section {
             ForEach(items) { it in
                 HStack(spacing: 10) {
-                    Text(it.name).font(.callout)
+                    if it.done {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.green)
+                    }
+                    Text(it.name)
+                        .font(.callout)
+                        .foregroundStyle(it.done ? .secondary : .primary)
                     Spacer(minLength: 8)
-                    Text(it.date)
+                    Text(it.done ? String(localized: "Livré") : it.date)
                         .font(.caption.weight(.semibold))
                         .monospacedDigit()
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(it.done ? .green : .secondary)
                 }
             }
         } header: {

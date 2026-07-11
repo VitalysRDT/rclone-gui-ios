@@ -32,6 +32,7 @@ struct EntryActionsMenu: View {
     @Binding var moveTarget: RemoteEntryDTO?
     @Binding var downloadTarget: RemoteEntryDTO?
     @Binding var externalOpenTarget: RemoteEntryDTO?
+    @Binding var lensTarget: RemoteEntryDTO?
 
     var body: some View {
         Group {
@@ -45,6 +46,16 @@ struct EntryActionsMenu: View {
                 } label: {
                     Label(Self.isMediaFile(entry.name) ? "Lire dans l'app" : "Ouvrir dans l'app",
                           systemImage: Self.isMediaFile(entry.name) ? "play.circle" : "doc.viewfinder")
+                }
+
+                // Aperçu « Remote Lens » : vignette + EXIF / 1re page PDF, lus
+                // par range requests sans télécharger tout le fichier.
+                if MediaFormat.hasLens(entry.name) {
+                    Button {
+                        lensTarget = entry
+                    } label: {
+                        Label("Aperçu", systemImage: "eye")
+                    }
                 }
 
                 Button {
