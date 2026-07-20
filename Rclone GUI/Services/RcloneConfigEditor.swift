@@ -10,8 +10,15 @@
 import Foundation
 
 enum RcloneConfigEditor {
+    struct RemoteConfigSnapshot: Sendable, Equatable {
+        let name: String
+        let type: String
+        let options: [String: String]
+    }
+
     enum ConfigError: LocalizedError, Equatable {
         case duplicateRemote(String)
+        case remoteNotFound(String)
         case invalidRemoteName
         case invalidType
         case invalidOptionKey(String)
@@ -21,6 +28,8 @@ enum RcloneConfigEditor {
             switch self {
             case .duplicateRemote(let name):
                 return String(localized: "Le remote « \(name) » existe déjà.")
+            case .remoteNotFound(let name):
+                return String(localized: "Le remote « \(name) » n’existe plus.")
             case .invalidRemoteName:
                 return String(localized: "Choisis un nom de remote sans :, [, ], / ni retour à la ligne.")
             case .invalidType:
@@ -53,6 +62,93 @@ enum RcloneConfigEditor {
         )
         try await ConfigStore.shared.save(Data(updatedText.utf8))
         try await ConfigStore.shared.migrateMasterKeyToSharedAccessGroupIfNeeded()
+        await refreshRuntimeAndNotify()
+    }
+
+    /// Reads one remote section from the decrypted config without exposing
+    /// the result to logs or UI. Sensitive values are returned only so the
+    /// edit flow can distinguish an existing secret from a missing one.
+    static func remoteConfig(named name: String) async throws -> RemoteConfigSnapshot? {
+        guard let data = try await ConfigStore.shared.load() else { return nil }
+        guard let text = String(data: data, encoding: .utf8) else {
+            throw ConfigError.invalidUTF8
+        }
+        return remoteConfig(in: text, named: name)
+    }
+
+    static func remoteConfig(in text: String, named rawName: String) -> RemoteConfigSnapshot? {
+        let target = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !target.isEmpty else { return nil }
+
+        var currentName: String?
+        var currentType = "unknown"
+        var currentOptions: [String: String] = [:]
+        var found: RemoteConfigSnapshot?
+
+        func flush() {
+            guard found == nil, currentName == target else { return }
+            found = RemoteConfigSnapshot(
+                name: target,
+                type: currentType,
+                options: currentOptions
+            )
+        }
+
+        for rawLine in text.split(separator: "\n", omittingEmptySubsequences: false) {
+            let line = rawLine.trimmingCharacters(in: .whitespaces)
+            if line.hasPrefix("["), let close = line.firstIndex(of: "]"), close > line.startIndex {
+                flush()
+                currentName = String(line[line.index(after: line.startIndex)..<close])
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                currentType = "unknown"
+                currentOptions = [:]
+                continue
+            }
+
+            guard currentName == target,
+                  !line.isEmpty,
+                  !line.hasPrefix("#"),
+                  !line.hasPrefix(";"),
+                  let equal = line.firstIndex(of: "=") else { continue }
+            let key = line[..<equal].trimmingCharacters(in: .whitespaces)
+            let value = line[line.index(after: equal)...].trimmingCharacters(in: .whitespaces)
+            if key == "type" {
+                currentType = value
+            } else if !key.isEmpty {
+                currentOptions[String(key)] = String(value)
+            }
+        }
+        flush()
+        return found
+    }
+
+    /// Updates an existing remote through rclone's native config/update RPC.
+    /// Empty values are omitted so existing secrets (passwords or tokens) stay
+    /// intact until the user explicitly enters a replacement. rclone handles
+    /// password obfuscation and any backend-specific update questions.
+    @MainActor
+    static func updateRemote(
+        name: String,
+        type: String,
+        options: [String: String],
+        obscure: Bool,
+        ask: @escaping (_ option: RcloneOptionSchema, _ lastError: String?) async -> String?
+    ) async throws {
+        let parameters = try normalizedOptions(options).reduce(into: [String: String]()) { result, item in
+            result[item.key] = item.value
+        }
+        let flow = ConfigCreateFlow(rpc: { method, input in
+            try await RcloneCore.shared.rpc(method, input: input)
+        })
+        try await flow.run(
+            name: name,
+            type: type,
+            parameters: parameters,
+            obscure: obscure,
+            initialMethod: "config/update",
+            ask: ask
+        )
+        try await ConfigStore.shared.persistRuntimeConfigToStore()
         await refreshRuntimeAndNotify()
     }
 

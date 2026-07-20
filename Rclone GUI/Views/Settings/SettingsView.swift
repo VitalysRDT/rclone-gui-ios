@@ -41,6 +41,17 @@ struct SettingsView: View {
                 }
                 .buttonStyle(.plain)
 
+                NavigationLink {
+                    RemoteManagementView()
+                } label: {
+                    SettingsNavigationRow(
+                        icon: "slider.horizontal.3",
+                        title: "Gérer les remotes",
+                        subtitle: "Modifier les paramètres ou réautoriser un token",
+                        tint: .indigo
+                    )
+                }
+
                 Button {
                     showImport = true
                 } label: {
@@ -121,6 +132,7 @@ struct SettingsView: View {
                         tint: .purple
                     )
                 }
+
             }
 
             Section("Stockage") {

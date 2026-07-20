@@ -24,7 +24,7 @@ import UniformTypeIdentifiers
 
 // MARK: - DTO
 
-public struct RemoteImageMetadata: Sendable, Hashable {
+public nonisolated struct RemoteImageMetadata: Sendable, Hashable {
     public let pixelWidth: Int?
     public let pixelHeight: Int?
     public let cameraMake: String?
@@ -46,20 +46,20 @@ public struct RemoteImageMetadata: Sendable, Hashable {
     }
 }
 
-public struct RemotePDFMetadata: Sendable, Hashable {
+public nonisolated struct RemotePDFMetadata: Sendable, Hashable {
     public let pageCount: Int?
     public let title: String?
     public let author: String?
     public let firstPageAvailable: Bool
 }
 
-public enum RemoteLensKind: Sendable, Equatable {
+public nonisolated enum RemoteLensKind: Sendable, Equatable {
     case image
     case pdf
     case unsupported
 }
 
-public struct RemoteLensPreview: Sendable {
+public nonisolated struct RemoteLensPreview: Sendable {
     public let kind: RemoteLensKind
     public let thumbnail: CGImageBox?
     public let image: RemoteImageMetadata?

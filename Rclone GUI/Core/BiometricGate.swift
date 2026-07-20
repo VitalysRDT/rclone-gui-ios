@@ -43,7 +43,7 @@ public enum BiometricReason: Sendable {
     }
 }
 
-public enum BiometricResult: Sendable, Equatable {
+public nonisolated enum BiometricResult: Sendable, Equatable {
     case authenticated
     case userCancelled
     case fallback

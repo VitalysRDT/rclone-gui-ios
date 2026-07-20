@@ -53,6 +53,24 @@ public actor RemoteService {
 
     private init() {}
 
+    /// Whether rclone reports the backend PublicLink capability used by
+    /// operations/publiclink. Wrapper remotes may forward this feature.
+    public func supportsPublicLink(remote: String) async -> Bool {
+        struct Input: Encodable { let fs: String }
+        struct Output: Decodable {
+            let features: Features?
+            struct Features: Decodable {
+                let publicLink: Bool?
+                enum CodingKeys: String, CodingKey { case publicLink = "PublicLink" }
+            }
+            enum CodingKeys: String, CodingKey { case features = "Features" }
+        }
+        do {
+            let output: Output = try await RcloneCore.shared.rpc("operations/fsinfo", input: Input(fs: "\(remote):"))
+            return output.features?.publicLink == true
+        } catch { return false }
+    }
+
     // Cache + inflight dedup pour operations/about. Sans ça, chaque
     // déclencheur de FilesRootView.load() (boot .task, .onReceive
     // rcloneConfigurationDidChange, scenePhase, refreshable…) relançait

@@ -126,6 +126,26 @@ struct ConfigCreateFlowTests {
         #expect(await asks.questions.isEmpty)
     }
 
+    @Test("Existing remote starts with config/update")
+    func updatesExistingRemote() async throws {
+        let rpc = ScriptedRPC(script: [doneResponse])
+        let asks = AskRecorder(answers: [])
+
+        try await makeFlow(rpc).run(
+            name: "drive", type: "drive",
+            parameters: ["scope": "drive"],
+            obscure: false,
+            initialMethod: "config/update",
+            ask: { option, lastError in await asks.answer(option, lastError) }
+        )
+
+        let calls = await rpc.calls
+        #expect(calls.count == 1)
+        #expect(calls[0].method == "config/update")
+        #expect(calls[0].input.name == "drive")
+        #expect(calls[0].input.parameters["scope"] == "drive")
+    }
+
     @Test("iCloud Drive : question config_2fa répondue via config/update continue")
     func answersTwoFactorQuestion() async throws {
         let rpc = ScriptedRPC(script: [

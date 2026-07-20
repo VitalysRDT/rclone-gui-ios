@@ -220,10 +220,10 @@ struct RecapAndTestView: View {
                 if isFinalizing {
                     HStack {
                         ProgressView()
-                        Text("Création…")
+                        Text(state.isEditing ? "Enregistrement…" : "Création…")
                     }
                 } else {
-                    Text("Créer le remote")
+                    Text(state.isEditing ? "Enregistrer les modifications" : "Créer le remote")
                         .frame(maxWidth: .infinity)
                 }
             }
@@ -231,7 +231,9 @@ struct RecapAndTestView: View {
             .disabled(!canFinalize)
         } footer: {
             if !canFinalize {
-                Text("Le remote sera créé après un test réussi. Si le test échoue de manière connue, tu peux quand même créer le remote.")
+                Text(state.isEditing
+                     ? "Applique d’abord les modifications et teste la connexion."
+                     : "Le remote sera créé après un test réussi. Si le test échoue de manière connue, tu peux quand même créer le remote.")
                     .font(.caption2)
             }
         }
@@ -241,6 +243,9 @@ struct RecapAndTestView: View {
 
     private var canFinalize: Bool {
         guard !isFinalizing else { return false }
+        if state.isEditing && !state.configurationWasApplied {
+            return false
+        }
         switch state.testResult {
         case .success, .failure, .timeout:
             // .failure and .timeout still allow creation (force-create)
@@ -280,8 +285,13 @@ struct RecapAndTestView: View {
 
         // 1. Pre-create the remote in rclone.conf so operations/list works.
         do {
-            try await callConfigCreate(backend: backend)
-            state.remoteWasPreCreated = true
+            if state.isEditing {
+                try await updateExistingRemote(backend: backend)
+                state.configurationWasApplied = true
+            } else {
+                try await callConfigCreate(backend: backend)
+                state.remoteWasPreCreated = true
+            }
         } catch {
             state.testResult = .failure(message: error.localizedDescription)
             return
@@ -382,6 +392,25 @@ struct RecapAndTestView: View {
         await RcloneCore.shared.invalidateConfigCache()
     }
 
+    private func updateExistingRemote(backend: BackendSchema) async throws {
+        var params: [String: String] = [:]
+        for (key, value) in state.fieldValues {
+            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { continue }
+            params[key] = trimmed
+        }
+        let passwordFieldNames = Set(backend.fields.filter(\.isPassword).map(\.name))
+        try await RcloneConfigEditor.updateRemote(
+            name: state.name,
+            type: backend.name,
+            options: params,
+            obscure: params.keys.contains { passwordFieldNames.contains($0) },
+            ask: { option, lastError in
+                await askQuestion(option, lastError: lastError)
+            }
+        )
+    }
+
     /// Suspends the ConfigCreateFlow loop while the alert collects the
     /// user's answer to a post-config question (nil = cancelled).
     private func askQuestion(_ option: RcloneOptionSchema, lastError: String?) async -> String? {
@@ -409,6 +438,16 @@ struct RecapAndTestView: View {
     private func finalizeCreation() async {
         isFinalizing = true
         defer { isFinalizing = false }
+
+        if state.isEditing {
+            await LogService.shared.log(
+                .info,
+                category: "wizard",
+                message: "Remote « \(state.name) » modifié via wizard"
+            )
+            onCreated()
+            return
+        }
 
         // If the test ran, the remote is already in rclone.conf via
         // librclone's own write. We still need to sync ConfigStore
