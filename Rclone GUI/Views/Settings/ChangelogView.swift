@@ -79,6 +79,19 @@ struct ChangelogView: View {
     // Historique aligné sur rclone.rougetet.com (le plus récent en premier).
     private static let releases: [Release] = [
         Release(
+            version: "2.1", dateFR: "Juillet 2026", dateEN: "July 2026",
+            itemsFR: [
+                "Modifier un remote : un nouvel écran « Gérer les remotes » (Réglages) permet de corriger un réglage ou de réautoriser un compte OAuth expiré sans tout recréer — vos mots de passe et jetons existants restent masqués.",
+                "Remote Lens : jetez un œil à un fichier distant sans le télécharger — aperçu d'image avec ses données EXIF, et première page des PDF, récupérés par lecture partielle.",
+                "Suppression réparée : supprimer un fichier ou un dossier, ou le mettre à la corbeille, fonctionne à nouveau — l'action restait sans effet.",
+            ],
+            itemsEN: [
+                "Edit a remote: a new \"Manage remotes\" screen (Settings) lets you fix a setting or re-authorize an expired OAuth account without recreating everything — your existing passwords and tokens stay hidden.",
+                "Remote Lens: peek at a remote file without downloading it — image preview with its EXIF data, and PDF first page, fetched through partial reads.",
+                "Deletion fixed: deleting a file or folder, or moving it to the trash, works again — the action silently did nothing.",
+            ]
+        ),
+        Release(
             version: "2.0", dateFR: "Juillet 2026", dateEN: "July 2026",
             itemsFR: [
                 "Transparence « 0 appel maison » : un nouvel écran (Réglages → Transparence) prouve en direct que l'app ne contacte aucun serveur maison — et le binaire natif rclone est désormais reproductible et vérifiable par un tiers.",
