@@ -83,7 +83,7 @@ public actor HandoffSendService {
             sizeBytes: plaintext.count,
             remoteCount: remoteSummaries.count,
             createdAt: Date(),
-            deviceName: GhostVault.currentDeviceName(),
+            deviceName: await GhostVault.currentDeviceName(),
             rcloneVersion: "rclone-gui-handoff-v1"
         )
         let envelope = try GhostVault.seal(

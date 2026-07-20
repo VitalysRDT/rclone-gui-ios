@@ -157,6 +157,26 @@ struct RcloneConfigEditorTests {
             )
         }
     }
+
+    @Test("Reads editable values without exposing section headers as options")
+    func readsRemoteSnapshot() {
+        let conf = """
+        [drive]
+        type = drive
+        scope = drive
+        token = {\"access_token\":\"secret\"}
+
+        [s3]
+        type = s3
+        provider = AWS
+        """
+
+        let snapshot = RcloneConfigEditor.remoteConfig(in: conf, named: "drive")
+        #expect(snapshot?.type == "drive")
+        #expect(snapshot?.options["scope"] == "drive")
+        #expect(snapshot?.options["token"] == "{\"access_token\":\"secret\"}")
+        #expect(snapshot?.options["provider"] == nil)
+    }
 }
 
 // MARK: - Saved locations

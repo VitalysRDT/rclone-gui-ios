@@ -98,7 +98,7 @@ nonisolated final class RangeBackedPDFReader: @unchecked Sendable {
 }
 
 /// Transporte le résultat d'une lecture async vers le thread synchrone.
-private final class ByteResultBox: @unchecked Sendable {
+private nonisolated final class ByteResultBox: @unchecked Sendable {
     var data: Data?
 }
 

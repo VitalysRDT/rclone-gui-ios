@@ -86,7 +86,7 @@ public actor GhostVaultService {
             sizeBytes: plaintext.count,
             remoteCount: remoteSummaries.count,
             createdAt: Date(),
-            deviceName: GhostVault.currentDeviceName(),
+            deviceName: await GhostVault.currentDeviceName(),
             rcloneVersion: rcloneVersion
         )
         let envelope = try GhostVault.seal(

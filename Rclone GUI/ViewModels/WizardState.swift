@@ -50,6 +50,10 @@ final class WizardState {
     var existingRemoteNames: Set<String> = []
     var searchQuery: String = ""
 
+    /// When set, this wizard updates the existing section instead of creating
+    /// a new one. The remote name stays fixed during an edit.
+    var isEditing: Bool = false
+
     // MARK: - Step 2 — Form
 
     /// Live form values keyed by FieldSpec.name. Initialized from
@@ -89,6 +93,9 @@ final class WizardState {
 
     var testResult: TestResult = .notTested
     var configCreateError: String?
+    /// For edits, true once config/update completed. A connection failure can
+    /// still be force-accepted after that point; an update failure cannot.
+    var configurationWasApplied: Bool = false
 
     /// Set to `true` once `config/create` has actually written the
     /// remote section to rclone.conf — used so that "Annuler" later
@@ -121,6 +128,11 @@ final class WizardState {
         for field in backend.requiredVisibleFields(for: providerValue) {
             let value = fieldValues[field.name] ?? ""
             if value.trimmingCharacters(in: .whitespaces).isEmpty {
+                // Existing credentials are deliberately not loaded into the
+                // form. A blank secure field means "keep the stored value".
+                if isEditing && (field.sensitive || field.isPassword) {
+                    continue
+                }
                 return false
             }
         }
@@ -218,5 +230,31 @@ final class WizardState {
             values[field.name] = field.defaultStr
         }
         fieldValues = values
+    }
+
+    /// Prepares the graphical form from an existing remote. Non-sensitive
+    /// values are editable; secrets stay blank so they cannot be displayed or
+    /// accidentally copied back into the config in an altered form.
+    func prepareForEditing(
+        name: String,
+        backend: BackendSchema,
+        existingOptions: [String: String]
+    ) {
+        self.name = name
+        self.selectedBackend = backend
+        self.isEditing = true
+
+        var values: [String: String] = [:]
+        for field in backend.fields {
+            guard !field.sensitive, !field.isPassword else { continue }
+            if let existing = existingOptions[field.name], !existing.isEmpty {
+                values[field.name] = existing
+            } else if !field.defaultStr.isEmpty {
+                values[field.name] = field.defaultStr
+            }
+        }
+        fieldValues = values
+        oauthCompleted = !backend.requiresOAuth
+        step = .formFields
     }
 }

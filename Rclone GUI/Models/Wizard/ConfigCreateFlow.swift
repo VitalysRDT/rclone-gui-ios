@@ -52,10 +52,11 @@ struct ConfigCreateFlow {
     /// stay well below this).
     static let maxQuestions = 8
 
-    /// Runs `config/create` then answers every follow-up question rclone
-    /// asks, via `ask`. `ask` receives the option describing the question
-    /// plus the soft error rclone attached to the retry (nil on the first
-    /// attempt); returning `nil` cancels the flow.
+    /// Runs `config/create` (or `config/update` for an existing remote) then
+    /// answers every follow-up question rclone asks, via `ask`. `ask` receives
+    /// the option describing the question plus the soft error rclone attached
+    /// to the retry (nil on the first attempt); returning `nil` cancels the
+    /// flow.
     ///
     /// `onRemoteWritten` fires right after the first successful RPC — from
     /// that point a (possibly partial) section exists in rclone.conf, so
@@ -65,10 +66,11 @@ struct ConfigCreateFlow {
         type: String,
         parameters: [String: String],
         obscure: Bool,
+        initialMethod: String = "config/create",
         onRemoteWritten: () async -> Void = {},
         ask: (_ option: RcloneOptionSchema, _ lastError: String?) async -> String?
     ) async throws {
-        var response = try await rpc("config/create", ConfigCreateInput(
+        var response = try await rpc(initialMethod, ConfigCreateInput(
             name: name,
             type: type,
             parameters: parameters,

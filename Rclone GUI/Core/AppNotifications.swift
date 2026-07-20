@@ -9,6 +9,6 @@
 import Foundation
 
 extension Notification.Name {
-    static let rcloneConfigurationDidChange = Notification.Name("com.rougetet.rclone-gui.configuration-did-change")
-    static let ghostVaultDidChange = Notification.Name("com.rougetet.rclone-gui.ghost-vault-did-change")
+    nonisolated static let rcloneConfigurationDidChange = Notification.Name("com.rougetet.rclone-gui.configuration-did-change")
+    nonisolated static let ghostVaultDidChange = Notification.Name("com.rougetet.rclone-gui.ghost-vault-did-change")
 }

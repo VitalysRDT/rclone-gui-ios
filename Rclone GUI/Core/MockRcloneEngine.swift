@@ -115,7 +115,7 @@ public struct MockRcloneEngine: RcloneEngine {
 
     // MARK: - INI parser (rclone.conf is INI with `key = value` lines)
 
-    static func parseRcloneConf(_ data: Data) -> [(name: String, type: String)] {
+    nonisolated static func parseRcloneConf(_ data: Data) -> [(name: String, type: String)] {
         guard let text = String(data: data, encoding: .utf8) else { return [] }
 
         var result: [(name: String, type: String)] = []

@@ -23,14 +23,40 @@ import SwiftUI
 struct AddRemoteWizard: View {
 
     let onSaved: () -> Void
+    let editingRemoteName: String?
 
     @Environment(\.dismiss) private var dismiss
     @State private var state = WizardState()
+    @State private var editingError: String?
+
+    init(editingRemoteName: String? = nil, onSaved: @escaping () -> Void) {
+        self.editingRemoteName = editingRemoteName
+        self.onSaved = onSaved
+    }
 
     var body: some View {
         NavigationStack {
-            currentStepView
-                .navigationTitle(navigationTitle)
+            Group {
+                if editingRemoteName != nil, let editingError {
+                    VStack(spacing: 12) {
+                        Label("Impossible de charger le remote", systemImage: "exclamationmark.triangle.fill")
+                            .font(.headline)
+                            .foregroundStyle(.red)
+                        Text(editingError)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                        Button("Fermer") { dismiss() }
+                            .buttonStyle(.borderedProminent)
+                    }
+                    .padding()
+                } else if editingRemoteName != nil, !state.isEditing {
+                    ProgressView("Chargement du remote…")
+                } else {
+                    currentStepView
+                }
+            }
+            .navigationTitle(navigationTitle)
                 #if os(iOS)
                 .rgInlineNavTitle()
                 #endif
@@ -54,7 +80,7 @@ struct AddRemoteWizard: View {
                     }
                 }
         }
-        .task { await loadExistingRemoteNames() }
+        .task { await prepareWizard() }
     }
 
     // MARK: - Step routing
@@ -78,6 +104,9 @@ struct AddRemoteWizard: View {
     }
 
     private var navigationTitle: String {
+        if let editingRemoteName, state.isEditing {
+            return String(localized: "Modifier \(editingRemoteName)")
+        }
         switch state.step {
         case .nameAndBackend: return String(localized: "Nouveau remote")
         case .formFields:     return state.selectedBackend?.displayName ?? String(localized: "Configuration")
@@ -90,11 +119,29 @@ struct AddRemoteWizard: View {
 
     // MARK: - Lifecycle
 
-    private func loadExistingRemoteNames() async {
+    private func prepareWizard() async {
         do {
             let names = try await RcloneCore.shared.listRemoteNames()
             state.existingRemoteNames = Set(names)
+
+            if let editingRemoteName {
+                guard let snapshot = try await RcloneConfigEditor.remoteConfig(named: editingRemoteName) else {
+                    throw RcloneConfigEditor.ConfigError.remoteNotFound(editingRemoteName)
+                }
+                guard let backend = try await RemoteCatalogService.shared.backend(named: snapshot.type) else {
+                    throw RcloneConfigEditor.ConfigError.invalidType
+                }
+                state.prepareForEditing(
+                    name: snapshot.name,
+                    backend: backend,
+                    existingOptions: snapshot.options
+                )
+            }
         } catch {
+            if editingRemoteName != nil {
+                editingError = error.localizedDescription
+                return
+            }
             // Non-fatal — the user will still be blocked by config/create
             // if they pick a duplicate name. Log for diagnostics.
             await LogService.shared.log(

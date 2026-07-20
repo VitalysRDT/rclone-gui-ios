@@ -48,7 +48,7 @@ import CryptoKit
 
 // MARK: - Public types
 
-public struct GhostVaultEnvelope: Codable, Sendable, Equatable {
+public nonisolated struct GhostVaultEnvelope: Codable, Sendable, Equatable {
     public let v: Int
     public let kdf: String
     public let kdfIters: Int
@@ -79,7 +79,7 @@ public struct GhostVaultEnvelope: Codable, Sendable, Equatable {
 }
 
 /// Métadonnées publiques (visibles avant déchiffrement).
-public struct GhostVaultMeta: Codable, Sendable, Equatable {
+public nonisolated struct GhostVaultMeta: Codable, Sendable, Equatable {
     public let sizeBytes: Int
     public let remoteCount: Int
     public let createdAt: Date
@@ -96,7 +96,7 @@ public struct GhostVaultMeta: Codable, Sendable, Equatable {
 }
 
 /// Payload interne (uniquement visible après déchiffrement).
-private struct GhostVaultPayload: Codable, Sendable {
+private nonisolated struct GhostVaultPayload: Codable, Sendable {
     let confB64: String
     let deviceID: String
     let formatNote: String
@@ -108,7 +108,7 @@ private struct GhostVaultPayload: Codable, Sendable {
     }
 }
 
-public enum GhostVaultError: Error, LocalizedError, Sendable {
+public nonisolated enum GhostVaultError: Error, LocalizedError, Sendable {
     case passphraseTooShort(Int)
     case invalidEnvelope(String)
     case unsupportedVersion(Int)
@@ -178,16 +178,21 @@ public enum GhostVault {
     }
 
     /// Nom de l'appareil (best-effort, jamais bloquant).
-    public nonisolated static func currentDeviceName() -> String {
+    ///
+    /// `UIDevice` est isolé au `MainActor` : on saute explicitement sur le main
+    /// plutôt que d'assumer l'isolation, car les appelants sont des acteurs de
+    /// service (`GhostVaultService`, `HandoffSendService`) qui tournent hors du
+    /// main — un `assumeIsolated` y planterait.
+    public nonisolated static func currentDeviceName() async -> String {
         #if os(iOS)
-        return UIDevice.current.name
+        return await MainActor.run { UIDevice.current.name }
         #else
         return Host.current().localizedName ?? "Mac"
         #endif
     }
 
     /// Dérive une clé ChaChaPoly 256-bit depuis une passphrase + sel via PBKDF2-SHA256.
-    static func deriveKey(passphrase: String, salt: Data, iterations: Int) throws -> SymmetricKey {
+    nonisolated static func deriveKey(passphrase: String, salt: Data, iterations: Int) throws -> SymmetricKey {
         guard let pwData = passphrase.data(using: .utf8) else {
             throw GhostVaultError.invalidEnvelope("passphrase non UTF-8")
         }
@@ -327,14 +332,15 @@ public enum GhostVault {
     }
 
     /// Identifiant device-stable (pas d'IDFA, pas de vendor ID réinitialisable).
-    /// On utilise l'identifierForVendor iOS ou un UUID stocké en Keychain sur
-    /// macOS ; l'identifiant n'est PAS exposé à l'utilisateur et sert uniquement
-    /// à aider l'utilisateur à reconnaître ses propres vaults dans la liste.
-    private static func stableDeviceIdentifier() -> String {
-        #if os(iOS)
-        let raw = UIDevice.current.identifierForVendor?.uuidString ?? UUID().uuidString
-        return raw
-        #else
+    /// UUID stocké en Keychain sur toutes les plateformes ; l'identifiant n'est
+    /// PAS exposé à l'utilisateur et sert uniquement à aider l'utilisateur à
+    /// reconnaître ses propres vaults dans la liste.
+    ///
+    /// iOS utilisait `identifierForVendor`, ce que le contrat ci-dessus
+    /// interdit (il est remis à zéro à la désinstallation) et que l'isolation
+    /// rend impossible ici : `UIDevice` est `MainActor` alors que `seal(...)`
+    /// doit rester synchrone et nonisolated. Le Keychain règle les deux.
+    private nonisolated static func stableDeviceIdentifier() -> String {
         let key = "com.rougetet.rclone-gui.device-id"
         if let existing = try? Keychain.readString(service: key, account: "device"), !existing.isEmpty {
             return existing
@@ -342,16 +348,14 @@ public enum GhostVault {
         let new = UUID().uuidString
         try? Keychain.writeString(new, service: key, account: "device")
         return new
-        #endif
     }
 }
 
-// MARK: - Keychain helper (macOS only)
+// MARK: - Keychain helper
 
-#if os(macOS)
-private enum Keychain {
+private nonisolated enum Keychain {
     static func readString(service: String, account: String) throws -> String? {
-        var query: [String: Any] = [
+        let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
@@ -384,7 +388,6 @@ private enum Keychain {
         }
     }
 }
-#endif
 
 #if canImport(UIKit)
 import UIKit
