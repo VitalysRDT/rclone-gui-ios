@@ -721,7 +721,7 @@ const Hero = () => {
     <section className="hero" id="top">
       <div className="wrap">
         <img className="icon" src="icon.png" alt="Rclone GUI"/>
-        <div><span className="pill"><Icon name="bolt.fill" size={14}/>{t('v2.0 · ESSAI GRATUIT','v2.0 · FREE TRIAL')}</span></div>
+        <div><span className="pill"><Icon name="bolt.fill" size={14}/>{t('v2.1 · ESSAI GRATUIT','v2.1 · FREE TRIAL')}</span></div>
         <h1 className="title">{ML(t('Tous vos clouds.\nChiffrés.','Every cloud.\nEncrypted.'))}</h1>
         <p className="sub">{t('Parcourez 80+ services cloud — y compris vos remotes rclone chiffrés — directement dans Fichiers. iPhone, iPad & Mac.','Browse 80+ cloud services — including your encrypted rclone crypt remotes — right inside Files. iPhone, iPad & Mac.')}</p>
         <div className="cta-row">
@@ -999,7 +999,12 @@ const FreeMonth = () => {
 };
 
 const VERSIONS = [
-  { v:'2.0', current:true, date:{ fr:'Juillet 2026', en:'July 2026' }, items:[
+  { v:'2.1', current:true, date:{ fr:'Juillet 2026', en:'July 2026' }, items:[
+    { fr:'Modifier un remote : un nouvel écran « Gérer les remotes » (Réglages) permet de corriger un réglage ou de réautoriser un compte OAuth expiré sans tout recréer — vos mots de passe et jetons existants restent masqués.', en:'Edit a remote: a new "Manage remotes" screen (Settings) lets you fix a setting or re-authorize an expired OAuth account without recreating everything — your existing passwords and tokens stay hidden.' },
+    { fr:'Remote Lens : jetez un œil à un fichier distant sans le télécharger — aperçu d\'image avec ses données EXIF, et première page des PDF, récupérés par lecture partielle.', en:'Remote Lens: peek at a remote file without downloading it — image preview with its EXIF data, and PDF first page, fetched through partial reads.' },
+    { fr:'Suppression réparée : supprimer un fichier ou un dossier, ou le mettre à la corbeille, fonctionne à nouveau — l\'action restait sans effet.', en:'Deletion fixed: deleting a file or folder, or moving it to the trash, works again — the action silently did nothing.' },
+  ] },
+  { v:'2.0', date:{ fr:'Juillet 2026', en:'July 2026' }, items:[
     { fr:'Transparence « 0 appel maison » : un nouvel écran (Réglages → Transparence) prouve en direct que l\'app ne contacte aucun serveur maison — et le binaire natif rclone est désormais reproductible et vérifiable par un tiers.', en:'Transparency, zero phone-home: a new screen (Settings → Transparency) proves live that the app contacts no home server — and the native rclone binary is now reproducible and independently verifiable.' },
     { fr:'Handoff : transférez votre configuration chiffrée d\'un appareil à l\'autre par QR code, AirDrop ou fichier.', en:'Handoff: move your encrypted configuration between devices via QR code, AirDrop or file.' },
     { fr:'Ghost Vault : sauvegarde chiffrée de votre configuration rclone dans l\'un de vos propres remotes.', en:'Ghost Vault: encrypted backup of your rclone configuration into one of your own remotes.' },

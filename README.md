@@ -39,6 +39,10 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for tests and guidelines.
 The full changelog lives at [rclone.rougetet.com/#versions](https://rclone.rougetet.com/#versions)
 and in-app under **Settings → Version history**.
 
+- **2.1** — Edit a remote: a new “Manage remotes” screen to fix a setting or re-authorize
+  an expired OAuth account without recreating everything (existing secrets stay hidden).
+  Plus Remote Lens (preview a remote file — image EXIF, PDF first page — via partial reads)
+  and a fix for deletion/trash silently doing nothing.
 - **2.0** — Transparency, zero phone-home: a live in-app monitor + a reproducible,
   independently verifiable native build. Plus Handoff (transfer your encrypted config
   between devices via QR/AirDrop/file), Ghost Vault (encrypted config backup to a remote),
