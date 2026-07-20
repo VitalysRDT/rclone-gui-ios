@@ -1,2 +1,4 @@
-Novità della versione 1.9.2:
-- Avanzamento del download delle cartelle: la barra di avanzamento viene finalmente mostrata (la dimensione della cartella viene precalcolata prima del trasferimento).
+Novità della versione 2.1:
+- Modificare un remoto: una nuova schermata «Gestisci remoti» consente di correggere un'impostazione o riautorizzare un account OAuth scaduto senza ricreare tutto — le password e i token esistenti restano nascosti.
+- Remote Lens: dai un'occhiata a un file remoto senza scaricarlo — anteprima dell'immagine con i suoi dati EXIF e prima pagina dei PDF.
+- Eliminazione riparata: eliminare un file o una cartella, o spostarlo nel cestino, funziona di nuovo.
