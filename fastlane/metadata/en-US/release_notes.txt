@@ -1,6 +1,4 @@
-What's new in 2.0:
-- Transparency, zero phone-home: a new screen proves live that the app contacts no home server, and the rclone engine is now reproducible and verifiable.
-- Handoff: move your encrypted configuration between devices via QR code, AirDrop or file.
-- Ghost Vault: encrypted backup of your configuration into one of your own remotes.
-- Smarter downloads: automatic management (network, battery, temperature) and reliable folder downloads.
-- Photo sync: skipped photos are finally visible, with a "Retry skipped" button.
+What's new in 2.1:
+- Edit a remote: a new "Manage remotes" screen lets you fix a setting or re-authorize an expired OAuth account without recreating everything — your existing passwords and tokens stay hidden.
+- Remote Lens: peek at a remote file without downloading it — image preview with its EXIF data, and PDF first page.
+- Deletion fixed: deleting a file or folder, or moving it to the trash, works again.

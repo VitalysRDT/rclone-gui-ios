@@ -1,6 +1,4 @@
-Novedades de la versión 2.0:
-- Transparencia, cero llamadas a casa: una nueva pantalla demuestra en directo que la app no contacta con ningún servidor propio, y el motor rclone ahora es reproducible y verificable.
-- Handoff: transfiere tu configuración cifrada entre dispositivos por código QR, AirDrop o archivo.
-- Ghost Vault: copia de seguridad cifrada de tu configuración en uno de tus propios remotos.
-- Descargas más inteligentes: gestión automática (red, batería, temperatura) y descargas de carpetas fiables.
-- Sincronización de fotos: las fotos omitidas por fin son visibles, con un botón «Reintentar omitidas».
+Novedades de la versión 2.1:
+- Editar un remoto: una nueva pantalla «Gestionar remotos» permite corregir un ajuste o volver a autorizar una cuenta OAuth caducada sin recrearlo todo — tus contraseñas y tokens existentes permanecen ocultos.
+- Remote Lens: echa un vistazo a un archivo remoto sin descargarlo — vista previa de imagen con sus datos EXIF y primera página de los PDF.
+- Eliminación reparada: borrar un archivo o una carpeta, o moverlo a la papelera, vuelve a funcionar.

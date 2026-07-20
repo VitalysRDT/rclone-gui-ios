@@ -1,2 +1,4 @@
-Nowości w wersji 1.9.2:
-- Postęp pobierania folderów: pasek postępu jest w końcu widoczny (rozmiar folderu jest wstępnie obliczany przed transferem).
+Nowości w wersji 2.1:
+- Edycja zdalnego zasobu: nowy ekran „Zarządzaj zdalnymi zasobami" pozwala poprawić ustawienie lub ponownie autoryzować wygasłe konto OAuth bez tworzenia wszystkiego od nowa — istniejące hasła i tokeny pozostają ukryte.
+- Remote Lens: podejrzyj zdalny plik bez pobierania go — podgląd obrazu z danymi EXIF oraz pierwsza strona plików PDF.
+- Naprawione usuwanie: usuwanie pliku lub folderu oraz przenoszenie do kosza znów działa.
