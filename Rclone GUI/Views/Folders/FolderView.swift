@@ -386,21 +386,20 @@ struct FolderView: View {
                     get: { deleteTarget != nil },
                     set: { if !$0 { deleteTarget = nil } }
                 ),
-                titleVisibility: .visible
-            ) {
+                titleVisibility: .visible,
+                presenting: deleteTarget
+            ) { target in
                 Button("Mettre à la corbeille") {
-                    Task { await performDelete(permanent: false) }
+                    Task { await performDelete(target, permanent: false) }
                 }
                 Button("Supprimer définitivement", role: .destructive) {
-                    Task { await performDelete(permanent: true) }
+                    Task { await performDelete(target, permanent: true) }
                 }
                 Button("Annuler", role: .cancel) { deleteTarget = nil }
-            } message: {
-                if let target = deleteTarget {
-                    Text(target.isDirectory
-                         ? "Le dossier et tout son contenu peuvent être restaurés depuis la corbeille pendant 30 jours, ou supprimés définitivement."
-                         : "Le fichier peut être restauré depuis la corbeille pendant 30 jours, ou supprimé définitivement.")
-                }
+            } message: { target in
+                Text(target.isDirectory
+                     ? "Le dossier et tout son contenu peuvent être restaurés depuis la corbeille pendant 30 jours, ou supprimés définitivement."
+                     : "Le fichier peut être restauré depuis la corbeille pendant 30 jours, ou supprimé définitivement.")
             }
             .alert("Info", isPresented: Binding(
                 get: { transientMessage != nil },
@@ -447,8 +446,12 @@ struct FolderView: View {
         deleteTarget.map { "Supprimer « \($0.name) » ?" } ?? "Supprimer ?"
     }
 
-    private func performDelete(permanent: Bool) async {
-        guard let target = deleteTarget else { return }
+    /// La cible est passée en paramètre — surtout pas relue depuis `deleteTarget`.
+    /// SwiftUI ferme le dialog avant que le `Task` de l'action ne s'exécute, ce
+    /// qui déclenche le `set:` du binding `isPresented` et remet `deleteTarget`
+    /// à nil : un `guard let target = deleteTarget` échouait alors en silence et
+    /// la suppression ne partait jamais (aucun appel rclone, aucun log).
+    private func performDelete(_ target: RemoteEntryDTO, permanent: Bool) async {
         deleteTarget = nil
         do {
             if permanent {
