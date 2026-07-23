@@ -54,9 +54,15 @@ struct EntryRowView: View {
                         .truncationMode(.middle)
                 }
 
-                if let active = activeTransfer {
-                    transferProgressLine(for: active)
-                } else {
+                // Hauteur de row CONSTANTE quel que soit l'état transfert :
+                // la ligne normale reste dans le layout (opacity 0) et la
+                // ligne transfert se superpose ; la barre de progression est
+                // en overlay hors flux (voir plus bas). Une hauteur de cellule
+                // qui bascule au fil des re-renders (@Query ~500 ms pendant un
+                // batch) fait osciller le self-sizing du UICollectionView de
+                // la List → « stuck in a recursive layout loop » (crash fatal
+                // du _UICollectionViewFeedbackLoopDebugger depuis iOS 18).
+                ZStack(alignment: .leading) {
                     HStack(spacing: 7) {
                         Text(secondaryLine)
                             .font(.caption)
@@ -65,6 +71,11 @@ struct EntryRowView: View {
                         if !entry.isDirectory {
                             AppStatusBadge(title: fileKindLabel, tint: iconColor)
                         }
+                    }
+                    .opacity(activeTransfer == nil ? 1 : 0)
+
+                    if let active = activeTransfer {
+                        transferCaptionLine(for: active)
                     }
                 }
             }
@@ -83,34 +94,28 @@ struct EntryRowView: View {
             }
         }
         .padding(.vertical, 6)
+        .overlay(alignment: .bottom) {
+            if let active = activeTransfer, active.bytesTotal > 0 {
+                ProgressView(
+                    value: progressValue(for: active),
+                    total: progressTotal(for: active)
+                )
+                .progressViewStyle(.linear)
+                .tint(transferColor(for: active.kind))
+            }
+        }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityText)
     }
 
-    @ViewBuilder
-    private func transferProgressLine(for transfer: Transfer) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack(spacing: 6) {
-                Image(systemName: transferIcon(for: transfer.kind))
-                    .foregroundStyle(transferColor(for: transfer.kind))
-                Text(transferLabel(for: transfer))
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(transferColor(for: transfer.kind))
-            }
-            if transfer.bytesTotal > 0 {
-                ProgressView(
-                    value: progressValue(for: transfer),
-                    total: progressTotal(for: transfer)
-                )
-                .progressViewStyle(.linear)
-                .tint(transferColor(for: transfer.kind))
-            } else {
-                ProgressView()
-                    .progressViewStyle(.linear)
-                    .tint(transferColor(for: transfer.kind))
-            }
+    private func transferCaptionLine(for transfer: Transfer) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: transferIcon(for: transfer.kind))
+            Text(transferLabel(for: transfer))
+                .lineLimit(1)
         }
-        .padding(.top, 2)
+        .font(.caption.weight(.medium))
+        .foregroundStyle(transferColor(for: transfer.kind))
     }
 
     private func transferIcon(for kind: TransferKind) -> String {

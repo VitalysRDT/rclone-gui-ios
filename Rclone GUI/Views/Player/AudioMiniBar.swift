@@ -65,12 +65,14 @@ struct AudioMiniBar: View {
     var body: some View {
         if audio.isActive {
             VStack(spacing: 0) {
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        Rectangle().fill(.quaternary)
-                        Rectangle().fill(RG.accent)
-                            .frame(width: geo.size.width * progress)
-                    }
+                // Pas de GeometryReader dans un safeAreaInset : la barre est
+                // re-rendue chaque seconde (tick elapsed/duration) et une
+                // mesure → état au-dessus d'une List self-sizing peut nourrir
+                // une boucle de layout. scaleEffect n'influence pas le layout.
+                ZStack(alignment: .leading) {
+                    Rectangle().fill(.quaternary)
+                    Rectangle().fill(RG.accent)
+                        .scaleEffect(x: progress, y: 1, anchor: .leading)
                 }
                 .frame(height: 2)
 
