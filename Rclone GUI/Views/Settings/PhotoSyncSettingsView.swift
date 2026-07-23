@@ -34,6 +34,18 @@ struct PhotoSyncSettingsView: View {
     @AppStorage("photosync.notificationsEnabled") private var notificationsEnabled = false
     @AppStorage("photoSync.autoSyncOnImport") private var autoSyncOnImport = true
 
+    private var metricPills: [AppMetricPillGrid.Item] {
+        var items: [AppMetricPillGrid.Item] = [
+            .init(value: "\(stats.pending)", label: "attente", systemImage: "clock", tint: .orange),
+            .init(value: "\(stats.active)", label: "actifs", systemImage: "bolt.fill", tint: .blue),
+            .init(value: "\(stats.completed)", label: "terminés", systemImage: "checkmark.circle", tint: .green),
+        ]
+        if stats.skipped > 0 {
+            items.append(.init(value: "\(stats.skipped)", label: "ignorées", systemImage: "minus.circle", tint: .gray))
+        }
+        return items
+    }
+
     var body: some View {
         Form {
             Section {
@@ -43,14 +55,7 @@ struct PhotoSyncSettingsView: View {
                     systemImage: "photo.stack",
                     tint: RG.photoSync.accent
                 ) {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: 10)], spacing: 10) {
-                        AppMetricPill(value: "\(stats.pending)", label: "attente", systemImage: "clock", tint: .orange)
-                        AppMetricPill(value: "\(stats.active)", label: "actifs", systemImage: "bolt.fill", tint: .blue)
-                        AppMetricPill(value: "\(stats.completed)", label: "terminés", systemImage: "checkmark.circle", tint: .green)
-                        if stats.skipped > 0 {
-                            AppMetricPill(value: "\(stats.skipped)", label: "ignorées", systemImage: "minus.circle", tint: .gray)
-                        }
-                    }
+                    AppMetricPillGrid(items: metricPills)
 
                     if shouldShowProgressBar {
                         progressBar

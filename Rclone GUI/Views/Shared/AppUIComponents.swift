@@ -138,6 +138,44 @@ struct AppMetricPill: View {
     }
 }
 
+/// Grille éagère de `AppMetricPill` (2 colonnes). Surtout pas de LazyVGrid
+/// `.adaptive` dans une row de List/Form : le nombre de colonnes y dépend de
+/// la largeur proposée pendant le self-sizing du UICollectionView sous-jacent,
+/// ce qui peut osciller → « stuck in a recursive layout loop », crash fatal du
+/// _UICollectionViewFeedbackLoopDebugger depuis iOS 18.
+struct AppMetricPillGrid: View {
+    struct Item {
+        let value: String
+        let label: LocalizedStringKey
+        var systemImage: String
+        var tint: Color = .accentColor
+    }
+
+    let items: [Item]
+
+    var body: some View {
+        Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 10) {
+            ForEach(Array(stride(from: 0, to: items.count, by: 2)), id: \.self) { start in
+                GridRow {
+                    pill(items[start])
+                    if start + 1 < items.count {
+                        pill(items[start + 1])
+                    }
+                }
+            }
+        }
+    }
+
+    private func pill(_ item: Item) -> some View {
+        AppMetricPill(
+            value: item.value,
+            label: item.label,
+            systemImage: item.systemImage,
+            tint: item.tint
+        )
+    }
+}
+
 struct AppMetricTile: View {
     let value: String
     let label: LocalizedStringKey

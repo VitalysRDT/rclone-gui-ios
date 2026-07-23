@@ -689,13 +689,15 @@ private struct PhotoSyncActivityCard: View {
     private var metricsGrid: some View {
         // D3 : `AppMetricPill` partagé (au lieu du `PhotoSyncMetric`
         // local dupliqué). Aligne le rendu Transferts avec PhotoSyncSettings
-        // qui utilise déjà `AppMetricPill`.
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 88), spacing: 10)], spacing: 10) {
-            AppMetricPill(value: "\(summary?.pendingCount ?? 0)", label: "attente", systemImage: "clock", tint: .orange)
-            AppMetricPill(value: "\(summary?.activeCount ?? 0)", label: "actifs", systemImage: "bolt.fill", tint: .blue)
-            AppMetricPill(value: "\(summary?.completedCount ?? 0)", label: "terminés", systemImage: "checkmark.circle", tint: .green)
-            AppMetricPill(value: "\(summary?.failedCount ?? 0)", label: "échecs", systemImage: "exclamationmark.triangle", tint: .red)
-        }
+        // qui utilise déjà `AppMetricPill`. Grille éagère obligatoire : cette
+        // card vit dans une row de la List et se re-rend chaque seconde
+        // pendant une sync (cf. AppMetricPillGrid).
+        AppMetricPillGrid(items: [
+            .init(value: "\(summary?.pendingCount ?? 0)", label: "attente", systemImage: "clock", tint: .orange),
+            .init(value: "\(summary?.activeCount ?? 0)", label: "actifs", systemImage: "bolt.fill", tint: .blue),
+            .init(value: "\(summary?.completedCount ?? 0)", label: "terminés", systemImage: "checkmark.circle", tint: .green),
+            .init(value: "\(summary?.failedCount ?? 0)", label: "échecs", systemImage: "exclamationmark.triangle", tint: .red),
+        ])
         .animation(.spring(duration: 0.35, bounce: 0.18), value: summary?.completedCount)
         .animation(.spring(duration: 0.35, bounce: 0.18), value: summary?.failedCount)
     }
