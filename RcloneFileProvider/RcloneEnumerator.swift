@@ -141,6 +141,31 @@ public final class RcloneEnumerator: NSObject, NSFileProviderEnumerator {
                 FileProviderBridge.appendDiagnostic("enumerate \(decoded.remote):\(decoded.path) IPC done but manifest missing")
                 observer.didEnumerate([])
                 observer.finishEnumerating(upTo: nil)
+            } catch let relayError as NSError where FileProviderBridge.errorMeansAppInactive(relayError) {
+                // App principale suspendue ou fermée : elle ne répondra jamais au
+                // relais et Fichiers.app resterait sur un spinner jusqu'à ce que
+                // l'utilisateur bascule sur l'app. On liste alors depuis
+                // l'extension — un operations/list non récursif est bien plus
+                // léger que le download qui motivait le passage par l'app.
+                FileProviderBridge.appendDiagnostic("relay app inactive → listing direct \(decoded.remote):\(decoded.path)")
+                do {
+                    let entries = try await RcloneProviderClient.shared.list(
+                        remote: decoded.remote,
+                        path: decoded.path
+                    )
+                    FileProviderBridge.writeFolderManifest(
+                        remote: decoded.remote,
+                        path: decoded.path,
+                        entries: entries.map(Self.manifestEntry)
+                    )
+                    FileProviderBridge.appendDiagnostic("enumerate \(decoded.remote):\(decoded.path) direct count=\(entries.count)")
+                    observer.didEnumerate(items(for: entries, parentIdentifier: itemIdentifier, remote: decoded.remote))
+                    observer.finishEnumerating(upTo: nil)
+                } catch {
+                    fileProviderLog.error("direct listing \(decoded.remote, privacy: .public):\(decoded.path, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
+                    FileProviderBridge.appendDiagnostic("enumerate \(decoded.remote):\(decoded.path) direct failed: \(error.localizedDescription)")
+                    observer.finishEnumeratingWithError(error)
+                }
             } catch {
                 fileProviderLog.error("enumerating \(decoded.remote, privacy: .public):\(decoded.path, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
                 FileProviderBridge.appendDiagnostic("enumerate \(decoded.remote):\(decoded.path) failed: \(error.localizedDescription)")
@@ -291,6 +316,19 @@ public final class RcloneEnumerator: NSObject, NSFileProviderEnumerator {
             isDirectory: true,
             size: 0,
             modTime: Date.distantPast
+        )
+    }
+
+    /// Convertit une entrée listée en direct par l'extension vers le format du
+    /// cache disque partagé avec l'app principale.
+    static func manifestEntry(_ entry: FPRemoteEntry) -> FolderManifestEntry {
+        FolderManifestEntry(
+            path: entry.path,
+            name: entry.name,
+            isDirectory: entry.isDirectory,
+            size: entry.size,
+            modTime: entry.modTime,
+            mimeType: entry.mimeType
         )
     }
 

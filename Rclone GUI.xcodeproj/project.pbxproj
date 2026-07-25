@@ -109,6 +109,13 @@
 			);
 			target = 278FAAAB2FAF741D0019F255 /* RcloneFileProvider */;
 		};
+		27D1A4012FD1B00100AB1201 /* Exceptions for "RcloneFileProvider" folder in "Rclone GUITests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				AppGroupBridge.swift,
+			);
+			target = 2796AC822FAE017500640D86 /* Rclone GUITests */;
+		};
 		2796AC952FAE017500640D86 /* Exceptions for "Rclone GUI" folder in "Rclone GUI" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -130,6 +137,7 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				278FAAD22FAF741D0019F255 /* Exceptions for "RcloneFileProvider" folder in "RcloneFileProvider" target */,
+				27D1A4012FD1B00100AB1201 /* Exceptions for "RcloneFileProvider" folder in "Rclone GUITests" target */,
 			);
 			path = RcloneFileProvider;
 			sourceTree = "<group>";

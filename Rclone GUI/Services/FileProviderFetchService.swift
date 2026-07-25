@@ -130,6 +130,21 @@ public final class FileProviderFetchService {
             message: "FetchService list \(pending.remote):\(pending.path)"
         )
 
+        // Accusé de réception immédiat, avant tout appel réseau : c'est le seul
+        // signal qui permet à l'extension de distinguer « app active mais listing
+        // lent » de « app suspendue, personne ne répondra ». Sans lui elle attend
+        // le timeout complet et Fichiers.app reste bloqué sur un spinner.
+        let statusURL = pendingURL.appendingPathExtension("status")
+        writeFetchStatus(
+            stage: "running",
+            jobID: nil,
+            bytesTransferred: 0,
+            bytesTotal: 0,
+            message: nil,
+            to: statusURL
+        )
+        defer { try? FileManager.default.removeItem(at: statusURL) }
+
         do {
             let entries = try await RemoteService.shared.list(
                 remote: pending.remote,
