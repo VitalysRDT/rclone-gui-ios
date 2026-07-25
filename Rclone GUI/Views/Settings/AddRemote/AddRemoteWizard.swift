@@ -80,6 +80,13 @@ struct AddRemoteWizard: View {
                     }
                 }
         }
+        // Dès que « Tester » a écrit la section dans le rclone.conf runtime,
+        // le glissement vers le bas est bloqué : il ferme la feuille SANS
+        // passer par handleCancel(), donc sans le config/delete de nettoyage.
+        // La section restait alors orpheline — visible dans la liste (le moteur
+        // la connaît) mais absente du store chiffré. C'est l'origine des
+        // remotes « ni modifiables ni supprimables » remontés en 2.1.
+        .interactiveDismissDisabled(state.remoteWasPreCreated)
         .task { await prepareWizard() }
     }
 

@@ -19,6 +19,7 @@ enum RcloneConfigEditor {
     enum ConfigError: LocalizedError, Equatable {
         case duplicateRemote(String)
         case remoteNotFound(String)
+        case deletionFailed(String)
         case invalidRemoteName
         case invalidType
         case invalidOptionKey(String)
@@ -30,6 +31,8 @@ enum RcloneConfigEditor {
                 return String(localized: "Le remote « \(name) » existe déjà.")
             case .remoteNotFound(let name):
                 return String(localized: "Le remote « \(name) » n’existe plus.")
+            case .deletionFailed(let name):
+                return String(localized: "Le remote « \(name) » est toujours présent après la suppression. Redémarre l’app puis réessaie ; si ça persiste, envoie les logs depuis Réglages → Logs.")
             case .invalidRemoteName:
                 return String(localized: "Choisis un nom de remote sans :, [, ], / ni retour à la ligne.")
             case .invalidType:
@@ -68,12 +71,49 @@ enum RcloneConfigEditor {
     /// Reads one remote section from the decrypted config without exposing
     /// the result to logs or UI. Sensitive values are returned only so the
     /// edit flow can distinguish an existing secret from a missing one.
+    ///
+    /// Deux sources coexistent et peuvent diverger : le store chiffré (ce que
+    /// l'app persiste) et le rclone.conf runtime (ce que le moteur connaît, et
+    /// ce que la liste des remotes affiche via `config/listremotes`). Le wizard
+    /// écrit la section via `config/create` dès l'étape « Tester » et ne la
+    /// re-chiffre dans le store qu'à la finalisation : un remote abandonné
+    /// après un test raté n'existe donc que côté moteur. Lire le seul store
+    /// faisait échouer l'édition d'un remote pourtant listé (« Impossible de
+    /// charger le remote »). On retombe donc sur `config/dump`.
     static func remoteConfig(named name: String) async throws -> RemoteConfigSnapshot? {
-        guard let data = try await ConfigStore.shared.load() else { return nil }
-        guard let text = String(data: data, encoding: .utf8) else {
-            throw ConfigError.invalidUTF8
+        if let data = try await ConfigStore.shared.load() {
+            guard let text = String(data: data, encoding: .utf8) else {
+                throw ConfigError.invalidUTF8
+            }
+            if let stored = remoteConfig(in: text, named: name) {
+                return stored
+            }
         }
-        return remoteConfig(in: text, named: name)
+        return await engineRemoteConfig(named: name)
+    }
+
+    /// Reconstruit un snapshot depuis le `config/dump` du moteur. Utilisé quand
+    /// la section n'est (pas encore) dans le store chiffré. Best-effort : un
+    /// moteur indisponible renvoie `nil`, l'appelant traduira en
+    /// `remoteNotFound`.
+    static func engineRemoteConfig(named rawName: String) async -> RemoteConfigSnapshot? {
+        let target = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !target.isEmpty,
+              let dump = try? await RcloneCore.shared.configDump(),
+              let section = dump[target] else {
+            return nil
+        }
+        return snapshot(fromDumpSection: section, named: target)
+    }
+
+    /// Traduit une section de `config/dump` en snapshot (pur, testable).
+    static func snapshot(
+        fromDumpSection section: [String: String],
+        named name: String
+    ) -> RemoteConfigSnapshot {
+        var options = section
+        let type = options.removeValue(forKey: "type") ?? "unknown"
+        return RemoteConfigSnapshot(name: name, type: type, options: options)
     }
 
     static func remoteConfig(in text: String, named rawName: String) -> RemoteConfigSnapshot? {
@@ -155,16 +195,62 @@ enum RcloneConfigEditor {
     /// Supprime un remote de rclone.conf (retire la section `[name]` et son
     /// corps), réécrit le store chiffré, puis recharge le moteur et le
     /// manifest FileProvider. Les données distantes ne sont pas touchées.
+    ///
+    /// La suppression est menée des DEUX côtés, puis vérifiée :
+    ///
+    /// 1. store chiffré — la section est retirée du texte INI persisté ;
+    /// 2. moteur — `config/delete` retire la même section du rclone.conf
+    ///    runtime, seul endroit où vit un remote écrit par `config/create`
+    ///    mais jamais finalisé (test de connexion raté puis wizard fermé) ;
+    /// 3. vérification — si le nom survit au listing, on lève.
+    ///
+    /// Signalé en 2.1 : un remote dans cet état revenait après chaque tentative
+    /// de suppression, sans erreur ni ligne de log (le store n'ayant pas la
+    /// section, le retrait était un no-op et l'ancien code rendait la main en
+    /// silence — voire sortait avant même de recharger quand aucun store
+    /// n'existait encore).
     static func deleteRemote(name: String) async throws {
-        let existingData = try await ConfigStore.shared.load()
-        guard let existingData,
-              let existingText = String(data: existingData, encoding: .utf8) else {
-            // Pas de config → rien à supprimer.
-            return
+        let target = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !target.isEmpty else { throw ConfigError.invalidRemoteName }
+
+        if let existingData = try await ConfigStore.shared.load(),
+           let existingText = String(data: existingData, encoding: .utf8) {
+            let updatedText = configText(existingText, removingSectionNamed: target)
+            try await ConfigStore.shared.save(Data(updatedText.utf8))
         }
-        let updatedText = configText(existingText, removingSectionNamed: name)
-        try await ConfigStore.shared.save(Data(updatedText.utf8))
+
+        struct DeleteInput: Encodable { let name: String }
+        if let payload = try? JSONEncoder().encode(DeleteInput(name: target)),
+           let json = String(data: payload, encoding: .utf8) {
+            do {
+                _ = try await RcloneCore.shared.rpcRaw("config/delete", json)
+            } catch {
+                // Un remote absent du runtime fait échouer config/delete : ce
+                // n'est pas fatal, l'étape 3 tranche.
+                await LogService.shared.log(
+                    .debug,
+                    category: "config",
+                    message: "config/delete « \(target) » : \(error.localizedDescription)"
+                )
+            }
+        }
+
         await refreshRuntimeAndNotify()
+
+        let remaining = (try? await RcloneCore.shared.listRemoteNames()) ?? []
+        guard !remaining.contains(target) else {
+            await LogService.shared.log(
+                .error,
+                category: "config",
+                message: "Remote « \(target) » toujours listé après suppression"
+            )
+            throw ConfigError.deletionFailed(target)
+        }
+        await LogService.shared.log(
+            .info,
+            category: "config",
+            message: "Remote « \(target) » supprimé de la configuration"
+        )
     }
 
     /// Retourne le texte INI privé de la section `[rawName]` (en-tête + lignes

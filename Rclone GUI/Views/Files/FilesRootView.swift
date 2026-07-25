@@ -35,6 +35,7 @@ struct FilesRootView: View {
     @State private var vaultError: String?
     /// Remote en attente de confirmation de suppression.
     @State private var remoteToDelete: RemoteSummaryDTO?
+    @State private var actionError: String?
 
     enum LoadState: Equatable {
         case idle
@@ -77,6 +78,18 @@ struct FilesRootView: View {
                 Button("OK") { vaultError = nil }
             } message: {
                 Text(vaultError ?? "")
+            }
+            .alert(
+                "Action impossible",
+                isPresented: Binding(
+                    get: { actionError != nil },
+                    set: { if !$0 { actionError = nil } }
+                ),
+                presenting: actionError
+            ) { _ in
+                Button("OK", role: .cancel) { actionError = nil }
+            } message: { message in
+                Text(message)
             }
             .confirmationDialog(
                 "Supprimer ce remote ?",
@@ -525,7 +538,10 @@ struct FilesRootView: View {
             spacesLoading.remove(remote.name)
             await load(force: true)
         } catch {
-            loadState = .failed(error.localizedDescription)
+            // Une suppression qui échoue ne rend pas la liste illisible : elle
+            // est bien chargée, c'est l'action qui a raté. `loadState = .failed`
+            // remplaçait tous les remotes par un écran « Erreur de chargement ».
+            actionError = error.localizedDescription
         }
     }
 
