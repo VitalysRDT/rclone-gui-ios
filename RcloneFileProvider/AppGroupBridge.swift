@@ -502,10 +502,19 @@ public enum FileProviderBridge {
     /// folder manifest dans App Group. L'extension polle l'apparition du
     /// manifest. Évite d'appeler RcloneProviderClient.list dans la .appex
     /// (Go runtime + crypt → jetsam OOM sur les gros dossiers).
+    ///
+    /// `activationTimeout` borne l'attente d'un signe de vie de l'app principale :
+    /// celle-ci écrit un `.status` d'accusé de réception dès qu'elle prend la
+    /// requête en charge. Sans cet ack, l'app est suspendue ou fermée (une notif
+    /// Darwin ne réveille pas un process suspendu) et le relais n'aboutira jamais
+    /// — on jette alors une erreur marquée `appInactiveErrorKey` pour que
+    /// l'appelant liste lui-même, au lieu de figer Fichiers.app sur un spinner
+    /// jusqu'au timeout complet.
     public static func requestFolderManifestViaMainApp(
         remote: String,
         path: String,
-        timeout: TimeInterval
+        timeout: TimeInterval,
+        activationTimeout: TimeInterval = 1.5
     ) async throws {
         try ensureDirectoriesExist()
         let manifestURL = folderManifestURL(remote: remote, path: path)
@@ -529,48 +538,138 @@ public enum FileProviderBridge {
             kind: "list"
         )
         let pendingURL = pendingFetchURL(requestID: requestID)
+        let statusURL = pendingFetchStatusURL(requestID: requestID)
         let data = try JSONEncoder().encode(pending)
         try data.write(to: pendingURL, options: [.atomic])
+        try? FileManager.default.removeItem(at: statusURL)
 
         appendDiagnostic("ipc list request id=\(requestID) remote=\(redact(remote)) path=\(redact(path))")
         postDarwinNotification(notificationFetchRequest)
 
         let deadline = Date().addingTimeInterval(timeout)
         let startTime = Date()
+        let errorURL = pendingURL.appendingPathExtension("error")
+        var didSeeAck = false
         while Date() < deadline {
             try Task.checkCancellation()
 
-            if let attrs = try? FileManager.default.attributesOfItem(atPath: manifestURL.path),
-               let mtime = attrs[.modificationDate] as? Date,
-               mtime > startTime {
-                appendDiagnostic("ipc list ready id=\(requestID)")
-                try? FileManager.default.removeItem(at: pendingURL)
-                return
-            }
+            let decision = relayPollDecision(
+                manifestMTime: fileModificationDate(at: manifestURL),
+                errorMessage: (try? Data(contentsOf: errorURL)).flatMap { String(data: $0, encoding: .utf8) },
+                sawAck: didSeeAck || FileManager.default.fileExists(atPath: statusURL.path),
+                startedAt: startTime,
+                now: Date(),
+                activationTimeout: activationTimeout
+            )
 
-            let errorURL = pendingURL.appendingPathExtension("error")
-            if let errorData = try? Data(contentsOf: errorURL),
-               let message = String(data: errorData, encoding: .utf8) {
+            switch decision {
+            case .manifestReady:
+                appendDiagnostic("ipc list ready id=\(requestID)")
+                cleanupFetchIPC(pendingURL: pendingURL)
+                return
+
+            case .failed(let message):
                 appendDiagnostic("ipc list error id=\(requestID) message=\(message)")
-                try? FileManager.default.removeItem(at: pendingURL)
-                try? FileManager.default.removeItem(at: errorURL)
+                cleanupFetchIPC(pendingURL: pendingURL)
                 throw NSError(
                     domain: NSFileProviderErrorDomain,
                     code: NSFileProviderError.serverUnreachable.rawValue,
                     userInfo: [NSLocalizedDescriptionKey: message]
                 )
+
+            case .appInactive:
+                appendDiagnostic("ipc list activation timeout id=\(requestID)")
+                cleanupFetchIPC(pendingURL: pendingURL)
+                throw NSError(
+                    domain: NSFileProviderErrorDomain,
+                    code: NSFileProviderError.serverUnreachable.rawValue,
+                    userInfo: [
+                        NSLocalizedDescriptionKey: "Lancez Rclone GUI puis réessayez (l'app n'est pas active).",
+                        Self.appInactiveErrorKey: true,
+                    ]
+                )
+
+            case .keepWaiting(let sawAck):
+                if sawAck, !didSeeAck {
+                    didSeeAck = true
+                    appendDiagnostic("ipc list ack id=\(requestID)")
+                }
             }
 
             try? await Task.sleep(for: .milliseconds(200))
         }
 
-        try? FileManager.default.removeItem(at: pendingURL)
+        cleanupFetchIPC(pendingURL: pendingURL)
         appendDiagnostic("ipc list timeout id=\(requestID)")
         throw NSError(
             domain: NSFileProviderErrorDomain,
             code: NSFileProviderError.serverUnreachable.rawValue,
             userInfo: [NSLocalizedDescriptionKey: "Lancez Rclone GUI puis réessayez (listing indisponible)."]
         )
+    }
+
+    /// Issue d'un tour de la boucle d'attente du relais de listing.
+    public enum RelayPollDecision: Equatable, Sendable {
+        /// L'app principale a (ré)écrit le manifest après le début de la requête.
+        case manifestReady
+        /// L'app principale a signalé un échec.
+        case failed(String)
+        /// Aucun signe de vie passé `activationTimeout` : l'app est suspendue ou
+        /// fermée, inutile d'attendre le timeout complet.
+        case appInactive
+        /// On continue d'attendre ; `sawAck` mémorise si l'ack a été observé.
+        case keepWaiting(sawAck: Bool)
+    }
+
+    /// Décision pure d'un tour de boucle, extraite pour être testable sans
+    /// dépendre du système de fichiers ni d'une vraie app principale.
+    ///
+    /// L'ordre des cas compte : un manifest déjà écrit l'emporte sur l'absence
+    /// d'ack, sinon un listing plus rapide que le premier tour de boucle (l'ack
+    /// est effacé dès que l'app a fini) serait pris à tort pour une app inactive.
+    public static func relayPollDecision(
+        manifestMTime: Date?,
+        errorMessage: String?,
+        sawAck: Bool,
+        startedAt: Date,
+        now: Date,
+        activationTimeout: TimeInterval
+    ) -> RelayPollDecision {
+        if let manifestMTime, manifestMTime > startedAt {
+            return .manifestReady
+        }
+        if let errorMessage {
+            return .failed(errorMessage)
+        }
+        if !sawAck, now.timeIntervalSince(startedAt) > activationTimeout {
+            return .appInactive
+        }
+        return .keepWaiting(sawAck: sawAck)
+    }
+
+    private static func fileModificationDate(at url: URL) -> Date? {
+        guard let attrs = try? FileManager.default.attributesOfItem(atPath: url.path) else {
+            return nil
+        }
+        return attrs[.modificationDate] as? Date
+    }
+
+    /// Écrit le folder manifest depuis l'extension (repli hors-ligne quand l'app
+    /// principale n'est pas active). Même emplacement et même encodage que
+    /// `FileProviderManager.writeFolderManifest` côté app, pour que les deux
+    /// chemins alimentent le même cache.
+    public static func writeFolderManifest(
+        remote: String,
+        path: String,
+        entries: [FolderManifestEntry]
+    ) {
+        do {
+            try ensureDirectoriesExist()
+            let data = try JSONEncoder().encode(entries)
+            try data.write(to: folderManifestURL(remote: remote, path: path), options: [.atomic])
+        } catch {
+            appendDiagnostic("write folder manifest failed remote=\(redact(remote)) path=\(redact(path)) error=\(error.localizedDescription)")
+        }
     }
 }
 
