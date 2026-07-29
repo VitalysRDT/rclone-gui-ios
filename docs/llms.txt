@@ -30,6 +30,15 @@ Free 1-month trial, then a one-time lifetime purchase (€29.99, covers iPhone +
 - App Store: https://apps.apple.com/app/id6770088773
 - Website: https://rclone.rougetet.com
 
+## Community forum
+
+Feature requests, bug reports and questions are handled in public at
+https://rclone.rougetet.com/forum.html — no account is required: a display name
+is enough, and the e-mail field is optional. Topics can be voted on, and each
+one carries a status (new, planned, in progress, shipped, declined) so users can
+see what is actually being built. Bug reports are most useful with the device,
+the iOS version and the app version.
+
 ## Technical Details
 
 - Minimum OS: iOS 17, iPadOS 17, macOS 14 (Sonoma)
