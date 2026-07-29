@@ -704,6 +704,7 @@ const Header = ({ lang, setLang }) => {
       <a className="ghost navlink" href="#versions">{t('Nouveautés','What\'s new')}</a>
       <a className="ghost navlink" href="#prerelease">{t('Pré-release','Pre-release')}</a>
       <a className="ghost navlink" href="#roadmap">Roadmap</a>
+      <a className="ghost navlink" href="forum.html">Forum</a>
       <a className="ghost navlink" href="#faq">FAQ</a>
       <a className="ghost" href={GITHUB_URL} target="_blank" rel="noopener" style={{ marginRight:6 }}>GitHub</a>
       <div className="lang">
@@ -1281,6 +1282,14 @@ const Roadmap = ({ lang }) => {
           <span><b>{t('Pari produit','Product bet')} : </b>{t('« Capability, pas compte » — le partage et le multi-appareils deviennent des objets cryptographiques que tu possèdes et révoques, jamais une ligne dans une base (puisqu\'il n\'y en a pas).','"Capability, not account" — sharing and multi-device become cryptographic objects you own and revoke, never a row in a database (because there isn\'t one).')}</span>
         </div>
         <TrelloBoard lang={lang}/>
+        <div className="rm-bet" style={{ marginTop:18 }}>
+          <Icon name="bolt.fill" size={16}/>
+          <span>
+            <b>{t('Cette feuille de route est la vôtre','This roadmap is yours')} : </b>
+            {t('proposez une idée, signalez un bug et votez pour ce qui compte pour vous sur le ','suggest an idea, report a bug and vote for what matters to you on the ')}
+            <a href="forum.html" style={{ color:ACCENT_DEEP, fontWeight:700 }}>{t('forum public','public forum')}</a>.
+          </span>
+        </div>
         <p className="rm-note">{t('Dates cibles, susceptibles d\'évoluer — priorisées avec vos retours. Open source : suivez l\'avancement sur GitHub.','Target dates, subject to change — prioritized with your feedback. Open source: follow progress on GitHub.')}</p>
       </div>
     </section>
@@ -1337,6 +1346,7 @@ const Footer = () => {
           <a href="#versions">{t('Nouveautés','What\'s new')}</a>
           <a href="#prerelease">{t('Pré-release','Pre-release')}</a>
           <a href="#roadmap">Roadmap</a>
+          <a href="forum.html">Forum</a>
           <a href="#faq">FAQ</a>
           <a href={APP_STORE_URL} target="_blank" rel="noopener">App Store</a>
           <a href={GITHUB_URL} target="_blank" rel="noopener">GitHub</a>
