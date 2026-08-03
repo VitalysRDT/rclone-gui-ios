@@ -97,12 +97,14 @@ public final class FileProviderManager {
             displayName: Self.domainDisplayName
         )
         do {
+            let purgedRequests = purgePendingEnumerationRequests()
+            purgeAllFolderManifests()
             try? await NSFileProviderManager.remove(domain)
             try await NSFileProviderManager.add(domain)
             await LogService.shared.log(
                 .info,
                 category: "fileprovider",
-                message: "Domaine FileProvider réinitialisé : \(Self.domainIdentifier.rawValue)"
+                message: "Domaine FileProvider réinitialisé : \(Self.domainIdentifier.rawValue) (\(purgedRequests) requête(s) de listing purgée(s))"
             )
 
             // Sans manifest réécrit + signalEnumerator(.rootContainer) après
@@ -112,6 +114,7 @@ public final class FileProviderManager {
                 await writeRemotesManifest(remotes)
             }
             signalRefresh(remote: "", path: "")
+            flushSignalsNow()
         } catch {
             await LogService.shared.log(
                 .error,
@@ -148,7 +151,12 @@ public final class FileProviderManager {
         }
     }
 
-    public func writeFolderManifest(remote: String, path: String, entries: [RemoteEntryDTO]) async {
+    @discardableResult
+    public func writeFolderManifest(
+        remote: String,
+        path: String,
+        entries: [RemoteEntryDTO]
+    ) async -> Bool {
         struct ManifestEntry: Encodable {
             let path: String
             let name: String
@@ -179,10 +187,12 @@ public final class FileProviderManager {
             let data = try JSONEncoder().encode(payload)
             try data.write(to: manifestDir.appending(path: safe).appendingPathExtension("json"), options: [.atomic])
             signalRefresh(remote: remote, path: path)
+            return true
         } catch {
             Task {
                 await LogService.shared.log(.error, category: "fileprovider", message: "Manifest dossier FileProvider non écrit : \(error.localizedDescription)")
             }
+            return false
         }
     }
 
@@ -266,6 +276,32 @@ public final class FileProviderManager {
         try? FileManager.default.removeItem(at: dir)
     }
 
+    /// Réglages → Réinitialiser Fichiers doit aussi vider les listings IPC qui
+    /// ont survécu à un ancien timeout. Les téléchargements complets restent
+    /// intacts : leur durée de vie est indépendante de l'énumération.
+    @discardableResult
+    private func purgePendingEnumerationRequests() -> Int {
+        let fm = FileManager.default
+        guard let files = try? fm.contentsOfDirectory(
+            at: AppGroup.pendingFetchesDir,
+            includingPropertiesForKeys: nil
+        ) else { return 0 }
+
+        var count = 0
+        for file in files where file.pathExtension == "json" {
+            guard let data = try? Data(contentsOf: file),
+                  let pending = try? JSONDecoder().decode(AppGroupPendingFetch.self, from: data),
+                  pending.kind == "list" || pending.kind == "stream-url" else {
+                continue
+            }
+            try? fm.removeItem(at: file)
+            try? fm.removeItem(at: file.appendingPathExtension("status"))
+            try? fm.removeItem(at: file.appendingPathExtension("error"))
+            count += 1
+        }
+        return count
+    }
+
     public func diagnosticEntries() -> [LogEntry] {
         let url = AppGroup.fileProviderDiagnosticsURL
         guard let data = try? Data(contentsOf: url),
@@ -309,6 +345,86 @@ public final class FileProviderManager {
                     message: message
                 )
             }
+    }
+
+    /// Version exportable des diagnostics de l'extension. Le texte brut peut
+    /// contenir identifiants File Provider, remotes, chemins, noms de fichiers ou
+    /// URLs. L'export support ne conserve que l'opération, l'étape et quelques
+    /// métriques non identifiantes.
+    public func supportDiagnosticEntries() -> [LogEntry] {
+        diagnosticEntries().map { entry in
+            let message = Self.supportDiagnosticMessage(entry.message)
+            let failed = message.contains("stage=failed")
+            return LogEntry(
+                timestamp: entry.timestamp,
+                level: failed ? .error : entry.level,
+                category: "fileprovider-extension",
+                message: message,
+                supportMessage: message
+            )
+        }
+    }
+
+    nonisolated static func supportDiagnosticMessage(_ message: String) -> String {
+        let lower = message.lowercased()
+
+        let operation: String
+        if lower.hasPrefix("upload") { operation = "upload" }
+        else if lower.hasPrefix("create") { operation = "create" }
+        else if lower.hasPrefix("modify") { operation = "modify" }
+        else if lower.hasPrefix("delete") { operation = "delete" }
+        else if lower.hasPrefix("ipc stream") { operation = "stream" }
+        else if lower.hasPrefix("download")
+            || lower.hasPrefix("ipc fetch")
+            || lower.hasPrefix("fetchcontents")
+            || lower.hasPrefix("fetchpartialcontents") { operation = "download" }
+        else if lower.hasPrefix("enumerat")
+            || lower.hasPrefix("ipc list")
+            || lower.hasPrefix("manifest")
+            || lower.hasPrefix("folder manifest")
+            || lower.hasPrefix("write folder manifest")
+            || lower.hasPrefix("invalidate folder manifest")
+            || lower.hasPrefix("stale manifest")
+            || lower.hasPrefix("relay app inactive") { operation = "listing" }
+        else if lower.hasPrefix("vault") || lower.hasPrefix("subscription gate") { operation = "vault" }
+        else if lower.hasPrefix("extension init domain")
+            || lower.hasPrefix("remotes manifest")
+            || lower.hasPrefix("current root") { operation = "domain" }
+        else { operation = "other" }
+
+        let stage: String
+        if lower.contains("failed") || lower.contains("error") { stage = "failed" }
+        else if lower.contains("timeout") { stage = "timeout" }
+        else if lower.contains("cancel") { stage = "cancelled" }
+        else if lower.contains("done") || lower.contains("ready") || lower.contains("completed") { stage = "completed" }
+        else if lower.contains("ack") { stage = "acknowledged" }
+        else if lower.contains("start") || lower.contains("request") { stage = "started" }
+        else { stage = "event" }
+
+        var fields = ["operation=\(operation)", "stage=\(stage)"]
+        if trustedProviderCodePrefix(in: lower),
+           let code = supportTrailingInteger(after: "code=", in: lower) {
+            fields.append("code=\(code)")
+        }
+        return fields.joined(separator: " ")
+    }
+
+    private nonisolated static func trustedProviderCodePrefix(in message: String) -> Bool {
+        message.hasPrefix("upload staging failed id=")
+            || message.hasPrefix("upload remote failed id=")
+            || message.hasPrefix("create failed remote=")
+    }
+
+    private nonisolated static func supportTrailingInteger(
+        after marker: String,
+        in message: String
+    ) -> String? {
+        guard let range = message.range(of: marker, options: .backwards) else { return nil }
+        let suffix = message[range.upperBound...]
+        guard !suffix.isEmpty, suffix.allSatisfy({ $0.isNumber || $0 == "-" }), Int(suffix) != nil else {
+            return nil
+        }
+        return String(suffix)
     }
 
     public func clearDiagnostics() {

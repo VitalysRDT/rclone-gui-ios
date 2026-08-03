@@ -33,6 +33,7 @@ struct EntryActionsMenu: View {
     @Binding var downloadTarget: RemoteEntryDTO?
     @Binding var externalOpenTarget: RemoteEntryDTO?
     @Binding var lensTarget: RemoteEntryDTO?
+    @Binding var publicLinkTarget: RemoteEntryDTO?
 
     var body: some View {
         Group {
@@ -71,6 +72,12 @@ struct EntryActionsMenu: View {
             } label: {
                 Label(entry.isDirectory ? "Télécharger le dossier" : "Télécharger",
                       systemImage: "arrow.down.circle")
+            }
+
+            Button {
+                publicLinkTarget = entry
+            } label: {
+                Label("Créer ou copier un lien public", systemImage: "link.badge.plus")
             }
 
             Button {

@@ -15,6 +15,7 @@ struct RemoteManagementView: View {
     @State private var editingRemote: RemoteSummaryDTO?
     @State private var remoteToDelete: RemoteSummaryDTO?
     @State private var actionError: String?
+    @State private var publicLinkRemote: RemoteSummaryDTO?
 
     var body: some View {
         Group {
@@ -52,6 +53,9 @@ struct RemoteManagementView: View {
                 editingRemote = nil
                 Task { await load() }
             }
+        }
+        .sheet(item: $publicLinkRemote) { remote in
+            RemotePublicLinkSettingsView(remote: remote.name)
         }
         .confirmationDialog(
             "Supprimer ce remote ?",
@@ -96,6 +100,14 @@ struct RemoteManagementView: View {
             }
             Spacer(minLength: 8)
             Button {
+                publicLinkRemote = remote
+            } label: {
+                Label("Configurer les liens publics de \(remote.name)", systemImage: "link")
+                    .labelStyle(.iconOnly)
+            }
+            .buttonStyle(.bordered)
+            .accessibilityHint("Configure un domaine CDN personnalisé")
+            Button {
                 editingRemote = remote
             } label: {
                 Label(
@@ -114,6 +126,11 @@ struct RemoteManagementView: View {
                     editingRemote = remote
                 } label: {
                     Label("Modifier / réautoriser", systemImage: "pencil")
+                }
+                Button {
+                    publicLinkRemote = remote
+                } label: {
+                    Label("Liens publics / CDN", systemImage: "link")
                 }
                 Button(role: .destructive) {
                     remoteToDelete = remote

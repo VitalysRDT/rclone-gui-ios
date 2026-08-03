@@ -77,10 +77,186 @@
         }
       }
     },
+    "Achat à vie · accès permanent" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "买断版 · 永久使用"
+          }
+        }
+      }
+    },
+    "Achat à vie actif" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "买断版已生效"
+          }
+        }
+      }
+    },
+    "Achat à vie activé" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "买断版已激活"
+          }
+        }
+      }
+    },
+    "Accès permanent · aucun renouvellement" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "永久使用 · 无需续费"
+          }
+        }
+      }
+    },
+    "Ton abonnement Apple restera actif" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的 Apple 订阅将继续有效"
+          }
+        }
+      }
+    },
+    "Continuer vers l'achat à vie" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "继续购买买断版"
+          }
+        }
+      }
+    },
+    "Gérer l'abonnement Apple" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "管理 Apple 订阅"
+          }
+        }
+      }
+    },
+    "L'achat à vie ne résilie pas ton abonnement mensuel ou annuel. Apple continuera à le renouveler tant que tu ne l'auras pas annulé séparément." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "购买买断版不会取消你的 Apple 月度或年度订阅。在你单独取消订阅前，Apple 仍会继续自动续订。"
+          }
+        }
+      }
+    },
+    "Ton accès permanent est actif. Ton abonnement Apple existant n'est pas annulé automatiquement : annule-le séparément pour éviter son prochain renouvellement." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的永久使用权已激活。现有的 Apple 订阅不会自动取消；请单独取消，以免下次自动续订。"
+          }
+        }
+      }
+    },
+    "Achat en attente d'approbation. L'accès sera activé automatiquement." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "购买正在等待批准。批准后将自动开通访问权限。"
+          }
+        }
+      }
+    },
+    "Aucun abonnement ou achat à vie actif trouvé sur ce compte Apple." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此 Apple 账户中未找到有效的订阅或永久使用权。"
+          }
+        }
+      }
+    },
+    "Impossible de charger les offres. Vérifiez votre connexion puis réessayez." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法加载购买方案。请检查网络连接后重试。"
+          }
+        }
+      }
+    },
+    "L'achat n'a pas pu être validé par Apple. Réessayez." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此次购买未能通过 Apple 验证。请重试。"
+          }
+        }
+      }
+    },
+    "Résultat d'achat inconnu." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未知的购买结果。"
+          }
+        }
+      }
+    },
+    "Échec de l'achat : %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "购买失败：%@"
+          }
+        }
+      }
+    },
+    "Restauration impossible : %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法恢复购买：%@"
+          }
+        }
+      }
+    },
     " · %lld ignorées" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : " · 已忽略 %lld 项"
+          }
+        }
+      }
 
     },
     " · %lld restantes" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : " · 剩余 %lld 项"
+          }
+        }
+      }
 
     },
     " et %lld autre%@" : {
@@ -238,7 +414,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "以及另外 %1$lld 个%2$@"
+            "value" : "以及另外 %1$lld 个"
           }
         },
         "zh-Hant" : {
@@ -661,6 +837,12 @@
     },
     "« %@ » n'appartient pas à la liste %@." : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@”不在%@列表中。"
+          }
+        },
         "fr" : {
           "stringUnit" : {
             "state" : "new",
@@ -670,6 +852,14 @@
       }
     },
     "« %@ » n'est pas un fichier .rclonebackup." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@”不是 .rclonebackup 文件。"
+          }
+        }
+      },
       "comment" : "A description of an error that might occur when handling a file that is not a Handoff file. The argument is the name of the file.",
       "isCommentAutoGenerated" : true
     },
@@ -1360,6 +1550,12 @@
     },
     "%@\n\n%@" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@\n\n%2$@"
+          }
+        },
         "fr" : {
           "stringUnit" : {
             "state" : "new",
@@ -1372,6 +1568,12 @@
       "comment" : "A line of text that shows the remote location of the Sealed Share, the size of the file, and the expiration date. The first argument is the remote location of the Sealed Share. The second argument is the size of the file as a human-readable string. The third argument is the formatted date when the Sealed Share will expire.",
       "isCommentAutoGenerated" : true,
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · %2$@ · %3$@"
+          }
+        },
         "fr" : {
           "stringUnit" : {
             "state" : "new",
@@ -1792,6 +1994,12 @@
     },
     "%@ • %@" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ • %2$@"
+          }
+        },
         "fr" : {
           "stringUnit" : {
             "state" : "new",
@@ -1802,6 +2010,12 @@
     },
     "%@ • %lld remote%@" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ • %2$lld 个远程存储"
+          }
+        },
         "fr" : {
           "stringUnit" : {
             "state" : "new",
@@ -2183,6 +2397,12 @@
     },
     "%@:%@" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@:%2$@"
+          }
+        },
         "fr" : {
           "stringUnit" : {
             "state" : "new",
@@ -2845,28 +3065,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%1$lld / %2$lld 张照片和视频"
-          },
-          "substitutions" : {
-            "count" : {
-              "argNum" : 2,
-              "formatSpecifier" : "lld",
-              "variations" : {
-                "plural" : {
-                  "other" : {
-                    "stringUnit" : {
-                      "state" : "machine_translated",
-                      "value" : "%arg 张照片和视频"
-                    }
-                  },
-                  "zero" : {
-                    "stringUnit" : {
-                      "state" : "machine_translated",
-                      "value" : "%arg 张照片和视频"
-                    }
-                  }
-                }
-              }
-            }
           }
         },
         "zh-Hant" : {
@@ -2879,6 +3077,12 @@
     },
     "%lld / %lld photos uploadées" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已上传 %1$lld / %2$lld 张照片"
+          }
+        },
         "fr" : {
           "stringUnit" : {
             "state" : "new",
@@ -3128,28 +3332,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "已上传 %1$lld / %2$lld 张照片 · 剩余 %3$lld 张"
-          },
-          "substitutions" : {
-            "remaining" : {
-              "argNum" : 3,
-              "formatSpecifier" : "lld",
-              "variations" : {
-                "plural" : {
-                  "other" : {
-                    "stringUnit" : {
-                      "state" : "machine_translated",
-                      "value" : "剩余 %arg 张"
-                    }
-                  },
-                  "zero" : {
-                    "stringUnit" : {
-                      "state" : "machine_translated",
-                      "value" : "剩余 %arg 张"
-                    }
-                  }
-                }
-              }
-            }
           }
         },
         "zh-Hant" : {
@@ -3985,7 +4167,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$lld 个项目%2$@"
+            "value" : "%1$lld 个项目"
           }
         },
         "zh-Hant" : {
@@ -4181,8 +4363,8 @@
               },
               "zero" : {
                 "stringUnit" : {
-                  "state" : "machine_translated",
-                  "value" : "没有项目已存在"
+                  "state" : "translated",
+                  "value" : "没有已存在的项目"
                 }
               }
             }
@@ -4437,8 +4619,8 @@
               },
               "zero" : {
                 "stringUnit" : {
-                  "state" : "machine_translated",
-                  "value" : "此位置已没有项目。"
+                  "state" : "translated",
+                  "value" : "此位置没有已存在的项目。"
                 }
               }
             }
@@ -5209,7 +5391,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "您的远程上有 %1$lld 个活动操作%2$@。"
+            "value" : "您的远程存储中有 %1$lld 个活动操作。"
           }
         },
         "zh-Hant" : {
@@ -5291,7 +5473,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "历史记录中有 %1$lld 个单独操作%2$@"
+            "value" : "历史记录中有 %1$lld 个单独操作"
           }
         },
         "zh-Hant" : {
@@ -5487,14 +5669,36 @@
       }
     },
     "%lld photo(s) ignorée(s) : supprimées/déplacées dans Photos, accès partiel, ou originaux illisibles. « Réessayer les ignorées » les recycle — utile après avoir re-accordé « Toutes les photos »." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已忽略 %lld 张照片：它们可能已在“照片”中被删除或移动、仅获得部分访问权限，或原始文件无法读取。“重试已忽略项目”会重新处理这些照片；重新授予“所有照片”权限后可使用此功能。"
+          }
+        }
+      }
 
     },
     "%lld remote(s) dans ta configuration." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "您的配置中有 %lld 个远程存储。"
+          }
+        }
+      },
       "comment" : "A message indicating how many remote servers were successfully added to the user's configuration.",
       "isCommentAutoGenerated" : true
     },
     "%lld remote%@" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld 个远程存储"
+          }
+        },
         "fr" : {
           "stringUnit" : {
             "state" : "new",
@@ -5505,6 +5709,12 @@
     },
     "%lld remote%@ • créé le %@ sur %@" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld 个远程存储 • 于 %3$@ 在 %4$@ 上创建"
+          }
+        },
         "fr" : {
           "stringUnit" : {
             "state" : "new",
@@ -5596,7 +5806,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "已配置 %1$lld 个远程%2$@%3$@"
+            "value" : "已配置 %1$lld 个远程存储"
           }
         },
         "zh-Hant" : {
@@ -5706,7 +5916,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$lld 个远程可用%2$@。"
+            "value" : "%1$lld 个远程存储可用。"
           }
         },
         "zh-Hant" : {
@@ -5814,14 +6024,14 @@
             "plural" : {
               "other" : {
                 "stringUnit" : {
-                  "state" : "machine_translated",
-                  "value" : "%1$lld 个结果%2$@"
+                  "state" : "translated",
+                  "value" : "%1$lld 个结果"
                 }
               },
               "zero" : {
                 "stringUnit" : {
-                  "state" : "machine_translated",
-                  "value" : "%1$lld 个结果%2$@"
+                  "state" : "translated",
+                  "value" : "%1$lld 个结果"
                 }
               }
             }
@@ -6223,6 +6433,12 @@
       "comment" : "A label showing the number of files completed and the total number of files for a transfer. The first argument is the number of files completed. The second argument is the total number of files.",
       "isCommentAutoGenerated" : true,
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld/%2$lld 个文件"
+          }
+        },
         "fr" : {
           "stringUnit" : {
             "state" : "new",
@@ -6314,6 +6530,14 @@
       }
     },
     "•" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "•"
+          }
+        }
+      }
 
     },
     "• %@" : {
@@ -6551,7 +6775,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "+ 另外 %1$lld 个%2$@"
+            "value" : "+ 另外 %1$lld 个"
           }
         },
         "zh-Hant" : {
@@ -8821,6 +9045,14 @@
       }
     },
     "256-GCM" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "256-GCM"
+          }
+        }
+      },
       "comment" : "Algorithm used for sealing the data.",
       "isCommentAutoGenerated" : true
     },
@@ -9889,6 +10121,12 @@
     },
     "Accès à la caméra refusé" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "相机访问被拒绝"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -10803,6 +11041,12 @@
       "comment" : "The status of a sealed share that is active and not expired.",
       "isCommentAutoGenerated" : true,
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有效"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -11053,6 +11297,12 @@
     },
     "Action impossible" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法执行操作"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -12600,48 +12850,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "再显示 %1$lld 个（剩余 %2$lld 个）"
-          },
-          "substitutions" : {
-            "count" : {
-              "argNum" : 1,
-              "formatSpecifier" : "lld",
-              "variations" : {
-                "plural" : {
-                  "other" : {
-                    "stringUnit" : {
-                      "state" : "machine_translated",
-                      "value" : "%arg 个"
-                    }
-                  },
-                  "zero" : {
-                    "stringUnit" : {
-                      "state" : "machine_translated",
-                      "value" : "%arg 个"
-                    }
-                  }
-                }
-              }
-            },
-            "remaining" : {
-              "argNum" : 2,
-              "formatSpecifier" : "lld",
-              "variations" : {
-                "plural" : {
-                  "other" : {
-                    "stringUnit" : {
-                      "state" : "machine_translated",
-                      "value" : "剩余 %arg 个"
-                    }
-                  },
-                  "zero" : {
-                    "stringUnit" : {
-                      "state" : "machine_translated",
-                      "value" : "剩余 %arg 个"
-                    }
-                  }
-                }
-              }
-            }
           }
         },
         "zh-Hant" : {
@@ -12772,6 +12980,12 @@
     },
     "Afficher les critères" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示条件"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -12867,6 +13081,12 @@
       "comment" : "A button that reveals the passphrase.",
       "isCommentAutoGenerated" : true,
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示口令词"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -12877,6 +13097,12 @@
     },
     "Ajoute ou importe un remote depuis Réglages." : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请在“设置”中添加或导入远程存储。"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -13290,6 +13516,14 @@
       }
     },
     "Algorithme de dérivation de clé non supporté : %@." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不支持的密钥派生算法：%@。"
+          }
+        }
+      }
 
     },
     "Alias d'un remote existant (raccourci)" : {
@@ -13624,6 +13858,12 @@
       "comment" : "The title of a loading indicator that appears while the preview is being generated.",
       "isCommentAutoGenerated" : true,
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在分析预览…"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -14002,6 +14242,12 @@
       "comment" : "The title of the section that displays the preview of the payload.",
       "isCommentAutoGenerated" : true,
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "数据包预览"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -14090,6 +14336,12 @@
       "comment" : "A title for a view that indicates that the preview is unavailable.",
       "isCommentAutoGenerated" : true,
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "预览不可用"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -14099,6 +14351,14 @@
       }
     },
     "Aperçu indisponible (pont hors ligne)." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "预览不可用（本地桥接服务离线）。"
+          }
+        }
+      },
       "comment" : "Warning banner text when the image preview is unavailable due to a bridge being offline.",
       "isCommentAutoGenerated" : true
     },
@@ -14106,6 +14366,12 @@
       "comment" : "Text displayed in a notification when a file's image preview is unavailable.",
       "isCommentAutoGenerated" : true,
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "预览不可用。"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -14116,6 +14382,12 @@
     },
     "Aperçu PDF indisponible." : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PDF 预览不可用。"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -14412,6 +14684,14 @@
       }
     },
     "App Store — abonnement & codes promo (StoreKit)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App Store — 订阅与优惠码（StoreKit）"
+          }
+        }
+      }
 
     },
     "App-specific password Apple" : {
@@ -14501,6 +14781,12 @@
       "comment" : "A camera manufacturer and model.",
       "isCommentAutoGenerated" : true,
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "设备"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -14587,6 +14873,12 @@
     },
     "Appels maison" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "应用自有服务器请求"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -14597,6 +14889,12 @@
     },
     "Appels maison : %lld" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "应用自有服务器请求：%lld"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -14609,6 +14907,12 @@
       "comment" : "The display name for the Apple category.",
       "isCommentAutoGenerated" : true,
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -14619,6 +14923,12 @@
     },
     "Applique d’abord les modifications et teste la connexion." : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请先应用更改，然后测试连接。"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -14628,6 +14938,14 @@
       }
     },
     "As-tu noté les 6 mots ?" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "您记下这 6 个口令词了吗？"
+          }
+        }
+      }
 
     },
     "Astuce : pour Azure, tu peux aussi remplir « account » + « key » directement dans le formulaire normal." : {
@@ -15446,9 +15764,25 @@
       }
     },
     "Aucun appel réseau observé pour l'instant." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "目前未观察到网络请求。"
+          }
+        }
+      }
 
     },
     "Aucun appel vers un serveur maison. L'app ne parle qu'à vos remotes, à Apple et à elle-même." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未发现连接应用自有服务器的请求。应用只与您的远程存储、Apple 和本机通信。"
+          }
+        }
+      },
       "comment" : "A description of the verdict when the app is considered \"clean\".",
       "isCommentAutoGenerated" : true
     },
@@ -16506,6 +16840,12 @@
       "comment" : "A description for the user when they have no sealed share records.",
       "isCommentAutoGenerated" : true,
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂无分享"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -16716,10 +17056,24 @@
       }
     },
     "Aucun remote configuré pour l'instant." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "目前尚未配置远程存储。"
+          }
+        }
+      }
 
     },
     "Aucun remote configuré." : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "尚未配置远程存储。"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -16729,6 +17083,14 @@
       }
     },
     "Aucun remote configuré. Ajoute d'abord un remote dans Réglages → Configuration." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "尚未配置远程存储。请先前往“设置 → 配置”添加一个远程存储。"
+          }
+        }
+      }
 
     },
     "Aucun remote disponible. Crée d'abord un stockage simple (Drive, S3, SFTP…), puis reviens." : {
@@ -16774,10 +17136,24 @@
       }
     },
     "Aucun SDK d'analytics, de crash-reporting ou de publicité" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不含分析、崩溃报告或广告 SDK"
+          }
+        }
+      }
 
     },
     "Aucun serveur" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无服务器"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -16787,6 +17163,14 @@
       }
     },
     "Aucun serveur dorsal : essai, abonnement et config restent sur l'appareil / iCloud / Apple" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无应用后端服务器：试用、订阅和配置仅保留在设备、iCloud 或 Apple 服务中"
+          }
+        }
+      },
       "comment" : "A guarantee that the app won't store user data on a server.",
       "isCommentAutoGenerated" : true
     },
@@ -17271,10 +17655,24 @@
       }
     },
     "Aucun vault connu sur cet appareil." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此设备上没有已知保险库。"
+          }
+        }
+      }
 
     },
     "Aucun vault trouvé dans %@:%@/" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在 %1$@:%2$@/ 中未找到保险库"
+          }
+        },
         "fr" : {
           "stringUnit" : {
             "state" : "new",
@@ -17361,6 +17759,14 @@
       }
     },
     "Aucune configuration à envoyer. Importe un rclone.conf d'abord." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有可发送的配置。请先导入 rclone.conf。"
+          }
+        }
+      },
       "comment" : "Error message when no configuration has been imported to prepare a Handoff.",
       "isCommentAutoGenerated" : true
     },
@@ -17447,6 +17853,14 @@
       }
     },
     "Aucune configuration rclone à sauvegarder." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有可备份的 rclone 配置。"
+          }
+        }
+      }
 
     },
     "Aucune configuration rclone importée" : {
@@ -17697,10 +18111,26 @@
       }
     },
     "Aucune écriture — tu restes sur l'écran d'aperçu." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不会写入任何内容，您将停留在预览页面。"
+          }
+        }
+      },
       "comment" : "A description of the \"Cancel\" strategy.",
       "isCommentAutoGenerated" : true
     },
     "Aucune notification push distante (pas d'APNs, pas de device token)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不使用远程推送通知（无 APNs、无设备令牌）"
+          }
+        }
+      }
 
     },
     "Aucune procédure documentée. Voir la doc rclone du backend." : {
@@ -17869,6 +18299,12 @@
       "comment" : "A label for the author of a document.",
       "isCommentAutoGenerated" : true,
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "作者"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -18124,9 +18560,25 @@
       }
     },
     "Authentification biométrique requise pour préparer le Handoff." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "准备 Handoff 需要生物识别验证。"
+          }
+        }
+      }
 
     },
     "Authentification biométrique requise." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "需要生物识别验证。"
+          }
+        }
+      }
 
     },
     "Authentification refusée ou biométrie indisponible." : {
@@ -18453,6 +18905,12 @@
     },
     "Autorisation OAuth — %@" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OAuth 授权 — %@"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -20075,6 +20533,14 @@
       }
     },
     "Build reproductible : le binaire natif rclone est vérifiable par un tiers" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可复现构建：第三方可以验证原生 rclone 二进制文件"
+          }
+        }
+      }
 
     },
     "C’est prêt" : {
@@ -20639,6 +21105,12 @@
       "comment" : "A text that appears in a progress bar while calculating the size of a folder.",
       "isCommentAutoGenerated" : true,
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在计算大小…"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -21128,13 +21600,37 @@
       }
     },
     "Ce fichier ne contient pas de payload Handoff (HND1:) valide." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此文件不包含有效的 Handoff 数据包（HND1:）。"
+          }
+        }
+      },
       "comment" : "Error description when the payload in the Handoff file is invalid.",
       "isCommentAutoGenerated" : true
     },
     "Ce que l'app émet côté URLSession (échanges de token OAuth, pont local). Le trafic natif de rclone n'y figure pas — voir « Vos remotes »." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这里显示应用通过 URLSession 发出的请求（OAuth 令牌交换、本地桥接）。rclone 的原生流量不在此处显示，请查看“您的远程存储”。"
+          }
+        }
+      }
 
     },
     "Ce que l'app est conçue pour contacter" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "应用按设计会连接的服务"
+          }
+        }
+      }
 
     },
     "Ce qui arrive dans Rclone GUI. Tout reste privacy-first, open source et sans serveur." : {
@@ -21296,13 +21792,37 @@
       }
     },
     "Certains backends peuvent ignorer l’expiration. Le lien ne contient jamais la clé." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "部分后端可能忽略到期时间。链接中绝不会包含密钥。"
+          }
+        }
+      },
       "comment" : "A footer for the section that allows the user to select the destination remote and the expiry date of the sealed share.",
       "isCommentAutoGenerated" : true
     },
     "Ces vaults ont été créés ou restaurés sur cet appareil. Pour en trouver d'autres sur tes remotes, utilise « Restaurer » → « Scanner un remote »." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这些保险库曾在此设备上创建或恢复。要查找远程存储中的其他保险库，请选择“恢复 → 扫描远程存储”。"
+          }
+        }
+      }
 
     },
     "Cette action est irréversible." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此操作无法撤销。"
+          }
+        }
+      }
 
     },
     "Cette action est irréversible. Tu pourras ré-importer ton rclone.conf après." : {
@@ -21389,6 +21909,12 @@
     },
     "Cette action retire uniquement la section de rclone.conf. Les fichiers distants ne sont pas supprimés." : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此操作只会移除 rclone.conf 中的对应配置，不会删除远程文件。"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -21880,6 +22406,14 @@
       }
     },
     "Chaque Handoff génère une passphrase fraîche. Si tu refais un Handoff plus tard, ce sera 6 nouveaux mots — la passphrase précédente ne ressert plus." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每次 Handoff 都会生成新的口令短语。下次执行 Handoff 时会得到 6 个新词，之前的口令不会再次使用。"
+          }
+        }
+      }
 
     },
     "Chaque remote = un emplacement natif" : {
@@ -22442,6 +22976,12 @@
     },
     "Chargement du remote…" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在加载远程存储…"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -23167,9 +23707,25 @@
       }
     },
     "chiffré client" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "客户端加密"
+          }
+        }
+      }
 
     },
     "Chiffre et uploade ta config dans un remote" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "加密配置并上传到远程存储"
+          }
+        }
+      }
 
     },
     "Chiffré localement (Secure Enclave + biométrie)" : {
@@ -23417,6 +23973,12 @@
       "comment" : "Un paragraphe expliquant le chiffrement de la configuration de rclone avec une clé dérivée d'une passphrase de 6 mots.",
       "isCommentAutoGenerated" : true,
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "端到端加密"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -23502,6 +24064,14 @@
       }
     },
     "Chiffrement non supporté : %@." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不支持的加密方式：%@。"
+          }
+        }
+      }
 
     },
     "Chiffrement transparent au-dessus d'un autre remote" : {
@@ -24133,6 +24703,14 @@
       }
     },
     "Choisis d'abord comment l'autre appareil t'a fait passer le payload chiffré. La passphrase reste à taper à part." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请先选择另一台设备发送加密数据包的方式。口令短语仍需单独输入。"
+          }
+        }
+      },
       "comment" : "Text displayed in a card that describes how to use the payload.",
       "isCommentAutoGenerated" : true
     },
@@ -24379,6 +24957,12 @@
     },
     "Choisis une direction" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择传输方向"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -25003,6 +25587,12 @@
     },
     "Code de récupération" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "恢复码"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -25013,6 +25603,12 @@
     },
     "Code de vérification Apple (2FA)" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple 验证码（双重认证）"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -25025,6 +25621,12 @@
       "comment" : "A button that opens the GitHub repository.",
       "isCommentAutoGenerated" : true,
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "源代码（GitHub）"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -25426,6 +26028,14 @@
       }
     },
     "Colle ici le payload commençant par HND1:" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在此粘贴以 HND1: 开头的数据包"
+          }
+        }
+      }
 
     },
     "Colle juste le raw token « sl.X… » — le wizard le formate en JSON automatiquement." : {
@@ -25675,12 +26285,26 @@
       }
     },
     "Colle le payload complet (commence toujours par « HND1: »). Si tu as entouré d'autre texte, on extrait le payload automatiquement." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请粘贴完整数据包（始终以“HND1:”开头）。即使前后包含其他文字，应用也会自动提取数据包。"
+          }
+        }
+      }
 
     },
     "Colle un payload HND1:" : {
       "comment" : "Text displayed in a button that allows the user to paste a Handoff payload directly from the clipboard.",
       "isCommentAutoGenerated" : true,
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "粘贴 HND1: 数据包"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -26186,6 +26810,12 @@
       "comment" : "Text displayed in a button that allows the user to paste a Handoff payload directly from the clipboard.",
       "isCommentAutoGenerated" : true,
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "粘贴数据包"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -26442,6 +27072,12 @@
     },
     "Comment ça marche" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "工作原理"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -26536,6 +27172,12 @@
       "comment" : "A button that opens a URL for further information.",
       "isCommentAutoGenerated" : true,
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "如何自行验证"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -26627,6 +27269,14 @@
       }
     },
     "Compression impossible (code %d)." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法压缩（代码 %d）。"
+          }
+        }
+      }
 
     },
     "Conditions d'utilisation" : {
@@ -26794,6 +27444,14 @@
       }
     },
     "Configuration annulée — la question rclone est restée sans réponse." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "配置已取消：rclone 的问题未得到回答。"
+          }
+        }
+      }
 
     },
     "Configuration avancée" : {
@@ -27057,6 +27715,12 @@
     },
     "Configuration restaurée" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "配置已恢复"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -27149,6 +27813,12 @@
     },
     "Confirmer la passphrase" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "确认口令短语"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -27234,12 +27904,26 @@
       }
     },
     "Conflit avec ta config locale" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "与本地配置冲突"
+          }
+        }
+      }
 
     },
     "Conflits (%lld)" : {
       "comment" : "A group of rows showing a list of conflicting remotes and their merge resolution.",
       "isCommentAutoGenerated" : true,
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "冲突（%lld）"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -28611,6 +29295,12 @@
       "comment" : "A section header for the list of entries.",
       "isCommentAutoGenerated" : true,
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "内容"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -28623,6 +29313,12 @@
       "comment" : "The title of a button that opens a downloaded and decrypted file.",
       "isCommentAutoGenerated" : true,
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已解密内容"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -28714,10 +29410,24 @@
       }
     },
     "Continue" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "继续"
+          }
+        }
+      }
 
     },
     "Continuer" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "继续"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -30592,6 +31302,12 @@
       "comment" : "A button that copies a link to the clipboard.",
       "isCommentAutoGenerated" : true,
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "复制链接"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -30604,6 +31320,12 @@
       "comment" : "A button that copies the payload to the clipboard.",
       "isCommentAutoGenerated" : true,
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "复制数据包"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -31390,6 +32112,12 @@
       "comment" : "Title of the error message when creating a sealed share fails.",
       "isCommentAutoGenerated" : true,
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法创建"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -31645,6 +32373,14 @@
       }
     },
     "Crée un Sealed Share depuis un fichier ou un dossier." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "从文件或文件夹创建 Sealed Share 加密分享。"
+          }
+        }
+      },
       "comment" : "A description of the action to create a sealed share.",
       "isCommentAutoGenerated" : true
     },
@@ -31815,6 +32551,12 @@
       "comment" : "The title of a button that creates a sealed share.",
       "isCommentAutoGenerated" : true,
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "创建加密分享"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -31990,6 +32732,12 @@
     "Créer un Sealed Share" : {
       "comment" : "Authentication before creating a sealed share",
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "创建 Sealed Share"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -32000,6 +32748,12 @@
     },
     "Créer un vault" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "创建保险库"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -32086,6 +32840,14 @@
       }
     },
     "Critères" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "条件"
+          }
+        }
+      }
 
     },
     "crypt" : {
@@ -33298,6 +34060,14 @@
       }
     },
     "Déchiffrer" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "解密"
+          }
+        }
+      },
       "comment" : "A button that decrypts a backup.",
       "isCommentAutoGenerated" : true
     },
@@ -33460,6 +34230,14 @@
       }
     },
     "Décompression impossible (code %d)." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法解压缩（代码 %d）。"
+          }
+        }
+      }
 
     },
     "Découpe les gros fichiers en morceaux" : {
@@ -34274,10 +35052,26 @@
       }
     },
     "Depuis un QR, AirDrop ou un fichier" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "通过二维码、AirDrop 或文件接收"
+          }
+        }
+      },
       "comment" : "Text describing the action of receiving a configuration via QR, AirDrop, or file.",
       "isCommentAutoGenerated" : true
     },
     "Depuis un remote que tu possèdes" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "从您的远程存储恢复"
+          }
+        }
+      }
 
     },
     "Dernières ouvertures" : {
@@ -35309,6 +36103,14 @@
       }
     },
     "Dimensions" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "尺寸"
+          }
+        }
+      },
       "comment" : "A label for the dimensions of an image.",
       "isCommentAutoGenerated" : true
     },
@@ -35478,6 +36280,12 @@
     },
     "distant" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "远程"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -36138,6 +36946,12 @@
     },
     "Dossier dans le remote" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "远程存储中的文件夹"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -36961,6 +37775,12 @@
     },
     "Échange de token OAuth" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OAuth 令牌交换"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -37680,6 +38500,14 @@
       }
     },
     "Écriture impossible : %@." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法写入：%@。"
+          }
+        }
+      }
 
     },
     "Efface l'ancre d'essai (Keychain + iCloud) pour rejouer les 7 jours. Absent du build App Store." : {
@@ -38498,11 +39326,25 @@
       }
     },
     "Email Apple ID" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple ID 电子邮件"
+          }
+        }
+      },
       "comment" : "Label for the email address field in the iCloud Drive setup guide.",
       "isCommentAutoGenerated" : true
     },
     "Emplacement" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "位置"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -38513,6 +39355,12 @@
     },
     "Emplacement :" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "位置："
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -38920,6 +39768,14 @@
       }
     },
     "En cours : " : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在处理："
+          }
+        }
+      },
       "comment" : "Text prefix for the current file name in a BridgeFolderDownloader download.",
       "isCommentAutoGenerated" : true
     },
@@ -39336,6 +40192,12 @@
     },
     "Enregistrement…" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在保存…"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -39345,6 +40207,14 @@
       }
     },
     "Enregistrer dans Fichiers" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "存储到“文件”"
+          }
+        }
+      }
 
     },
     "Enregistrer la configuration" : {
@@ -39433,6 +40303,12 @@
       "comment" : "The text of a button that saves changes to a remote.",
       "isCommentAutoGenerated" : true,
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存更改"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -39445,6 +40321,12 @@
       "comment" : "A label indicating that the backup was sent by a specific device.",
       "isCommentAutoGenerated" : true,
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "由 %@ 发送"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -39499,6 +40381,12 @@
       "comment" : "Text displayed in a navigation link for the Handoff send view.",
       "isCommentAutoGenerated" : true,
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "发送我的配置"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -40920,14 +41808,38 @@
       }
     },
     "Expiration" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "到期时间"
+          }
+        }
+      },
       "comment" : "A label for the expiration date of a sealed share.",
       "isCommentAutoGenerated" : true
     },
     "Expire" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "到期"
+          }
+        }
+      },
       "comment" : "The expiration date of the sealed share.",
       "isCommentAutoGenerated" : true
     },
     "Expiré" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已到期"
+          }
+        }
+      },
       "comment" : "A label displayed in a list item that indicates a sealed share has expired.",
       "isCommentAutoGenerated" : true
     },
@@ -41743,6 +42655,14 @@
       }
     },
     "Exposition" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "曝光"
+          }
+        }
+      },
       "comment" : "A label for the exposure value of a photo.",
       "isCommentAutoGenerated" : true
     },
@@ -41905,9 +42825,25 @@
       }
     },
     "Face ID / Touch ID est demandé pour confirmer l'opération." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "需要使用 Face ID / Touch ID 确认此操作。"
+          }
+        }
+      }
 
     },
     "Face ID / Touch ID est demandé pour confirmer l'opération. Ta configuration actuelle sera écrasée." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "需要使用 Face ID / Touch ID 确认此操作。当前配置将被覆盖。"
+          }
+        }
+      }
 
     },
     "Face ID est requis pour lire votre rclone.conf chiffré." : {
@@ -41993,12 +42929,36 @@
       }
     },
     "FaceID puis application…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "完成 Face ID 后应用配置…"
+          }
+        }
+      }
 
     },
     "FaceID puis scellement…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "完成 Face ID 后加密封装…"
+          }
+        }
+      }
 
     },
     "Fais scanner ce QR par l'autre appareil, puis tape les 6 mots ci-dessous." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请让另一台设备扫描此二维码，然后输入下方的 6 个口令词。"
+          }
+        }
+      },
       "comment" : "A description of how to scan the QR code and enter the passphrase.",
       "isCommentAutoGenerated" : true
     },
@@ -42688,6 +43648,14 @@
       }
     },
     "Fichier Ghost Vault invalide : %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无效的 Ghost Vault 文件：%@"
+          }
+        }
+      }
 
     },
     "fichier local" : {
@@ -44025,6 +44993,14 @@
       }
     },
     "Focale" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "焦距"
+          }
+        }
+      },
       "comment" : "A label for the focal length of a photo.",
       "isCommentAutoGenerated" : true
     },
@@ -44604,6 +45580,14 @@
       }
     },
     "Fournisseurs cloud (vos comptes)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "云存储提供商（您的账户）"
+          }
+        }
+      },
       "comment" : "The display title for the \"provider\" category in the Glass Engine view.",
       "isCommentAutoGenerated" : true
     },
@@ -44690,6 +45674,14 @@
       }
     },
     "Fusionner" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "合并"
+          }
+        }
+      }
 
     },
     "Galerie : politique de génération et cache" : {
@@ -44769,6 +45761,14 @@
       }
     },
     "Garanties" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "隐私保证"
+          }
+        }
+      }
 
     },
     "Garde tes photos en sûreté" : {
@@ -45012,6 +46012,14 @@
       }
     },
     "Génération du QR impossible" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法生成二维码"
+          }
+        }
+      }
 
     },
     "Génère / copie ta clé API." : {
@@ -45215,6 +46223,12 @@
     },
     "Gérer les remotes" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "管理远程存储"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -45573,6 +46587,12 @@
     },
     "Glass Engine — prouver le « 0 appel maison »" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Glass Engine — 验证“零自有服务器请求”"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -45904,6 +46924,14 @@
       }
     },
     "Handoff P2P : payload chiffré en HND1:" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Handoff P2P：HND1: 格式的加密数据包"
+          }
+        }
+      },
       "comment" : "A description of the QR code format used for importing encrypted files.",
       "isCommentAutoGenerated" : true
     },
@@ -46593,6 +47621,14 @@
       }
     },
     "https://share.rclone.rougetet.com/#…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "https://share.rclone.rougetet.com/#…"
+          }
+        }
+      },
       "comment" : "The placeholder text for the capsule field in the sealed share receive view.",
       "isCommentAutoGenerated" : true
     },
@@ -46600,6 +47636,12 @@
       "comment" : "A description of the time it takes to get an Apple session token after entering 2FA.",
       "isCommentAutoGenerated" : true,
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iCloud：输入双重认证验证码后，获取 Apple 会话令牌可能需要几分钟。测试期间请保持此页面打开。"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -46773,9 +47815,25 @@
       }
     },
     "ignorées" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已忽略"
+          }
+        }
+      }
 
     },
     "Ignorées" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已忽略"
+          }
+        }
+      }
 
     },
     "Ignorer" : {
@@ -46931,6 +47989,14 @@
       }
     },
     "Image trop volumineuse pour l'aperçu." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "图像过大，无法预览。"
+          }
+        }
+      },
       "comment" : "Message displayed when a remote image is too big to display a preview.",
       "isCommentAutoGenerated" : true
     },
@@ -47499,6 +48565,14 @@
       }
     },
     "Importer un Handoff P2P" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导入 Handoff P2P"
+          }
+        }
+      },
       "comment" : "FaceID prompt before applying a Handoff P2P payload"
     },
     "Importer un rclone.conf" : {
@@ -47584,6 +48658,14 @@
       }
     },
     "Importer une config chiffrée" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导入加密配置"
+          }
+        }
+      },
       "comment" : "Title of the HandoffReceiveView's source section.",
       "isCommentAutoGenerated" : true
     },
@@ -47752,11 +48834,25 @@
       }
     },
     "Impossible d'ouvrir ce fichier" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法打开此文件"
+          }
+        }
+      },
       "comment" : "An alert that appears when the user tries to open a file that's not supported.",
       "isCommentAutoGenerated" : true
     },
     "Impossible de charger le remote" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法加载远程存储"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -47766,9 +48862,25 @@
       }
     },
     "Impossible de déchiffrer : %@." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法解密：%@。"
+          }
+        }
+      }
 
     },
     "Impossible de déchiffrer ce vault. La passphrase est probablement incorrecte." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法解密此保险库，口令短语可能不正确。"
+          }
+        }
+      }
 
     },
     "Impossible de lire le fichier sélectionné." : {
@@ -47854,10 +48966,26 @@
       }
     },
     "Impossible de lire un aperçu de ce fichier." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法读取此文件的预览。"
+          }
+        }
+      },
       "comment" : "A description of the error displayed when a preview",
       "isCommentAutoGenerated" : true
     },
     "Impossible de préparer le Handoff" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法准备 Handoff"
+          }
+        }
+      }
 
     },
     "Inactif" : {
@@ -48347,14 +49475,38 @@
       }
     },
     "Informations image" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "图像信息"
+          }
+        }
+      },
       "comment" : "A section header for image metadata.",
       "isCommentAutoGenerated" : true
     },
     "Informations média" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "媒体信息"
+          }
+        }
+      },
       "comment" : "A section of a media file's details that shows image metadata.",
       "isCommentAutoGenerated" : true
     },
     "Informations PDF" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PDF 信息"
+          }
+        }
+      },
       "comment" : "A section header for PDF metadata.",
       "isCommentAutoGenerated" : true
     },
@@ -48924,10 +50076,26 @@
       }
     },
     "J'ai les 6 mots — continuer" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我已记下 6 个词 — 继续"
+          }
+        }
+      },
       "comment" : "Button title that lets the user continue after confirming they've written down the 6 words.",
       "isCommentAutoGenerated" : true
     },
     "J'ai mémorisé ou noté les 6 mots" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我已记住或记下这 6 个词"
+          }
+        }
+      }
 
     },
     "J'ai un code" : {
@@ -49171,6 +50339,14 @@
       }
     },
     "Journal live" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "实时日志"
+          }
+        }
+      },
       "comment" : "A section header for the live log of the app.",
       "isCommentAutoGenerated" : true
     },
@@ -49539,13 +50715,37 @@
       }
     },
     "L'autre personne a lu ces mots sur son écran. Tape-les tels quels, dans l'ordre, sans accent." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "对方已在其屏幕上看到这些词。请按原顺序输入，不要添加声调或重音符号。"
+          }
+        }
+      }
 
     },
     "L'envoi via AirDrop / fichier partage aussi le payload chiffré. La passphrase reste toujours à transmettre séparément." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "通过 AirDrop 或文件发送的也是加密数据包。口令短语始终需要通过其他渠道单独传递。"
+          }
+        }
+      },
       "comment" : "A description of the alternative transport options.",
       "isCommentAutoGenerated" : true
     },
     "L'opération demande Face ID / Touch ID avant de chiffrer et d'exposer la passphrase." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "加密并显示口令短语前，需要通过 Face ID / Touch ID 验证。"
+          }
+        }
+      }
 
     },
     "L’option « %@ » n’est pas valide." : {
@@ -50227,16 +51427,48 @@
       }
     },
     "La passphrase doit comporter entre 3 et 8 mots (reçu : %lld)." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "口令短语必须包含 3 到 8 个词（当前：%lld 个）。"
+          }
+        }
+      }
 
     },
     "La passphrase doit faire au moins %lld caractères." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "口令短语至少需要 %lld 个字符。"
+          }
+        }
+      }
 
     },
     "La passphrase n'est jamais incluse dans le payload envoyé. Sans les 6 mots, l'autre appareil ne pourra rien déchiffrer." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "口令短语绝不会包含在发送的数据包中。没有这 6 个词，另一台设备将无法解密任何内容。"
+          }
+        }
+      },
       "comment" : "A description of the passphrase that's not included in the Handoff payload.",
       "isCommentAutoGenerated" : true
     },
     "La passphrase sert à chiffrer le vault. Elle ne quitte jamais l'appareil et ne peut pas être récupérée — choisis-la longue (phrase + chiffres) et conserve-la dans un endroit sûr (gestionnaire de mots de passe)." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "口令短语用于加密保险库，绝不会离开设备，也无法找回。请选择较长的口令（短语加数字），并将其保存在安全位置，例如密码管理器中。"
+          }
+        }
+      }
 
     },
     "La photothèque ne contient aucun album exploitable." : {
@@ -50640,6 +51872,14 @@
       }
     },
     "Le blob est téléchargé puis déchiffré localement. La clé ne quitte jamais cet appareil." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "数据块下载后会在本机解密，密钥绝不会离开此设备。"
+          }
+        }
+      },
       "comment" : "Text displayed in a card describing the process of opening a Sealed Share.",
       "isCommentAutoGenerated" : true
     },
@@ -51528,6 +52768,14 @@
       }
     },
     "Le Glass Engine observe passivement les appels réseau de l'app et les range par catégorie. Tout ce qui n'est ni votre remote, ni Apple, ni l'appareil compte comme « appel maison »." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Glass Engine 会被动观察应用的网络请求并分类。凡是不属于您的远程存储、Apple 或本机的请求，都会计为“应用自有服务器请求”。"
+          }
+        }
+      }
 
     },
     "Le graphique apparaîtra dès que le débit sera mesuré." : {
@@ -51894,6 +53142,14 @@
       }
     },
     "Le payload envoyé est chiffré : l'autre appareil aura besoin des 6 mots ci-dessus. On te demande de les confirmer au premier envoi." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "发送的数据包已加密，另一台设备需要上方的 6 个词。首次发送时，应用会要求您确认这些词。"
+          }
+        }
+      },
       "comment" : "A description of the payload that is encrypted and needs to be shared with the other device.",
       "isCommentAutoGenerated" : true
     },
@@ -52308,6 +53564,14 @@
       }
     },
     "Le remote « %@ » n’existe plus." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "远程存储“%@”已不存在。"
+          }
+        }
+      }
 
     },
     "Le remote « %@ » sera retiré de rclone.conf. Tes fichiers distants ne sont pas supprimés." : {
@@ -52914,6 +54178,12 @@
     },
     "Le vault « %@ » (%lld remote%@) remplacera la configuration actuelle. Cette action est irréversible — pense à faire un nouveau vault d'abord si tu veux garder l'ancienne." : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保险库“%1$@”（%2$lld 个远程存储）将替换当前配置。此操作无法撤销；如需保留旧配置，请先创建新的保险库备份。"
+          }
+        },
         "fr" : {
           "stringUnit" : {
             "state" : "new",
@@ -52923,6 +54193,14 @@
       }
     },
     "Le vault a été altéré ou la passphrase est incorrecte." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保险库已被篡改，或口令短语不正确。"
+          }
+        }
+      }
 
     },
     "Le wizard supporte aussi SAS et Service Principal — voir docs rclone." : {
@@ -53124,9 +54402,25 @@
       }
     },
     "Lecture de la config rclone…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在读取 rclone 配置…"
+          }
+        }
+      }
 
     },
     "Lecture du fichier impossible : %@." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法读取文件：%@。"
+          }
+        }
+      },
       "comment" : "A description of an error that might occur when reading a file. The argument is text describing the underlying error.",
       "isCommentAutoGenerated" : true
     },
@@ -53572,7 +54866,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "这 %1$lld 个项目%2$@，无法恢复。"
+            "value" : "这 %1$lld 个项目无法恢复。"
           }
         },
         "zh-Hant" : {
@@ -53584,6 +54878,14 @@
       }
     },
     "Les 6 mots de la passphrase ne sont jamais intégrés au QR ou au fichier. Tu les lis sur l'écran de l'envoyeur et tu les tapes à la main sur l'appareil receveur." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这 6 个口令词绝不会写入二维码或文件。请从发送方屏幕读取，并在接收设备上手动输入。"
+          }
+        }
+      }
 
     },
     "Les chemins les plus courts" : {
@@ -54496,10 +55798,24 @@
       }
     },
     "Les remotes manquants sont ajoutés. En cas de collision (même nom), on garde la version locale pour préserver tes tokens OAuth." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "缺少的远程存储会被添加。如果名称冲突，将保留本地版本，以保护现有 OAuth 令牌。"
+          }
+        }
+      }
 
     },
     "Les tokens et mots de passe existants restent masqués. Laisse un champ sensible vide pour le conserver, ou saisis une nouvelle valeur pour le remplacer." : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "现有令牌和密码会保持隐藏。将敏感字段留空即可保留原值，输入新值则会替换它。"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -54510,6 +55826,12 @@
     },
     "Les valeurs sensibles existantes restent masquées" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "现有敏感信息保持隐藏"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -54601,9 +55923,25 @@
       }
     },
     "librclone ne contacte QUE les remotes que vous avez configurés ci-dessus. Son trafic sort hors d'iOS et n'est pas interceptable dans l'app — nous le déclarons ici plutôt que de le simuler." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "librclone 只会连接您在上方配置的远程存储。其流量从 iOS 原生层发出，应用无法截获，因此这里如实声明，而不是模拟结果。"
+          }
+        }
+      }
 
     },
     "Lien ou capsule" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "链接或分享胶囊"
+          }
+        }
+      },
       "comment" : "A section for entering a URL or a Sealed Share capsule.",
       "isCommentAutoGenerated" : true
     },
@@ -55480,6 +56818,14 @@
       }
     },
     "Lire la capsule" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "读取分享胶囊"
+          }
+        }
+      },
       "comment" : "A button that reads a capsule.",
       "isCommentAutoGenerated" : true
     },
@@ -55970,6 +57316,14 @@
       }
     },
     "Livré" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已完成"
+          }
+        }
+      },
       "comment" : "A label for a completed roadmap item.",
       "isCommentAutoGenerated" : true
     },
@@ -56059,6 +57413,12 @@
       "comment" : "A description of a merge conflict between a local and an incoming remote.",
       "isCommentAutoGenerated" : true,
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本地（%1$@）↔ 传入（%2$@）— 保留本地版本"
+          }
+        },
         "fr" : {
           "stringUnit" : {
             "state" : "new",
@@ -56399,6 +57759,12 @@
       "comment" : "A button that hides the user's 6-word passphrase.",
       "isCommentAutoGenerated" : true,
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "隐藏口令词"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -58636,6 +60002,12 @@
     },
     "Modifier" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "编辑"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -58646,6 +60018,12 @@
     },
     "Modifier / réautoriser" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "编辑 / 重新授权"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -58655,6 +60033,14 @@
       }
     },
     "Modifier %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "编辑 %@"
+          }
+        }
+      }
 
     },
     "Modifier l'accès aux Photos" : {
@@ -58741,6 +60127,12 @@
     },
     "Modifier les paramètres ou réautoriser un token" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "修改设置或重新授权令牌"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -58750,6 +60142,14 @@
       }
     },
     "Modifier ou réautoriser %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "编辑或重新授权 %@"
+          }
+        }
+      }
 
     },
     "Mon Compte → onglet « Customer settings »." : {
@@ -58988,6 +60388,14 @@
       }
     },
     "Mot %lld" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 %lld 个词"
+          }
+        }
+      },
       "comment" : "A text field for entering a word of the passphrase. The argument is the word number.",
       "isCommentAutoGenerated" : true
     },
@@ -59156,6 +60564,14 @@
       }
     },
     "Mot de passe Apple ID (habituel)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple ID 密码"
+          }
+        }
+      },
       "comment" : "Label for the password field on iCloud.",
       "isCommentAutoGenerated" : true
     },
@@ -59403,6 +60819,12 @@
       "comment" : "Label for the number of passphrase words.",
       "isCommentAutoGenerated" : true,
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "个词"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -60663,6 +62085,14 @@
       }
     },
     "OAuth — connexion à vos comptes : %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OAuth — 连接您的账户：%@"
+          }
+        }
+      }
 
     },
     "OAuth token Put.io" : {
@@ -60748,6 +62178,14 @@
       }
     },
     "Objectif" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "镜头"
+          }
+        }
+      },
       "comment" : "The lens of a photo.",
       "isCommentAutoGenerated" : true
     },
@@ -60834,9 +62272,25 @@
       }
     },
     "On chiffre TOUJOURS côté client, même si le remote est déjà un `crypt` rclone." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "即使远程存储已经使用 rclone `crypt`，数据也始终会在客户端再次加密。"
+          }
+        }
+      }
 
     },
     "On va chiffrer ta config actuelle et te donner une passphrase de 6 mots à taper sur l'autre appareil." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "应用将加密当前配置，并生成由 6 个词组成的口令短语，供您在另一台设备上输入。"
+          }
+        }
+      }
 
     },
     "Onglet « Access keys » → copie account name + key1." : {
@@ -61810,6 +63264,14 @@
       }
     },
     "Ou colle directement" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "或直接粘贴"
+          }
+        }
+      },
       "comment" : "A label displayed above the section for manually entering the payload.",
       "isCommentAutoGenerated" : true
     },
@@ -62062,6 +63524,14 @@
       }
     },
     "Ouverture" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "光圈"
+          }
+        }
+      },
       "comment" : "A label for the aperture of a photo.",
       "isCommentAutoGenerated" : true
     },
@@ -64377,9 +65847,25 @@
       }
     },
     "Ouvrir un Ghost Vault" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开 Ghost Vault"
+          }
+        }
+      },
       "comment" : "FaceID prompt before restoring a Ghost Vault backup"
     },
     "Ouvrir un partage" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开分享"
+          }
+        }
+      },
       "comment" : "A button that opens a shared folder.",
       "isCommentAutoGenerated" : true
     },
@@ -64466,10 +65952,26 @@
       }
     },
     "Ouvrir un Sealed Share" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开 Sealed Share"
+          }
+        }
+      },
       "comment" : "Title of the view that allows the user to open a Sealed Share.",
       "isCommentAutoGenerated" : true
     },
     "Pages" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "页数"
+          }
+        }
+      },
       "comment" : "A label for the number of pages in a PDF.",
       "isCommentAutoGenerated" : true
     },
@@ -64722,6 +66224,14 @@
       }
     },
     "Par défaut : %@/. Tu peux créer un sous-dossier si tu ranges tes backups." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "默认位置：%@/。如果需要整理备份，可以创建子文件夹。"
+          }
+        }
+      }
 
     },
     "Par défaut, les gros uploads attendent Wi-Fi + charge. iOS décide quand les tâches arrière-plan peuvent reprendre." : {
@@ -65050,6 +66560,12 @@
       "comment" : "A section for the shared capsule.",
       "isCommentAutoGenerated" : true,
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "分享"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -65170,10 +66686,26 @@
       }
     },
     "Partager avec Sealed Share" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用 Sealed Share 分享"
+          }
+        }
+      },
       "comment" : "A menu item that shares a file with a Sealed Share.",
       "isCommentAutoGenerated" : true
     },
     "Partager la capsule .rgshare" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "分享 .rgshare 胶囊"
+          }
+        }
+      },
       "comment" : "Share the sealed file.",
       "isCommentAutoGenerated" : true
     },
@@ -65294,6 +66826,14 @@
       }
     },
     "Partager le lien web" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "分享网页链接"
+          }
+        }
+      },
       "comment" : "A button that shares a link to a sealed share.",
       "isCommentAutoGenerated" : true
     },
@@ -65491,16 +67031,48 @@
       }
     },
     "Partager via AirDrop" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "通过 AirDrop 分享"
+          }
+        }
+      }
 
     },
     "Partages chiffrés par lien, AirDrop ou QR" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "通过链接、AirDrop 或二维码进行加密分享"
+          }
+        }
+      }
 
     },
     "Partages créés" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已创建的分享"
+          }
+        }
+      },
       "comment" : "A section header for the user's created sealed share records.",
       "isCommentAutoGenerated" : true
     },
     "Pas de backend, pas de compte, pas de cloud. Le blob voyage directement d'un appareil à l'autre via QR (visuel), AirDrop (Bluetooth/Wi-Fi local) ou fichier." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无需后端、账户或云服务。数据块通过二维码、AirDrop（蓝牙/本地 Wi‑Fi）或文件在设备之间直接传输。"
+          }
+        }
+      },
       "comment" : "Explication de la sécurité de l'utilisation de l'Handoff.",
       "isCommentAutoGenerated" : true
     },
@@ -65582,11 +67154,25 @@
       }
     },
     "Pas encore, voir les mots" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "还没有，返回查看口令词"
+          }
+        }
+      },
       "comment" : "Button title that dismisses the Handoff passphrase confirmation dialog.",
       "isCommentAutoGenerated" : true
     },
     "Passphrase" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "口令短语"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -65597,6 +67183,12 @@
     },
     "Passphrase (hors-canal)" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "口令短语（带外传输）"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -65606,10 +67198,24 @@
       }
     },
     "Passphrase (min. %lld caractères)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "口令短语（至少 %lld 个字符）"
+          }
+        }
+      }
 
     },
     "Passphrase à usage unique" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一次性口令短语"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -65622,6 +67228,12 @@
       "comment" : "The title of the passphrase section in the Handoff Receive wizard.",
       "isCommentAutoGenerated" : true,
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "6 词口令短语"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -65632,6 +67244,12 @@
     },
     "Passphrase hors-canal" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "带外口令短语"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -65962,12 +67580,36 @@
       }
     },
     "Payload Ghost Vault corrompu : %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ghost Vault 数据包已损坏：%@"
+          }
+        }
+      }
 
     },
     "Payload Handoff corrompu : %@." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Handoff 数据包已损坏：%@。"
+          }
+        }
+      }
 
     },
     "Payload Handoff invalide : %@." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无效的 Handoff 数据包：%@。"
+          }
+        }
+      },
       "comment" : "A description of an error that might occur when decoding a Handoff payload. The argument is text describing the error.",
       "isCommentAutoGenerated" : true
     },
@@ -67788,12 +69430,36 @@
       }
     },
     "Pont rclone local — téléchargements & streaming, restent sur l'appareil" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本地 rclone 桥接 — 下载和流媒体均保留在设备上"
+          }
+        }
+      }
 
     },
     "Pont rclone local (streaming/téléchargement)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本地 rclone 桥接（流媒体/下载）"
+          }
+        }
+      }
 
     },
     "Position" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拍摄位置"
+          }
+        }
+      },
       "comment" : "A label for the location of a photo.",
       "isCommentAutoGenerated" : true
     },
@@ -67916,9 +69582,25 @@
       }
     },
     "Pour scanner un QR Handoff, autorise l'accès à la caméra dans Réglages → Rclone GUI → Caméra. Tu peux aussi coller le payload manuellement." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "要扫描 Handoff 二维码，请在“设置 → Rclone GUI → 相机”中允许相机访问。您也可以手动粘贴数据包。"
+          }
+        }
+      }
 
     },
     "Première page non rendue." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法渲染第一页。"
+          }
+        }
+      },
       "comment" : "Message accompanying a PDF preview that couldn't be generated.",
       "isCommentAutoGenerated" : true
     },
@@ -68415,14 +70097,38 @@
       }
     },
     "Préparer le Handoff" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "准备 Handoff"
+          }
+        }
+      },
       "comment" : "The title of the button that triggers the Handoff preparation.",
       "isCommentAutoGenerated" : true
     },
     "Préparer un Handoff" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "准备 Handoff"
+          }
+        }
+      },
       "comment" : "Title of the Handoff send view.",
       "isCommentAutoGenerated" : true
     },
     "Préparer un Handoff P2P" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "准备 Handoff P2P"
+          }
+        }
+      },
       "comment" : "FaceID prompt before sealing a Handoff P2P payload"
     },
     "Prêt" : {
@@ -68508,6 +70214,14 @@
       }
     },
     "Prêt à partager" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可以分享"
+          }
+        }
+      },
       "comment" : "A section header for the completed share.",
       "isCommentAutoGenerated" : true
     },
@@ -68629,6 +70343,14 @@
       }
     },
     "Prise le" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拍摄日期"
+          }
+        }
+      },
       "comment" : "A label for the date a photo was taken.",
       "isCommentAutoGenerated" : true
     },
@@ -69038,9 +70760,25 @@
       }
     },
     "QR code" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "二维码"
+          }
+        }
+      }
 
     },
     "QR code Handoff" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Handoff 二维码"
+          }
+        }
+      }
 
     },
     "Quand c'est activé, la configuration rclone (chiffrée), le cache de navigation, les miniatures, le coffre-fort et les fichiers téléchargés sont marqués « exclus de la sauvegarde » (NSURLIsExcludedFromBackupKey). Utile pour la confidentialité ou pour ne pas alourdir votre sauvegarde iCloud.\n\nVos identifiants restent dans le Trousseau (sauvegardé séparément). Après une restauration sur un nouvel appareil, il faudra réimporter votre configuration." : {
@@ -69326,6 +71064,12 @@
     },
     "Question rclone" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "rclone 问题"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -70817,6 +72561,12 @@
       "comment" : "The title of the screen.",
       "isCommentAutoGenerated" : true,
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "接收"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -70829,6 +72579,12 @@
       "comment" : "Text displayed in a navigation link that leads to the HandoffReceiveView.",
       "isCommentAutoGenerated" : true,
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "接收配置"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -71460,6 +73216,14 @@
       }
     },
     "Réessayer les ignorées (%lld)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重试已忽略项目（%lld）"
+          }
+        }
+      }
 
     },
     "Réglages" : {
@@ -71951,6 +73715,12 @@
     },
     "Remote de destination" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "目标远程存储"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -72482,6 +74252,12 @@
     },
     "Remotes indisponibles" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "远程存储不可用"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -72573,6 +74349,14 @@
       }
     },
     "Remplacer la configuration actuelle ?" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "替换当前配置？"
+          }
+        }
+      }
 
     },
     "Remplacer le fichier…" : {
@@ -72658,6 +74442,14 @@
       }
     },
     "Remplacer ma config" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "替换我的配置"
+          }
+        }
+      },
       "comment" : "The label for the button that replaces the user's current config.",
       "isCommentAutoGenerated" : true
     },
@@ -73565,6 +75357,14 @@
       }
     },
     "Réponse rclone inattendue pendant la configuration." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "配置过程中收到意外的 rclone 响应。"
+          }
+        }
+      }
 
     },
     "Reprend tous les transferts mis en pause." : {
@@ -74519,6 +76319,14 @@
       }
     },
     "Restauration en cours…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在恢复…"
+          }
+        }
+      }
 
     },
     "Restaurer" : {
@@ -74927,6 +76735,14 @@
       }
     },
     "Restaurer un vault" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "恢复保险库"
+          }
+        }
+      }
 
     },
     "Résultats (%lld)" : {
@@ -75536,10 +77352,26 @@
       }
     },
     "Révoqué" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已撤销"
+          }
+        }
+      },
       "comment" : "The text that appears when a Sealed Share is revoked.",
       "isCommentAutoGenerated" : true
     },
     "Révoquer" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "撤销"
+          }
+        }
+      },
       "comment" : "The label of a button that revokes a Sealed Share.",
       "isCommentAutoGenerated" : true
     },
@@ -75861,9 +77693,25 @@
       }
     },
     "Saisis la passphrase qui a servi à sceller ce vault. Elle n'est jamais transmise." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请输入加密此保险库时使用的口令短语。它绝不会被传输。"
+          }
+        }
+      }
 
     },
     "Saisis les 6 mots de la passphrase." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请输入口令短语的 6 个词。"
+          }
+        }
+      }
 
     },
     "Sans album sélectionné, toutes les photos visibles sont sauvegardées. Une notification locale signalera la fin de chaque cycle de sync si vous l'autorisez." : {
@@ -76225,6 +78073,12 @@
     },
     "Sauvegarde chiffrée dans un de tes remotes, scellée par biométrie" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在您的远程存储中创建加密备份，并以生物识别保护"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -76234,6 +78088,14 @@
       }
     },
     "Sauvegarde chiffrée de ta config dans un de tes remotes, scellée par biométrie." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "将配置加密备份到您的远程存储，并以生物识别保护。"
+          }
+        }
+      }
 
     },
     "Sauvegarde de %@:%@ vers %@:%@ lancée." : {
@@ -76277,6 +78139,14 @@
       }
     },
     "Sauvegarde de l'ancienne config :" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "旧配置备份："
+          }
+        }
+      }
 
     },
     "Sauvegarde iCloud" : {
@@ -76589,9 +78459,25 @@
       }
     },
     "Scan en cours…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在扫描…"
+          }
+        }
+      }
 
     },
     "Scanner ce dossier" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "扫描此文件夹"
+          }
+        }
+      }
 
     },
     "Scanner un QR" : {
@@ -76672,15 +78558,47 @@
       }
     },
     "Scellement et upload en cours…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在加密封装并上传…"
+          }
+        }
+      }
 
     },
     "Scellement…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在加密封装…"
+          }
+        }
+      }
 
     },
     "Sceller et uploader" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "加密并上传"
+          }
+        }
+      }
 
     },
     "Sceller un Ghost Vault" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "加密 Ghost Vault"
+          }
+        }
+      },
       "comment" : "FaceID prompt before sealing a Ghost Vault backup"
     },
     "Sealed Share" : {
@@ -77118,6 +79036,14 @@
       }
     },
     "Sélecteur de fichier indisponible sur Mac" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac 上无法使用文件选择器"
+          }
+        }
+      },
       "comment" : "A message displayed on macOS that explains that the file picker is unavailable on that platform.",
       "isCommentAutoGenerated" : true
     },
@@ -77521,6 +79447,14 @@
       }
     },
     "Sélectionne un fichier .rclonebackup" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择 .rclonebackup 文件"
+          }
+        }
+      },
       "comment" : "Text displayed in a warning banner at the top of the screen when the user is not a member.",
       "isCommentAutoGenerated" : true
     },
@@ -77689,12 +79623,26 @@
       }
     },
     "Sensibilité" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "感光度"
+          }
+        }
+      }
 
     },
     "serveur" : {
       "comment" : "Label for the \"serveur\" metric in the Handoff landing view.",
       "isCommentAutoGenerated" : true,
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服务器"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -77786,6 +79734,14 @@
       }
     },
     "Service iCloud (Drive ou Photos)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iCloud 服务（Drive 或“照片”）"
+          }
+        }
+      },
       "comment" : "Label for the \"Service iCloud (Drive ou Photos)\" field in the wizard.",
       "isCommentAutoGenerated" : true
     },
@@ -78024,6 +79980,14 @@
       }
     },
     "Si quelque chose ne va pas, le service client peut te restaurer." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "如果出现问题，客户支持可以帮助您恢复。"
+          }
+        }
+      },
       "comment" : "A description of the backup that can be restored if the current configuration fails.",
       "isCommentAutoGenerated" : true
     },
@@ -78598,6 +80562,14 @@
       }
     },
     "Source du payload" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "数据包来源"
+          }
+        }
+      },
       "comment" : "A section header for the source of the payload.",
       "isCommentAutoGenerated" : true
     },
@@ -79252,6 +81224,14 @@
       }
     },
     "Stockage du blob" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "数据块存储位置"
+          }
+        }
+      },
       "comment" : "A section header for the storage of the sealed share.",
       "isCommentAutoGenerated" : true
     },
@@ -79414,6 +81394,14 @@
       }
     },
     "Stratégie" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "处理方式"
+          }
+        }
+      },
       "comment" : "The title of a picker that lets the user choose how to handle a conflict between the incoming and local configs.",
       "isCommentAutoGenerated" : true
     },
@@ -80789,6 +82777,14 @@
       }
     },
     "Sur l'appareil (loopback)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在本机（回环连接）"
+          }
+        }
+      }
 
     },
     "Sur le remote" : {
@@ -80874,6 +82870,14 @@
       }
     },
     "Sur macOS, colle le payload ou choisis Restaurer un vault pour un .rclonebackup distant." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在 macOS 上，请粘贴数据包；如需打开远程 .rclonebackup，请选择“恢复保险库”。"
+          }
+        }
+      },
       "comment" : "A description of the macOS file picker.",
       "isCommentAutoGenerated" : true
     },
@@ -82201,6 +84205,14 @@
       }
     },
     "Ta config est trop grosse pour tenir dans un seul QR." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "您的配置过大，无法放入单个二维码。"
+          }
+        }
+      }
 
     },
     "Taille" : {
@@ -82281,6 +84293,14 @@
       }
     },
     "Taille : %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "大小：%@"
+          }
+        }
+      }
 
     },
     "Taille (durée vidéo)" : {
@@ -82607,6 +84627,14 @@
       }
     },
     "Tape pour afficher les 6 mots. Ils ne sont jamais inclus dans le QR ou le fichier — transmets-les à l'autre personne par un canal séparé." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "轻点以显示 6 个口令词。它们绝不会包含在二维码或文件中，请通过独立渠道发送给对方。"
+          }
+        }
+      },
       "comment" : "A description of the passphrase, explaining that it's not included in the QR or file, and that it's only visible once.",
       "isCommentAutoGenerated" : true
     },
@@ -83161,6 +85189,14 @@
       }
     },
     "Télécharger et déchiffrer" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下载并解密"
+          }
+        }
+      },
       "comment" : "A button that downloads and decrypts a Sealed Share.",
       "isCommentAutoGenerated" : true
     },
@@ -84700,6 +86736,14 @@
       }
     },
     "Titre" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "标题"
+          }
+        }
+      },
       "comment" : "A label for the title of a document.",
       "isCommentAutoGenerated" : true
     },
@@ -85155,10 +87199,26 @@
       }
     },
     "Ton rclone.conf actuel sera sauvegardé localement avant d'être écrasé." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "覆盖前，当前 rclone.conf 会先在本地备份。"
+          }
+        }
+      },
       "comment" : "A description of the action of replacing the user's local rclone.conf with the incoming one.",
       "isCommentAutoGenerated" : true
     },
     "Ton rclone.conf est chiffré (ChaCha20-Poly1305) avec une clé dérivée d'une passphrase de 6 mots avant de quitter l'appareil. Personne ne peut le lire sans la passphrase." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "rclone.conf 离开设备前，会使用由 6 词口令短语派生的密钥进行 ChaCha20-Poly1305 加密。没有口令短语，任何人都无法读取它。"
+          }
+        }
+      },
       "comment" : "Explication de la sécurité de la configuration de rclone.",
       "isCommentAutoGenerated" : true
     },
@@ -86530,6 +88590,14 @@
       }
     },
     "Toute personne possédant ce lien ou cette capsule peut déchiffrer le contenu jusqu’à son expiration." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "任何持有此链接或胶囊的人，都可以在到期前解密内容。"
+          }
+        }
+      },
       "comment" : "A description of the expiration date of a sealed share.",
       "isCommentAutoGenerated" : true
     },
@@ -86616,10 +88684,24 @@
       }
     },
     "Toutes les vues (Fichiers, Transferts…) ont été rafraîchies." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "所有页面（文件、传输等）均已刷新。"
+          }
+        }
+      }
 
     },
     "Transfère une config chiffrée entre appareils via QR ou AirDrop" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "通过二维码或 AirDrop 在设备之间传输加密配置"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -86629,6 +88711,14 @@
       }
     },
     "Transfère une config chiffrée entre appareils via QR ou AirDrop. Sans serveur." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "通过二维码或 AirDrop 在设备之间传输加密配置，无需服务器。"
+          }
+        }
+      },
       "comment" : "Description of Handoff P2P feature.",
       "isCommentAutoGenerated" : true
     },
@@ -87563,6 +89653,12 @@
     },
     "Transparence" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "透明度"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -87572,10 +89668,26 @@
       }
     },
     "Transparence & vie privée" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "透明度与隐私"
+          }
+        }
+      },
       "comment" : "A link to the privacy policy of rclone.",
       "isCommentAutoGenerated" : true
     },
     "Transports alternatifs" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "其他传输方式"
+          }
+        }
+      }
 
     },
     "Trier" : {
@@ -87743,6 +89855,14 @@
       }
     },
     "Trop de questions de configuration successives — abandon." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连续出现过多配置问题，操作已中止。"
+          }
+        }
+      }
 
     },
     "Tu peux maintenant parcourir tes remotes, transférer des fichiers et lire tes médias depuis Fichiers." : {
@@ -88151,6 +90271,14 @@
       }
     },
     "Un appel non attendu a été observé — voir le journal ci-dessous." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "检测到意外网络请求，请查看下方日志。"
+          }
+        }
+      }
 
     },
     "Un avis sur l'App Store ?" : {
@@ -88318,6 +90446,14 @@
       }
     },
     "Un lien public transporte uniquement un blob chiffré. La clé reste dans la capsule et le déchiffrement se fait sur l’appareil." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "公开链接只传输加密数据块。密钥保留在分享胶囊中，解密在设备上完成。"
+          }
+        }
+      },
       "comment" : "Text displayed in a card explaining how a sealed share works.",
       "isCommentAutoGenerated" : true
     },
@@ -88486,6 +90622,14 @@
       }
     },
     "Une fois la passphrase révélée ici, l'autre appareil ne peut l'utiliser qu'une seule fois. Pour un nouveau transfert, lance un autre Handoff." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "口令短语在此显示后，另一台设备只能使用一次。如需再次传输，请新建一个 Handoff。"
+          }
+        }
+      },
       "comment" : "A footer for the passphrase section, explaining that the passphrase can only be used once and that a new Handoff is needed for a new transfer.",
       "isCommentAutoGenerated" : true
     },
@@ -88965,13 +91109,37 @@
       }
     },
     "Utilise AirDrop, le presse-papiers ou un fichier .rclonebackup à la place — le chiffrement reste identique." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请改用 AirDrop、剪贴板或 .rclonebackup 文件；加密方式保持不变。"
+          }
+        }
+      }
 
     },
     "Utilise la caméra de cet appareil" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用此设备的相机"
+          }
+        }
+      },
       "comment" : "Subtitle for the \"Scanner un QR\" source option.",
       "isCommentAutoGenerated" : true
     },
     "Utiliser ce payload" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用此数据包"
+          }
+        }
+      },
       "comment" : "A button that triggers the use of the payload.",
       "isCommentAutoGenerated" : true
     },
@@ -89059,6 +91227,12 @@
     },
     "Valider" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "确认"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
@@ -89150,13 +91324,35 @@
       }
     },
     "Vault à restaurer" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "要恢复的保险库"
+          }
+        }
+      }
 
     },
     "Vault créé" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保险库已创建"
+          }
+        }
+      }
 
     },
     "Vault écrit dans %@:%@/ghost-vault-AAAA-MM-JJ.rclonebackup" : {
       "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保险库已写入 %1$@:%2$@/ghost-vault-AAAA-MM-JJ.rclonebackup"
+          }
+        },
         "fr" : {
           "stringUnit" : {
             "state" : "new",
@@ -89166,15 +91362,47 @@
       }
     },
     "Vault sélectionné" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已选择保险库"
+          }
+        }
+      }
 
     },
     "vaults connus" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "个已知保险库"
+          }
+        }
+      }
 
     },
     "Vaults connus" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已知保险库"
+          }
+        }
+      }
 
     },
     "Vaults connus sur cet appareil" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此设备上的已知保险库"
+          }
+        }
+      }
 
     },
     "Vérification : %lld / %lld" : {
@@ -89811,13 +92039,37 @@
       }
     },
     "Vers un autre iPhone, Mac ou iPad" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "发送到另一台 iPhone、Mac 或 iPad"
+          }
+        }
+      },
       "comment" : "Subtitle for the \"Envoyer ma config\" row in the Handoff landing view.",
       "isCommentAutoGenerated" : true
     },
     "Version Ghost Vault non supportée : v%lld. Mets à jour l'app." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不支持的 Ghost Vault 版本：v%lld。请更新应用。"
+          }
+        }
+      }
 
     },
     "Version Handoff inconnue : « %@ ». Mets à jour l’app." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未知的 Handoff 版本：“%@”。请更新应用。"
+          }
+        }
+      }
 
     },
     "Version history" : {
@@ -91124,9 +93376,25 @@
       }
     },
     "Vos remotes" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "您的远程存储"
+          }
+        }
+      }
 
     },
     "Vos remotes rclone" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "您的 rclone 远程存储"
+          }
+        }
+      }
 
     },
     "WebDAV (Nextcloud, ownCloud, Synology…)" : {
@@ -91600,6 +93868,426 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "包裝器 / 組合"
+          }
+        }
+      }
+    },
+    "Coller (%@, déplacer)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "粘贴（%@，移动）"
+          }
+        }
+      }
+    },
+    "Coller (%@, copier)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "粘贴（%@，复制）"
+          }
+        }
+      }
+    },
+    "Upload ajouté à la file." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上传任务已加入队列。"
+          }
+        }
+      }
+    },
+    "Échec upload : %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上传失败：%@"
+          }
+        }
+      }
+    },
+    "Upload Photos ajouté à la file." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "照片上传任务已加入队列。"
+          }
+        }
+      }
+    },
+    "Échec upload Photos : %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "照片上传失败：%@"
+          }
+        }
+      }
+    },
+    "Collage avec écrasement en cours dans la file de transferts." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "覆盖粘贴任务已加入传输队列。"
+          }
+        }
+      }
+    },
+    "Collage en cours dans la file de transferts." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "粘贴任务已加入传输队列。"
+          }
+        }
+      }
+    },
+    "Échec du collage : %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "粘贴失败：%@"
+          }
+        }
+      }
+    },
+    "Créer ou copier un lien public" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "创建或复制公开链接"
+          }
+        }
+      }
+    },
+    "Lien CDN personnalisé" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自定义 CDN 链接"
+          }
+        }
+      }
+    },
+    "Domaine CDN de %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 的 CDN 域名"
+          }
+        }
+      }
+    },
+    "Enregistrer" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存"
+          }
+        }
+      }
+    },
+    "Le domaine doit pointer vers la racine publique de ce remote ou de ce bucket. L’app ajoute automatiquement le chemin du fichier ; elle ne modifie pas les permissions du stockage." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "该域名必须指向此远程存储或存储桶的公开根目录。应用会自动追加文件路径，但不会修改存储权限。"
+          }
+        }
+      }
+    },
+    "Lien public rclone" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "rclone 公开链接"
+          }
+        }
+      }
+    },
+    "Vérification de la compatibilité…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在检查兼容性…"
+          }
+        }
+      }
+    },
+    "Génération…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在生成…"
+          }
+        }
+      }
+    },
+    "Générer via rclone" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "通过 rclone 生成"
+          }
+        }
+      }
+    },
+    "Ce backend ne signale pas la création de liens publics. Configure un domaine CDN ci-dessus." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此后端未声明支持创建公开链接。请在上方配置 CDN 域名。"
+          }
+        }
+      }
+    },
+    "Selon le fournisseur, générer ce lien peut rendre le fichier accessible à toute personne qui possède l’URL." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "根据存储提供商的规则，生成此链接可能会让任何持有 URL 的人访问该文件。"
+          }
+        }
+      }
+    },
+    "Lien public" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "公开链接"
+          }
+        }
+      }
+    },
+    "Domaine CDN supprimé." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CDN 域名已删除。"
+          }
+        }
+      }
+    },
+    "Copier l’URL" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "复制 URL"
+          }
+        }
+      }
+    },
+    "Lien copié." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "链接已复制。"
+          }
+        }
+      }
+    },
+    "Markdown copié." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Markdown 已复制。"
+          }
+        }
+      }
+    },
+    "Copier en Markdown" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "复制为 Markdown"
+          }
+        }
+      }
+    },
+    "Partager le lien" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "分享链接"
+          }
+        }
+      }
+    },
+    "Saisis un domaine HTTP(S) valide, sans identifiants." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请输入有效且不含登录凭据的 HTTP(S) 域名。"
+          }
+        }
+      }
+    },
+    "Domaine CDN enregistré." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CDN 域名已保存。"
+          }
+        }
+      }
+    },
+    "Domaine CDN personnalisé" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自定义 CDN 域名"
+          }
+        }
+      }
+    },
+    "Ce domaine est enregistré uniquement sur cet appareil pour le remote « %@ ». Il doit déjà servir publiquement la racine du bucket." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此域名仅在本设备上为远程存储“%@”保存。它必须已经能够公开访问存储桶根目录。"
+          }
+        }
+      }
+    },
+    "Lien natif rclone" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "rclone 原生链接"
+          }
+        }
+      }
+    },
+    "Ce backend prend en charge les liens publics." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此后端支持公开链接。"
+          }
+        }
+      }
+    },
+    "Ce backend ne signale pas la prise en charge des liens publics." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此后端未声明支持公开链接。"
+          }
+        }
+      }
+    },
+    "Liens publics · %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "公开链接 · %@"
+          }
+        }
+      }
+    },
+    "Configurer les liens publics de %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "配置 %@ 的公开链接"
+          }
+        }
+      }
+    },
+    "Configure un domaine CDN personnalisé" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "配置自定义 CDN 域名"
+          }
+        }
+      }
+    },
+    "Liens publics / CDN" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "公开链接 / CDN"
+          }
+        }
+      }
+    },
+    "Ajouter ou uploader" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加或上传"
+          }
+        }
+      }
+    },
+    "Crée un dossier ou choisis des fichiers et photos à envoyer" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "创建文件夹，或选择要上传的文件和照片"
+          }
+        }
+      }
+    },
+    "Copier en HTML" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "复制为 HTML"
+          }
+        }
+      }
+    },
+    "HTML copié." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HTML 已复制。"
           }
         }
       }

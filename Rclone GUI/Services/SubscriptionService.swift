@@ -123,7 +123,7 @@ public final class SubscriptionService: ObservableObject {
             }
             await refreshIntroOfferEligibility()
         } catch {
-            self.lastErrorMessage = "Impossible de charger les offres. Vérifiez votre connexion puis réessayez."
+            self.lastErrorMessage = String(localized: "Impossible de charger les offres. Vérifiez votre connexion puis réessayez.")
         }
     }
 
@@ -187,11 +187,14 @@ public final class SubscriptionService: ObservableObject {
 
     /// Lance l'achat ou l'activation du trial pour le produit donné.
     /// Met à jour snapshot via refreshEntitlements() en cas de succès.
-    public func purchase(_ product: Product) async {
-        guard !isPurchasing else { return }
+    @discardableResult
+    public func purchase(_ product: Product) async -> Bool {
+        guard !isPurchasing else { return false }
         isPurchasing = true
         lastErrorMessage = nil
         defer { isPurchasing = false }
+
+        var didCompleteVerifiedPurchase = false
 
         do {
             let result = try await product.purchase()
@@ -201,8 +204,9 @@ public final class SubscriptionService: ObservableObject {
                 case .verified(let transaction):
                     await transaction.finish()
                     await refreshEntitlements()
+                    didCompleteVerifiedPurchase = true
                 case .unverified:
-                    lastErrorMessage = "L'achat n'a pas pu être validé par Apple. Réessayez."
+                    lastErrorMessage = String(localized: "L'achat n'a pas pu être validé par Apple. Réessayez.")
                 }
             case .userCancelled:
                 // Pas d'erreur à afficher : l'utilisateur a explicitement annulé.
@@ -210,13 +214,14 @@ public final class SubscriptionService: ObservableObject {
             case .pending:
                 // Ask to Buy / parental approval : on ne débloque pas encore,
                 // observeTransactionUpdates() s'en chargera après approbation.
-                lastErrorMessage = "Achat en attente d'approbation. L'abonnement sera activé automatiquement."
+                lastErrorMessage = String(localized: "Achat en attente d'approbation. L'accès sera activé automatiquement.")
             @unknown default:
-                lastErrorMessage = "Résultat d'achat inconnu."
+                lastErrorMessage = String(localized: "Résultat d'achat inconnu.")
             }
         } catch {
-            lastErrorMessage = "Échec de l'achat : \(error.localizedDescription)"
+            lastErrorMessage = String(localized: "Échec de l'achat : \(error.localizedDescription)")
         }
+        return didCompleteVerifiedPurchase
     }
 
     // MARK: - Restore
@@ -233,10 +238,10 @@ public final class SubscriptionService: ObservableObject {
             try await AppStore.sync()
             await refreshEntitlements()
             if !snapshot.isUnlocked {
-                lastErrorMessage = "Aucun abonnement actif trouvé sur ce compte iCloud."
+                lastErrorMessage = String(localized: "Aucun abonnement ou achat à vie actif trouvé sur ce compte Apple.")
             }
         } catch {
-            lastErrorMessage = "Restauration impossible : \(error.localizedDescription)"
+            lastErrorMessage = String(localized: "Restauration impossible : \(error.localizedDescription)")
         }
     }
 

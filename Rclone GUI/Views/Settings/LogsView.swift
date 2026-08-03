@@ -259,7 +259,13 @@ struct LogsView: View {
 
     private func exportLogs() async {
         do {
-            let url = try await LogService.shared.exportAsFile()
+            await LogService.shared.ingestBridgeLogs()
+            let providerEntries = await MainActor.run {
+                FileProviderManager.shared.supportDiagnosticEntries()
+            }
+            let url = try await LogService.shared.exportSupportAsFile(
+                additionalEntries: providerEntries
+            )
             exportURL = url
             showShare = true
         } catch {

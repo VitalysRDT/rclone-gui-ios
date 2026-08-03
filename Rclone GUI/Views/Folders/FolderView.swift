@@ -33,6 +33,7 @@ struct FolderView: View {
     @State private var moveTarget: RemoteEntryDTO?
     @State private var downloadTarget: RemoteEntryDTO?
     @State private var lensTarget: RemoteEntryDTO?
+    @State private var publicLinkTarget: RemoteEntryDTO?
     @State private var remoteTransferRequest: RemoteBatchTransferRequest?
     @State private var availableRemotes: [String] = []
     @State private var deleteIsRecursive = false
@@ -252,9 +253,20 @@ struct FolderView: View {
                 await load(forceFresh: true)
             }
             .safeAreaInset(edge: .bottom) {
+                #if os(iOS)
                 if selectionMode {
                     selectionActionBar
+                } else {
+                    HStack {
+                        Spacer()
+                        floatingAddButton
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 10)
                 }
+                #else
+                if selectionMode { selectionActionBar }
+                #endif
             }
             // Recompute le mapping path → Transfer uniquement quand
             // l'ensemble des running transfers change réellement (arrival,
@@ -301,6 +313,9 @@ struct FolderView: View {
             .sheet(item: $lensTarget) { entry in
                 RemoteLensSheet(remote: remote, entry: entry)
                     .rgMediumDetents()
+            }
+            .sheet(item: $publicLinkTarget) { entry in
+                PublicLinkSheet(remote: remote, entry: entry)
             }
             .sheet(item: $externalOpenTarget, onDismiss: {
                 openingEntryID = nil
@@ -616,7 +631,8 @@ struct FolderView: View {
                     moveTarget: $moveTarget,
                     downloadTarget: $downloadTarget,
                     externalOpenTarget: $externalOpenTarget,
-                    lensTarget: $lensTarget
+                    lensTarget: $lensTarget,
+                    publicLinkTarget: $publicLinkTarget
                 )
             }
         }
@@ -662,7 +678,8 @@ struct FolderView: View {
                         moveTarget: $moveTarget,
                         downloadTarget: $downloadTarget,
                         externalOpenTarget: $externalOpenTarget,
-                        lensTarget: $lensTarget
+                        lensTarget: $lensTarget,
+                        publicLinkTarget: $publicLinkTarget
                     )
                 }
             }
@@ -698,7 +715,8 @@ struct FolderView: View {
                     moveTarget: $moveTarget,
                     downloadTarget: $downloadTarget,
                     externalOpenTarget: $externalOpenTarget,
-                    lensTarget: $lensTarget
+                    lensTarget: $lensTarget,
+                    publicLinkTarget: $publicLinkTarget
                 )
             }
         }
@@ -946,6 +964,40 @@ struct FolderView: View {
         .accessibilityLabel("Actions du dossier")
     }
 
+    #if os(iOS)
+    private var floatingAddButton: some View {
+        Menu {
+            Button {
+                newFolderName = ""
+                showingNewFolderAlert = true
+            } label: {
+                Label("Nouveau dossier", systemImage: "folder.badge.plus")
+            }
+
+            Button {
+                showingFileImporter = true
+            } label: {
+                Label("Uploader fichiers ou dossiers", systemImage: "arrow.up.doc")
+            }
+
+            Button {
+                showingPhotoPicker = true
+            } label: {
+                Label("Uploader depuis Photos", systemImage: "photo.on.rectangle")
+            }
+        } label: {
+            Image(systemName: "plus")
+                .font(.system(size: 26, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 64, height: 64)
+                .background(Circle().fill(.tint))
+                .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
+        }
+        .accessibilityLabel("Ajouter ou uploader")
+        .accessibilityHint("Crée un dossier ou choisis des fichiers et photos à envoyer")
+    }
+    #endif
+
     private var displayTitle: String {
         if path.isEmpty { return remote }
         return (path as NSString).lastPathComponent
@@ -1080,9 +1132,9 @@ struct FolderView: View {
                 destinationFolder: path,
                 sourceKind: .fileProvider
             )
-            transientMessage = "Upload ajouté à la file."
+            transientMessage = String(localized: "Upload ajouté à la file.")
         } catch {
-            transientMessage = "Échec upload : \(error.localizedDescription)"
+            transientMessage = String(localized: "Échec upload : \(error.localizedDescription)")
         }
     }
 
@@ -1138,9 +1190,9 @@ struct FolderView: View {
                 destinationFolder: path,
                 sourceKind: .photoLibrary
             )
-            transientMessage = "Upload Photos ajouté à la file."
+            transientMessage = String(localized: "Upload Photos ajouté à la file.")
         } catch {
-            transientMessage = "Échec upload Photos : \(error.localizedDescription)"
+            transientMessage = String(localized: "Échec upload Photos : \(error.localizedDescription)")
         }
     }
 
@@ -1164,29 +1216,31 @@ struct FolderView: View {
     private var pasteMenuLabel: String {
         let clip = FilesClipboard.shared
         let count = clip.count
-        let suffix = count > 1 ? "\(count) éléments" : "1 élément"
+        let suffix = count > 1
+            ? String(localized: "\(count) éléments")
+            : String(localized: "1 élément")
         return clip.operation == .cut
-            ? "Coller (\(suffix), déplacer)"
-            : "Coller (\(suffix), copier)"
+            ? String(localized: "Coller (\(suffix), déplacer)")
+            : String(localized: "Coller (\(suffix), copier)")
     }
 
     private func pasteFromClipboard(force: Bool = false) async {
         do {
             _ = try await FilesClipboard.shared.paste(into: remote, folder: path, force: force)
             transientMessage = force
-                ? "Collage avec écrasement en cours dans la file de transferts."
-                : "Collage en cours dans la file de transferts."
+                ? String(localized: "Collage avec écrasement en cours dans la file de transferts.")
+                : String(localized: "Collage en cours dans la file de transferts.")
             hapticSuccessTrigger &+= 1
             await load()
         } catch let error as FilesClipboardError {
             if case .destinationConflict(let names) = error {
                 pasteConflictNames = names
             } else {
-                transientMessage = "Échec du collage : \(error.localizedDescription)"
+                transientMessage = String(localized: "Échec du collage : \(error.localizedDescription)")
                 hapticWarningTrigger &+= 1
             }
         } catch {
-            transientMessage = "Échec du collage : \(error.localizedDescription)"
+            transientMessage = String(localized: "Échec du collage : \(error.localizedDescription)")
             hapticWarningTrigger &+= 1
             await LogService.shared.log(
                 .error,

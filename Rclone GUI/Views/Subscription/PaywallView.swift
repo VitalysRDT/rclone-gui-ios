@@ -32,6 +32,8 @@ struct PaywallView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var selectedProductID: String = SubscriptionProductID.monthly
     @State private var showOfferCodeSheet = false
+    @State private var showLifetimeSubscriptionWarning = false
+    @State private var showLifetimeSubscriptionReminder = false
 
     /// Apple ID numérique de l'app sur l'App Store. Sert à l'URL de
     /// redemption des offer codes sur macOS, où la sheet StoreKit native
@@ -319,7 +321,7 @@ struct PaywallView: View {
     private var ctaSection: some View {
         VStack(spacing: 12) {
             Button {
-                Task { await purchaseSelected() }
+                startSelectedPurchase()
             } label: {
                 HStack(spacing: 8) {
                     if subs.isPurchasing {
@@ -338,6 +340,29 @@ struct PaywallView: View {
             }
             .buttonStyle(.plain)
             .disabled(subs.isPurchasing || subs.products.isEmpty)
+            .confirmationDialog(
+                "Ton abonnement Apple restera actif",
+                isPresented: $showLifetimeSubscriptionWarning,
+                titleVisibility: .visible
+            ) {
+                Button("Continuer vers l'achat à vie") {
+                    Task { await purchaseSelected(remindAboutExistingSubscription: true) }
+                }
+                Button("Gérer l'abonnement Apple") {
+                    openURL("https://apps.apple.com/account/subscriptions")
+                }
+                Button("Annuler", role: .cancel) {}
+            } message: {
+                Text("L'achat à vie ne résilie pas ton abonnement mensuel ou annuel. Apple continuera à le renouveler tant que tu ne l'auras pas annulé séparément.")
+            }
+            .alert("Achat à vie activé", isPresented: $showLifetimeSubscriptionReminder) {
+                Button("Gérer l'abonnement Apple") {
+                    openURL("https://apps.apple.com/account/subscriptions")
+                }
+                Button("Compris", role: .cancel) {}
+            } message: {
+                Text("Ton accès permanent est actif. Ton abonnement Apple existant n'est pas annulé automatiquement : annule-le séparément pour éviter son prochain renouvellement.")
+            }
 
             Button {
                 Task { await subs.restorePurchases() }
@@ -405,12 +430,26 @@ struct PaywallView: View {
         return String(localized: "S'abonner")
     }
 
-    private func purchaseSelected() async {
+    private func startSelectedPurchase() {
+        if SubscriptionProductID.isLifetime(selectedProductID),
+           subs.snapshot.hasActiveAutoRenewableSubscription {
+            showLifetimeSubscriptionWarning = true
+            return
+        }
+        Task { await purchaseSelected() }
+    }
+
+    private func purchaseSelected(remindAboutExistingSubscription: Bool = false) async {
         guard let product = subs.product(for: selectedProductID) else {
             await subs.loadProducts()
             return
         }
-        await subs.purchase(product)
+        let didPurchase = await subs.purchase(product)
+        if didPurchase,
+           remindAboutExistingSubscription,
+           SubscriptionProductID.isLifetime(product.id) {
+            showLifetimeSubscriptionReminder = true
+        }
     }
 
     // MARK: - Legal footer

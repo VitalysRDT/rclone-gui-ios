@@ -1,1 +1,1 @@
-rclone,云存储,crypt,加密,s3,备份,文件,dropbox,onedrive,storj,filen,internxt,drime
+云存储,对象存储,文件管理,加密备份,照片同步,CDN加速,Markdown,S3存储

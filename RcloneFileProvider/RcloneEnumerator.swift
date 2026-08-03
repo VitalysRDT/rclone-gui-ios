@@ -26,9 +26,11 @@ private let fileProviderLog = Logger(
 public final class RcloneEnumerator: NSObject, NSFileProviderEnumerator {
 
     let identifier: NSFileProviderItemIdentifier
+    let domain: NSFileProviderDomain
 
-    init(identifier: NSFileProviderItemIdentifier) {
+    init(identifier: NSFileProviderItemIdentifier, domain: NSFileProviderDomain) {
         self.identifier = identifier
+        self.domain = domain
         super.init()
     }
 
@@ -116,11 +118,43 @@ public final class RcloneEnumerator: NSObject, NSFileProviderEnumerator {
 
         Task {
             if let manifestEntries = loadFolderManifestIfAvailable(remote: decoded.remote, path: decoded.path) {
-                fileProviderLog.debug("enumerating \(decoded.remote, privacy: .public):\(decoded.path, privacy: .public) from manifest: \(manifestEntries.count, privacy: .public) items")
-                FileProviderBridge.appendDiagnostic("enumerate \(decoded.remote):\(decoded.path) from manifest count=\(manifestEntries.count)")
-                observer.didEnumerate(items(for: manifestEntries, parentIdentifier: itemIdentifier, remote: decoded.remote))
-                observer.finishEnumerating(upTo: nil)
-                return
+                let modificationDate = FileProviderBridge.folderManifestModificationDate(
+                    remote: decoded.remote,
+                    path: decoded.path
+                )
+                let isFresh = FileProviderBridge.folderManifestIsFresh(
+                    modificationDate: modificationDate,
+                    now: .now
+                )
+                if isFresh || !manifestEntries.isEmpty {
+                    fileProviderLog.debug("enumerating \(decoded.remote, privacy: .public):\(decoded.path, privacy: .public) from manifest: \(manifestEntries.count, privacy: .public) items fresh=\(isFresh, privacy: .public)")
+                    FileProviderBridge.appendDiagnostic("enumerate \(FileProviderBridge.redact(decoded.remote)):\(FileProviderBridge.redact(decoded.path)) from manifest count=\(manifestEntries.count) fresh=\(isFresh)")
+                    observer.didEnumerate(items(for: manifestEntries, parentIdentifier: itemIdentifier, remote: decoded.remote))
+                    observer.finishEnumerating(upTo: nil)
+                }
+
+                if !isFresh, !manifestEntries.isEmpty {
+                    // Ne jamais remplacer le snapshot connu par un faux dossier
+                    // vide pendant une requête Drime lente. Files reste utilisable,
+                    // puis le nouveau manifest déplace l'anchor et déclenche un
+                    // second passage.
+                    Task {
+                        await self.refreshStaleManifest(
+                            remote: decoded.remote,
+                            path: decoded.path
+                        )
+                    }
+                    return
+                } else if isFresh {
+                    return
+                }
+
+                // Un ancien `[]` est précisément l'état dangereux signalé par
+                // Uta. On ne l'annonce pas comme vérité : le flux bloquant ci-
+                // dessous doit d'abord obtenir un listing crypt vérifié.
+                FileProviderBridge.appendDiagnostic(
+                    "stale empty manifest requires verification remote=\(FileProviderBridge.redact(decoded.remote)) path=\(FileProviderBridge.redact(decoded.path))"
+                )
             }
 
             // Manifest absent : déléguer à l'app principale (Go runtime + crypt
@@ -139,8 +173,11 @@ public final class RcloneEnumerator: NSObject, NSFileProviderEnumerator {
                     return
                 }
                 FileProviderBridge.appendDiagnostic("enumerate \(decoded.remote):\(decoded.path) IPC done but manifest missing")
-                observer.didEnumerate([])
-                observer.finishEnumerating(upTo: nil)
+                observer.finishEnumeratingWithError(NSError(
+                    domain: NSFileProviderErrorDomain,
+                    code: NSFileProviderError.serverUnreachable.rawValue,
+                    userInfo: [NSLocalizedDescriptionKey: "Le listing a terminé sans produire de contenu exploitable."]
+                ))
             } catch let relayError as NSError where FileProviderBridge.errorMeansAppInactive(relayError) {
                 // App principale suspendue ou fermée : elle ne répondra jamais au
                 // relais et Fichiers.app resterait sur un spinner jusqu'à ce que
@@ -153,6 +190,7 @@ public final class RcloneEnumerator: NSObject, NSFileProviderEnumerator {
                         remote: decoded.remote,
                         path: decoded.path
                     )
+                    try ensureDirectResultCanBePersisted(entries, remote: decoded.remote)
                     FileProviderBridge.writeFolderManifest(
                         remote: decoded.remote,
                         path: decoded.path,
@@ -170,6 +208,79 @@ public final class RcloneEnumerator: NSObject, NSFileProviderEnumerator {
                 fileProviderLog.error("enumerating \(decoded.remote, privacy: .public):\(decoded.path, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
                 FileProviderBridge.appendDiagnostic("enumerate \(decoded.remote):\(decoded.path) failed: \(error.localizedDescription)")
                 observer.finishEnumeratingWithError(error)
+            }
+        }
+    }
+
+    /// Rafraîchit un snapshot déjà servi. Le chemin principal reste dans l'app
+    /// (plus de mémoire disponible pour crypt) ; si elle est suspendue, un listing
+    /// direct léger garde le pull-to-refresh de Files fonctionnel.
+    private func refreshStaleManifest(remote: String, path: String) async {
+        do {
+            try await FileProviderBridge.requestFolderManifestViaMainApp(
+                remote: remote,
+                path: path,
+                timeout: 60
+            )
+            FileProviderBridge.appendDiagnostic(
+                "stale manifest refreshed via app remote=\(FileProviderBridge.redact(remote)) path=\(FileProviderBridge.redact(path))"
+            )
+        } catch let relayError as NSError where FileProviderBridge.errorMeansAppInactive(relayError) {
+            do {
+                let entries = try await RcloneProviderClient.shared.list(remote: remote, path: path)
+                try ensureDirectResultCanBePersisted(entries, remote: remote)
+                FileProviderBridge.writeFolderManifest(
+                    remote: remote,
+                    path: path,
+                    entries: entries.map(Self.manifestEntry)
+                )
+                signalFolderEnumerator(remote: remote, path: path)
+                FileProviderBridge.appendDiagnostic(
+                    "stale manifest refreshed direct remote=\(FileProviderBridge.redact(remote)) path=\(FileProviderBridge.redact(path)) count=\(entries.count)"
+                )
+            } catch {
+                FileProviderBridge.appendDiagnostic(
+                    "stale manifest direct refresh failed remote=\(FileProviderBridge.redact(remote)) path=\(FileProviderBridge.redact(path)) error=\(error.localizedDescription)"
+                )
+            }
+        } catch {
+            let nsError = error as NSError
+            if nsError.domain == NSFileProviderErrorDomain,
+               nsError.code == NSFileProviderError.noSuchItem.rawValue {
+                FileProviderBridge.invalidateFolderManifest(remote: remote, path: path)
+                signalFolderEnumerator(remote: remote, path: path)
+            }
+            FileProviderBridge.appendDiagnostic(
+                "stale manifest refresh failed remote=\(FileProviderBridge.redact(remote)) path=\(FileProviderBridge.redact(path)) error=\(error.localizedDescription)"
+            )
+        }
+    }
+
+    /// Le client direct de l'extension ne possède pas la récupération crypt
+    /// (nouvel Fs + vérification récursive) de `RemoteService`. Un résultat vide
+    /// crypt ne doit donc pas écraser un snapshot non vide connu.
+    private func ensureDirectResultCanBePersisted(
+        _ entries: [FPRemoteEntry],
+        remote: String
+    ) throws {
+        guard entries.isEmpty,
+              loadRemotesManifest().first(where: { $0.name == remote })?.isCrypt == true else {
+            return
+        }
+        throw NSError(
+            domain: NSFileProviderErrorDomain,
+            code: NSFileProviderError.serverUnreachable.rawValue,
+            userInfo: [NSLocalizedDescriptionKey: "Un listing crypt vide doit être vérifié dans Rclone GUI."]
+        )
+    }
+
+    private func signalFolderEnumerator(remote: String, path: String) {
+        let identifier = RcloneItem.identifier(remote: remote, path: path)
+        NSFileProviderManager(for: domain)?.signalEnumerator(for: identifier) { error in
+            if let error {
+                FileProviderBridge.appendDiagnostic(
+                    "stale manifest signal failed remote=\(FileProviderBridge.redact(remote)) path=\(FileProviderBridge.redact(path)) error=\(error.localizedDescription)"
+                )
             }
         }
     }

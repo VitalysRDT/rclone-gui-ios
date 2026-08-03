@@ -52,7 +52,7 @@ public final class RcloneFileProvider: NSObject, NSFileProviderReplicatedExtensi
     public func enumerator(for containerItemIdentifier: NSFileProviderItemIdentifier, request: NSFileProviderRequest) throws -> NSFileProviderEnumerator {
         FileProviderBridge.appendDiagnostic("enumerator requested id=\(containerItemIdentifier.rawValue)")
         try FileProviderBridge.ensureSubscriptionActive()
-        return RcloneEnumerator(identifier: containerItemIdentifier)
+        return RcloneEnumerator(identifier: containerItemIdentifier, domain: domain)
     }
 
     // MARK: - Item lookup
@@ -419,27 +419,60 @@ public final class RcloneFileProvider: NSObject, NSFileProviderReplicatedExtensi
             return progress
         }
         let newPath = join(parent.path, itemTemplate.filename)
+        let isDirectory = itemTemplate.contentType?.conforms(to: .folder) == true
+        FileProviderBridge.appendDiagnostic(
+            "create start remote=\(FileProviderBridge.redact(parent.remote)) path=\(FileProviderBridge.redact(newPath)) directory=\(isDirectory) content=\(url != nil) options=\(options.rawValue)"
+        )
 
         Task {
             do {
-                if let url {
-                    let didStart = url.startAccessingSecurityScopedResource()
-                    defer { if didStart { url.stopAccessingSecurityScopedResource() } }
-                    let entry = try await RcloneProviderClient.shared.upload(localURL: url, remote: parent.remote, path: newPath)
-                    completionHandler(item(remote: parent.remote, entry: entry, fallbackPath: newPath), [], false, nil)
-                } else {
+                let createdItem: RcloneItem?
+                if isDirectory {
                     try await RcloneProviderClient.shared.mkdir(remote: parent.remote, path: newPath)
-                    completionHandler(RcloneItem(
+                    createdItem = RcloneItem(
                         id: RcloneItem.identifier(remote: parent.remote, path: newPath),
                         parentID: itemTemplate.parentItemIdentifier,
                         displayName: itemTemplate.filename,
                         isDirectory: true,
                         size: 0,
                         modTime: .now
-                    ), [], false, nil)
+                    )
+                } else if let url {
+                    let didStart = url.startAccessingSecurityScopedResource()
+                    defer { if didStart { url.stopAccessingSecurityScopedResource() } }
+                    let entry = try await RcloneProviderClient.shared.upload(localURL: url, remote: parent.remote, path: newPath)
+                    createdItem = item(remote: parent.remote, entry: entry, fallbackPath: newPath)
+                } else if options.contains(.mayAlreadyExist) {
+                    // Reimport of a dataless file: match the remote item if it is
+                    // already there. Apple asks providers to return nil when no
+                    // matching item can be found, not to create a directory whose
+                    // name merely happens to be the file's name.
+                    if let entry = try await RcloneProviderClient.shared.stat(
+                        remote: parent.remote,
+                        path: newPath
+                    ) {
+                        createdItem = item(remote: parent.remote, entry: entry, fallbackPath: newPath)
+                    } else {
+                        completionHandler(nil, [], false, nil)
+                        progress.completedUnitCount = 1
+                        return
+                    }
+                } else {
+                    throw NSError(
+                        domain: NSFileProviderErrorDomain,
+                        code: NSFileProviderError.cannotSynchronize.rawValue,
+                        userInfo: [NSLocalizedDescriptionKey: "Le contenu du fichier à envoyer est indisponible."]
+                    )
                 }
+
+                refreshParentManifest(remote: parent.remote, path: parent.path)
+                completionHandler(createdItem, [], false, nil)
                 progress.completedUnitCount = 1
             } catch {
+                let nsError = error as NSError
+                FileProviderBridge.appendDiagnostic(
+                    "create failed remote=\(FileProviderBridge.redact(parent.remote)) directory=\(isDirectory) domain=\(nsError.domain) code=\(nsError.code)"
+                )
                 completionHandler(nil, [], false, error)
             }
         }
@@ -474,6 +507,10 @@ public final class RcloneFileProvider: NSObject, NSFileProviderReplicatedExtensi
                         localURL: newContents,
                         remote: decoded.remote,
                         path: decoded.path
+                    )
+                    refreshParentManifest(
+                        remote: decoded.remote,
+                        path: (decoded.path as NSString).deletingLastPathComponent
                     )
                     completionHandler(self.item(remote: decoded.remote, entry: entry, fallbackPath: decoded.path), [], false, nil)
                 } else {
@@ -515,6 +552,10 @@ public final class RcloneFileProvider: NSObject, NSFileProviderReplicatedExtensi
                     path: decoded.path,
                     isDirectory: entry?.isDirectory ?? false
                 )
+                refreshParentManifest(
+                    remote: decoded.remote,
+                    path: (decoded.path as NSString).deletingLastPathComponent
+                )
                 progress.completedUnitCount = 1
                 completionHandler(nil)
             } catch {
@@ -544,6 +585,28 @@ public final class RcloneFileProvider: NSObject, NSFileProviderReplicatedExtensi
 
     private func join(_ parent: String, _ child: String) -> String {
         parent.isEmpty ? child : "\(parent)/\(child)"
+    }
+
+    private func refreshParentManifest(remote: String, path: String) {
+        FileProviderBridge.invalidateFolderManifest(
+            remote: remote,
+            path: path,
+            cancelPendingListings: true
+        )
+        let identifier = RcloneItem.identifier(remote: remote, path: path)
+        guard let manager = NSFileProviderManager(for: domain) else {
+            FileProviderBridge.appendDiagnostic(
+                "signal parent unavailable remote=\(FileProviderBridge.redact(remote)) path=\(FileProviderBridge.redact(path))"
+            )
+            return
+        }
+        manager.signalEnumerator(for: identifier) { error in
+            if let error {
+                FileProviderBridge.appendDiagnostic(
+                    "signal parent failed remote=\(FileProviderBridge.redact(remote)) path=\(FileProviderBridge.redact(path)) error=\(error.localizedDescription)"
+                )
+            }
+        }
     }
 
     private func manifestItem(

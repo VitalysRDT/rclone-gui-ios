@@ -27,6 +27,68 @@ import Foundation
 import RcloneKit
 #endif
 
+/// Politique de durée de vie et de priorité des requêtes IPC File Provider.
+///
+/// Une énumération `list` n'a plus aucun consommateur après le timeout de 60 s
+/// de l'extension. La rejouer au prochain lancement peut au contraire écraser un
+/// manifest récent et, avec un backend lent, bloquer toutes les requêtes vivantes
+/// derrière des centaines d'anciens chemins. Les téléchargements complets gardent
+/// la durée maximale de six heures promise à l'extension, plus une marge de
+/// nettoyage, afin qu'un téléchargement orphelin ne survive pas indéfiniment.
+enum FileProviderPendingRequestPolicy {
+    static let interactiveLifetime: TimeInterval = 2 * 60
+    static let fullDownloadLifetime: TimeInterval = 6 * 60 * 60 + interactiveLifetime
+
+    static func lifetime(for kind: String?) -> TimeInterval {
+        switch kind {
+        case "list", "stream-url": interactiveLifetime
+        default: fullDownloadLifetime
+        }
+    }
+
+    static func isExpired(_ pending: AppGroupPendingFetch, now: Date) -> Bool {
+        now.timeIntervalSince(pending.createdAt) > lifetime(for: pending.kind)
+    }
+
+    /// Les listings/URLs de streaming sont interactifs et passent avant les
+    /// downloads. Entre requêtes interactives, la plus récente gagne ; entre
+    /// downloads, on conserve le FIFO.
+    static func shouldProcessBefore(
+        _ lhs: AppGroupPendingFetch,
+        _ rhs: AppGroupPendingFetch
+    ) -> Bool {
+        func rank(_ kind: String?) -> Int {
+            switch kind {
+            case "list": 0
+            case "stream-url": 1
+            default: 2
+            }
+        }
+
+        let lhsRank = rank(lhs.kind)
+        let rhsRank = rank(rhs.kind)
+        if lhsRank != rhsRank { return lhsRank < rhsRank }
+        if lhs.createdAt == rhs.createdAt { return lhs.requestID < rhs.requestID }
+        return lhsRank < 2
+            ? lhs.createdAt > rhs.createdAt
+            : lhs.createdAt < rhs.createdAt
+    }
+}
+
+/// Clé réseau d'un listing File Provider. Plusieurs waiters possèdent chacun
+/// leur propre requestID/ACK, mais un même `(remote, path)` ne doit déclencher
+/// qu'un seul `operations/list` dans un batch — succès comme échec.
+struct FileProviderPendingListKey: Hashable {
+    let remote: String
+    let path: String
+
+    init?(_ pending: AppGroupPendingFetch) {
+        guard pending.kind == "list" else { return nil }
+        remote = pending.remote
+        path = pending.path
+    }
+}
+
 @MainActor
 public final class FileProviderFetchService {
     public static let shared = FileProviderFetchService()
@@ -34,6 +96,13 @@ public final class FileProviderFetchService {
 
     private var observerToken: UnsafeMutableRawPointer?
     private var processing: Set<String> = []
+    private var isDraining = false
+    private var needsAnotherDrain = false
+
+    private struct DecodedRequest {
+        let url: URL
+        let pending: AppGroupPendingFetch
+    }
 
     /// À appeler une fois au boot de l'app principale. Configure l'observer
     /// Darwin et traite les pending-fetches déjà présents (cas où l'extension
@@ -76,6 +145,26 @@ public final class FileProviderFetchService {
     // MARK: - Processing
 
     private func processPendingFetches(reason: String) async {
+        // Les callbacks Darwin peuvent réentrer pendant qu'un appel réseau est
+        // suspendu. Un seul drain séquentiel évite alors de lancer plusieurs
+        // listings librclone concurrents. La notification est mémorisée et un
+        // nouveau scan est effectué à la fin du drain courant.
+        guard !isDraining else {
+            needsAnotherDrain = true
+            return
+        }
+        isDraining = true
+        defer { isDraining = false }
+
+        var scanReason = reason
+        repeat {
+            needsAnotherDrain = false
+            await processPendingBatch(reason: scanReason)
+            scanReason = "notifications regroupées"
+        } while needsAnotherDrain
+    }
+
+    private func processPendingBatch(reason: String) async {
         let dir = AppGroup.pendingFetchesDir
         let fm = FileManager.default
         guard let entries = try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) else {
@@ -84,29 +173,89 @@ public final class FileProviderFetchService {
         let jsons = entries.filter { $0.pathExtension == "json" }
         if jsons.isEmpty { return }
 
+        let now = Date()
+        var requests: [DecodedRequest] = []
+        var expiredCount = 0
+        var unreadableCount = 0
+
+        for url in jsons {
+            guard let data = try? Data(contentsOf: url),
+                  let pending = try? JSONDecoder().decode(AppGroupPendingFetch.self, from: data) else {
+                unreadableCount += 1
+                cleanupIPC(at: url)
+                continue
+            }
+            guard !FileProviderPendingRequestPolicy.isExpired(pending, now: now) else {
+                expiredCount += 1
+                cleanupIPC(at: url)
+                continue
+            }
+            requests.append(DecodedRequest(url: url, pending: pending))
+
+            if pending.kind == "list" {
+                // Accuser réception de tous les waiters AVANT le premier appel
+                // Drime. Un doublon plus ancien attendra ainsi le manifest commun
+                // au lieu de conclure à tort que l'app est inactive après 1,5 s.
+                let statusURL = url.appendingPathExtension("status")
+                try? fm.removeItem(at: url.appendingPathExtension("error"))
+                writeFetchStatus(
+                    stage: "queued",
+                    jobID: nil,
+                    bytesTransferred: 0,
+                    bytesTotal: 0,
+                    message: nil,
+                    to: statusURL
+                )
+            }
+        }
+
+        requests.sort {
+            FileProviderPendingRequestPolicy.shouldProcessBefore($0.pending, $1.pending)
+        }
+
         await LogService.shared.log(
             .debug,
             category: "fileprovider",
-            message: "FetchService scan (\(reason)) : \(jsons.count) demande(s)"
+            message: "FetchService scan (\(reason)) : \(jsons.count) observée(s), \(requests.count) active(s), \(expiredCount) expirée(s), \(unreadableCount) illisible(s)",
+            supportMessage: "operation=listing stage=queued count=\(requests.count) expired_count=\(expiredCount) unreadable_count=\(unreadableCount)"
         )
 
-        for url in jsons {
-            await handlePendingURL(url)
+        var processedListKeys: Set<FileProviderPendingListKey> = []
+        for request in requests {
+            if let key = FileProviderPendingListKey(request.pending) {
+                guard processedListKeys.insert(key).inserted else { continue }
+
+                // Le tri global place la requête interactive la plus récente en
+                // tête. Tous les doublons conservent néanmoins leur ACK propre et
+                // recevront le même manifest ou la même erreur.
+                let group = requests.filter {
+                    FileProviderPendingListKey($0.pending) == key
+                        && fm.fileExists(atPath: $0.url.path)
+                }
+                var waiting: [DecodedRequest] = []
+                for member in group {
+                    if folderManifestIsNewer(
+                        than: member.pending.createdAt,
+                        pending: member.pending
+                    ) {
+                        cleanupIPC(at: member.url)
+                    } else {
+                        waiting.append(member)
+                    }
+                }
+                guard !waiting.isEmpty else { continue }
+                await handleListRequests(waiting)
+                continue
+            }
+
+            // Une autre passe réentrante peut avoir terminé cette requête entre
+            // le scan et son tour de boucle.
+            guard fm.fileExists(atPath: request.url.path) else { continue }
+            await handlePendingURL(request.url, pending: request.pending)
         }
     }
 
-    private func handlePendingURL(_ url: URL) async {
-        guard let data = try? Data(contentsOf: url),
-              let pending = try? JSONDecoder().decode(AppGroupPendingFetch.self, from: data) else {
-            await LogService.shared.log(
-                .error,
-                category: "fileprovider",
-                message: "FetchService : pending illisible \(url.lastPathComponent)"
-            )
-            try? FileManager.default.removeItem(at: url)
-            return
-        }
-
+    private func handlePendingURL(_ url: URL, pending: AppGroupPendingFetch) async {
         // Déduplication : si plusieurs notifs Darwin arrivent en série pendant
         // que le download tourne, on évite de relancer le même request.
         if processing.contains(pending.requestID) { return }
@@ -117,53 +266,98 @@ public final class FileProviderFetchService {
         case "stream-url":
             await handleStreamURLRequest(pending: pending, pendingURL: url)
         case "list":
-            await handleListRequest(pending: pending, pendingURL: url)
+            await handleListRequests([DecodedRequest(url: url, pending: pending)])
         default:
             await handleFullDownload(pending: pending, pendingURL: url)
         }
     }
 
-    private func handleListRequest(pending: AppGroupPendingFetch, pendingURL: URL) async {
+    private func handleListRequests(_ requests: [DecodedRequest]) async {
+        guard let leader = requests.first else { return }
+        let pending = leader.pending
         await LogService.shared.log(
             .info,
             category: "fileprovider",
-            message: "FetchService list \(pending.remote):\(pending.path)"
+            message: "FetchService list \(pending.remote):\(pending.path) waiters=\(requests.count)",
+            supportMessage: "operation=listing stage=started waiters=\(requests.count)"
         )
 
-        // Accusé de réception immédiat, avant tout appel réseau : c'est le seul
-        // signal qui permet à l'extension de distinguer « app active mais listing
-        // lent » de « app suspendue, personne ne répondra ». Sans lui elle attend
-        // le timeout complet et Fichiers.app reste bloqué sur un spinner.
-        let statusURL = pendingURL.appendingPathExtension("status")
-        writeFetchStatus(
-            stage: "running",
-            jobID: nil,
-            bytesTransferred: 0,
-            bytesTotal: 0,
-            message: nil,
-            to: statusURL
-        )
-        defer { try? FileManager.default.removeItem(at: statusURL) }
+        // Chaque extension attend son propre `.status`. Tous les doublons sont
+        // donc maintenus en vie pendant l'unique appel réseau du leader.
+        for request in requests {
+            writeFetchStatus(
+                stage: "running",
+                jobID: nil,
+                bytesTransferred: 0,
+                bytesTotal: 0,
+                message: nil,
+                to: request.url.appendingPathExtension("status")
+            )
+        }
 
         do {
             let entries = try await RemoteService.shared.list(
                 remote: pending.remote,
                 path: pending.path
             )
+
+            // Une mutation ou une annulation peut supprimer tous les waiters
+            // pendant le listing lent. Dans ce cas, ne republie pas un snapshot
+            // devenu inutile après leur disparition.
+            let activeRequests = requests.filter {
+                FileManager.default.fileExists(atPath: $0.url.path)
+            }
+            guard !activeRequests.isEmpty else {
+                await LogService.shared.log(
+                    .debug,
+                    category: "fileprovider",
+                    message: "FetchService list discarded \(pending.remote):\(pending.path) (aucun waiter actif)",
+                    supportMessage: "operation=listing stage=cancelled"
+                )
+                return
+            }
+
             // FileProviderManager écrit le manifest au bon path et signale
             // l'enumerator (que iOS ignorera pour cette requete-ci, mais utile
             // pour les rafraîchissements futurs).
-            await FileProviderManager.shared.writeFolderManifest(
+            guard await FileProviderManager.shared.writeFolderManifest(
                 remote: pending.remote,
                 path: pending.path,
                 entries: entries
-            )
+            ) else {
+                throw NSError(
+                    domain: "FileProviderFetchService",
+                    code: -2,
+                    userInfo: [
+                        NSLocalizedDescriptionKey: "Le manifest File Provider n'a pas pu être écrit."
+                    ]
+                )
+            }
+            let stillActiveRequests = activeRequests.filter {
+                FileManager.default.fileExists(atPath: $0.url.path)
+            }
+            guard !stillActiveRequests.isEmpty else {
+                // La mutation a pu annuler les waiters pendant l'écriture du
+                // manifest. Retire immédiatement ce snapshot pré-mutation ; le
+                // signal post-mutation déclenchera le listing suivant.
+                removeFolderManifest(for: pending)
+                await LogService.shared.log(
+                    .debug,
+                    category: "fileprovider",
+                    message: "FetchService list unpublished \(pending.remote):\(pending.path) (waiters invalidés)",
+                    supportMessage: "operation=listing stage=cancelled"
+                )
+                return
+            }
             await LogService.shared.log(
                 .info,
                 category: "fileprovider",
-                message: "FetchService list done \(pending.remote):\(pending.path) (\(entries.count) entrées)"
+                message: "FetchService list done \(pending.remote):\(pending.path) (\(entries.count) entrées, \(stillActiveRequests.count) waiter(s))",
+                supportMessage: "operation=listing stage=completed count=\(entries.count) waiters=\(stillActiveRequests.count)"
             )
-            try? FileManager.default.removeItem(at: pendingURL)
+            for request in stillActiveRequests {
+                cleanupIPC(at: request.url)
+            }
         } catch {
             let message = error.localizedDescription
             await LogService.shared.log(
@@ -171,8 +365,16 @@ public final class FileProviderFetchService {
                 category: "fileprovider",
                 message: "FetchService list failed \(pending.remote):\(pending.path) : \(message)"
             )
-            let errorURL = pendingURL.appendingPathExtension("error")
-            try? Data(message.utf8).write(to: errorURL, options: [.atomic])
+            // Fan-out : tous les waiters coalescés reçoivent la même erreur et
+            // aucun doublon ne relance le backend dans ce batch.
+            for request in requests where FileManager.default.fileExists(atPath: request.url.path) {
+                let errorURL = request.url.appendingPathExtension("error")
+                try? Data(message.utf8).write(to: errorURL, options: [.atomic])
+                try? FileManager.default.removeItem(at: request.url.appendingPathExtension("status"))
+                // Le .error reste disponible pour l'extension, mais le .json ne
+                // doit jamais être rejoué au prochain boot si elle a disparu.
+                try? FileManager.default.removeItem(at: request.url)
+            }
         }
     }
 
@@ -305,6 +507,7 @@ public final class FileProviderFetchService {
                 message: "FetchService failed \(pending.remote):\(pending.path) : \(message)"
             )
             try? Data(message.utf8).write(to: errorURL, options: [.atomic])
+            try? FileManager.default.removeItem(at: pendingURL)
         }
     }
 
@@ -328,6 +531,7 @@ public final class FileProviderFetchService {
             await LogService.shared.log(.error, category: "fileprovider", message: message)
             let errorURL = pendingURL.appendingPathExtension("error")
             try? Data(message.utf8).write(to: errorURL, options: [.atomic])
+            try? FileManager.default.removeItem(at: pendingURL)
             return
         }
 
@@ -355,13 +559,52 @@ public final class FileProviderFetchService {
             await LogService.shared.log(.error, category: "fileprovider", message: message)
             let errorURL = pendingURL.appendingPathExtension("error")
             try? Data(message.utf8).write(to: errorURL, options: [.atomic])
+            try? FileManager.default.removeItem(at: pendingURL)
         }
         #else
         let message = "RcloneKit indisponible pour streaming"
         await LogService.shared.log(.error, category: "fileprovider", message: message)
         let errorURL = pendingURL.appendingPathExtension("error")
         try? Data(message.utf8).write(to: errorURL, options: [.atomic])
+        try? FileManager.default.removeItem(at: pendingURL)
         #endif
+    }
+
+    private func cleanupIPC(at pendingURL: URL) {
+        try? FileManager.default.removeItem(at: pendingURL)
+        try? FileManager.default.removeItem(at: pendingURL.appendingPathExtension("status"))
+        try? FileManager.default.removeItem(at: pendingURL.appendingPathExtension("error"))
+    }
+
+    private func folderManifestIsNewer(
+        than requestDate: Date,
+        pending: AppGroupPendingFetch
+    ) -> Bool {
+        let key = "\(pending.remote):\(pending.path)"
+        let safe = key.addingPercentEncoding(withAllowedCharacters: .alphanumerics)
+            ?? key
+        let url = AppGroup.containerURL
+            .appending(path: "manifest", directoryHint: .isDirectory)
+            .appending(path: "folders", directoryHint: .isDirectory)
+            .appending(path: safe)
+            .appendingPathExtension("json")
+        guard let attributes = try? FileManager.default.attributesOfItem(atPath: url.path),
+              let modificationDate = attributes[.modificationDate] as? Date else {
+            return false
+        }
+        return modificationDate > requestDate
+    }
+
+    private func removeFolderManifest(for pending: AppGroupPendingFetch) {
+        let key = "\(pending.remote):\(pending.path)"
+        let safe = key.addingPercentEncoding(withAllowedCharacters: .alphanumerics)
+            ?? key
+        let url = AppGroup.containerURL
+            .appending(path: "manifest", directoryHint: .isDirectory)
+            .appending(path: "folders", directoryHint: .isDirectory)
+            .appending(path: safe)
+            .appendingPathExtension("json")
+        try? FileManager.default.removeItem(at: url)
     }
 
     private func waitForJob(

@@ -60,11 +60,27 @@ public nonisolated struct SubscriptionSnapshot: Codable, Sendable, Equatable {
     public var isUnlocked: Bool {
         entitlement == .trial || entitlement == .active
     }
+
+    /// Vrai uniquement quand l'accès courant vient de l'achat non consommable
+    /// « à vie ». Un abonnement auto-renouvelable et l'achat à vie partagent
+    /// aujourd'hui l'entitlement `.active`, donc le `productID` est nécessaire
+    /// pour ne pas présenter le lifetime comme un abonnement à gérer.
+    public var hasLifetimeAccess: Bool {
+        isUnlocked && SubscriptionProductID.isLifetime(productID)
+    }
+
+    /// Vrai quand le snapshot représente un abonnement Apple mensuel ou annuel
+    /// actuellement déverrouillé. Cela inclut une introductory offer Apple
+    /// (`.trial` avec un productID mensuel/annuel), mais exclut l'essai local
+    /// (`.trial` avec productID nil) et l'achat à vie.
+    public var hasActiveAutoRenewableSubscription: Bool {
+        isUnlocked && SubscriptionProductID.isAutoRenewable(productID)
+    }
 }
 
 /// IDs StoreKit utilisés partout dans l'app. Conservés ici pour qu'extension
 /// et main app référencent les mêmes constantes.
-public enum SubscriptionProductID {
+public nonisolated enum SubscriptionProductID {
     // Apple n'autorise pas les tirets dans les productId IAP (seuls
     // alphanumériques, underscores et points sont valides). Le bundle ID
     // utilise un tiret mais on bascule sur underscore ici.
@@ -80,5 +96,12 @@ public enum SubscriptionProductID {
     /// l'UI (libellés, CTA, mention légale) qui diffère d'un abonnement.
     public static func isLifetime(_ productID: String?) -> Bool {
         productID == lifetime
+    }
+
+    /// Vrai pour les deux produits qui se renouvellent via l'App Store.
+    /// Centraliser ce test évite de traiter l'achat à vie comme un abonnement
+    /// dans les écrans Réglages et Paywall.
+    public static func isAutoRenewable(_ productID: String?) -> Bool {
+        productID == monthly || productID == yearly
     }
 }

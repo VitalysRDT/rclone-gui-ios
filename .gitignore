@@ -57,6 +57,13 @@ Frameworks/RcloneKit.xcframework/
 
 RcloneFileProviderUI/RcloneKit.xcframework/
 
+# --- Local AI/browser/compiler work files -------------------------------
+.claude/
+.playwright-mcp/
+Rclone GUI.xcodeproj/-Xcc/
+mem0_payload_*.json
+/vitrine-topup-430.png
+
 # App Store Connect API key (secret, never commit)
 fastlane/.appstore-key.p8
 fastlane/*.p8

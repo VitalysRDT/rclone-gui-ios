@@ -388,12 +388,15 @@ private struct SubscriptionStatusRow: View {
     @Environment(\.openURL) private var openURL
     @State private var showOffers = false
 
-    /// True quand l'utilisateur a un vrai abonnement Apple en cours. Pendant
-    /// l'essai 7 jours app-managé il n'y a RIEN à « gérer » côté Apple : le
-    /// bouton « Gérer mon abonnement » ouvrait une page vide (retour App
-    /// Store) — on montre « Voir les offres » à la place.
-    private var hasAppleSubscription: Bool {
-        subs.snapshot.entitlement == .active
+    /// True uniquement pour un abonnement mensuel/annuel géré par Apple. Un
+    /// achat à vie est également `.active`, mais il ne se renouvelle pas et ne
+    /// doit donc jamais être présenté comme un abonnement à gérer.
+    private var hasAutoRenewableSubscription: Bool {
+        subs.snapshot.hasActiveAutoRenewableSubscription
+    }
+
+    private var hasLifetimeAccess: Bool {
+        subs.snapshot.hasLifetimeAccess
     }
 
     var body: some View {
@@ -420,7 +423,7 @@ private struct SubscriptionStatusRow: View {
             .padding(.vertical, 4)
 
             HStack(spacing: 8) {
-                if hasAppleSubscription {
+                if hasAutoRenewableSubscription {
                     Button {
                         if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
                             openURL(url)
@@ -434,6 +437,13 @@ private struct SubscriptionStatusRow: View {
                             .foregroundStyle(RG.accent)
                     }
                     .buttonStyle(.plain)
+                } else if hasLifetimeAccess {
+                    Label("Achat à vie · accès permanent", systemImage: "checkmark.seal.fill")
+                        .font(.system(size: 14, weight: .semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 9)
+                        .background(Color.green.opacity(0.12), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                        .foregroundStyle(.green)
                 } else {
                     Button {
                         showOffers = true
@@ -475,6 +485,9 @@ private struct SubscriptionStatusRow: View {
     }
 
     private var statusTitle: String {
+        if hasLifetimeAccess {
+            return String(localized: "Achat à vie actif")
+        }
         switch subs.snapshot.entitlement {
         case .trial:   return String(localized: "Essai gratuit en cours")
         case .active:  return String(localized: "Abonnement actif")
@@ -487,6 +500,10 @@ private struct SubscriptionStatusRow: View {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         formatter.timeStyle = .none
+
+        if hasLifetimeAccess {
+            return String(localized: "Accès permanent · aucun renouvellement")
+        }
 
         switch subs.snapshot.entitlement {
         case .trial:

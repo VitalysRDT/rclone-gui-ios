@@ -16,6 +16,7 @@
 //
 
 import Foundation
+import FileProvider
 import Testing
 @testable import Rclone_GUI
 
@@ -140,6 +141,7 @@ struct FileProviderIPCContractTests {
     }
 
     @Test("Le statut écrit par l'app est décodable par l'extension")
+    @MainActor
     func statusDecodesAcrossTargets() throws {
         let appStatus = AppGroupFetchStatus(
             stage: "running",
@@ -216,5 +218,239 @@ struct FileProviderFolderManifestTests {
 
         #expect(a != b)
         #expect(a != c)
+    }
+
+    @Test("Le staging d'upload reste dans l'App Group et conserve seulement l'extension")
+    func uploadStagingURLIsPrivateAndStable() {
+        let url = FileProviderBridge.uploadStagingURL(
+            requestID: "F1B0C0DE-0000-4000-8000-00000000ABCD",
+            filename: "private-report.final.pdf"
+        )
+
+        #expect(url.deletingLastPathComponent().standardizedFileURL == FileProviderBridge.uploadStagingDir.standardizedFileURL)
+        #expect(url.lastPathComponent == "F1B0C0DE-0000-4000-8000-00000000ABCD.pdf")
+        #expect(!url.lastPathComponent.contains("private-report"))
+    }
+
+    @Test("Un manifest récent est servi, un ancien doit être rafraîchi")
+    func manifestFreshnessIsExplicit() {
+        let now = Date(timeIntervalSinceReferenceDate: 800_000_000)
+
+        #expect(FileProviderBridge.folderManifestIsFresh(
+            modificationDate: now.addingTimeInterval(-30),
+            now: now,
+            maximumAge: 60
+        ))
+        #expect(!FileProviderBridge.folderManifestIsFresh(
+            modificationDate: now.addingTimeInterval(-61),
+            now: now,
+            maximumAge: 60
+        ))
+        #expect(!FileProviderBridge.folderManifestIsFresh(
+            modificationDate: nil,
+            now: now,
+            maximumAge: 60
+        ))
+    }
+
+    @Test("Un directory not found 404 devient noSuchItem, pas dossier vide")
+    func missingDirectoryMapsToNoSuchItem() {
+        let message = "rclone error 404 on 'operations/list': directory not found"
+        #expect(
+            FileProviderBridge.relayFileProviderErrorCode(for: message)
+                == NSFileProviderError.noSuchItem.rawValue
+        )
+        #expect(
+            FileProviderBridge.relayFileProviderErrorCode(for: "quota exceeded")
+                == NSFileProviderError.serverUnreachable.rawValue
+        )
+    }
+}
+
+@Suite("FileProvider — politique de file IPC")
+struct FileProviderPendingRequestPolicyTests {
+    private let now = Date(timeIntervalSinceReferenceDate: 800_000_000)
+
+    private func pending(
+        id: String,
+        kind: String?,
+        age: TimeInterval
+    ) -> AppGroupPendingFetch {
+        AppGroupPendingFetch(
+            requestID: id,
+            remote: "crypt",
+            path: "folder-\(id)",
+            destPath: "/tmp/\(id)",
+            createdAt: now.addingTimeInterval(-age),
+            kind: kind
+        )
+    }
+
+    @Test("Les anciens listings expirent avant de bloquer un nouveau boot")
+    func oldListingsExpire() {
+        let backlog = (0..<192).map {
+            pending(id: "old-\($0)", kind: "list", age: 10 * 60)
+        }
+
+        #expect(backlog.allSatisfy {
+            FileProviderPendingRequestPolicy.isExpired($0, now: now)
+        })
+        #expect(!FileProviderPendingRequestPolicy.isExpired(
+            pending(id: "live", kind: "list", age: 30),
+            now: now
+        ))
+    }
+
+    @Test("Un téléchargement vivant garde son contrat de six heures")
+    func fullDownloadUsesItsOwnLifetime() {
+        #expect(!FileProviderPendingRequestPolicy.isExpired(
+            pending(id: "download-live", kind: "full", age: 5 * 60 * 60),
+            now: now
+        ))
+        #expect(FileProviderPendingRequestPolicy.isExpired(
+            pending(id: "download-orphan", kind: "full", age: 24 * 60 * 60),
+            now: now
+        ))
+        #expect(
+            FileProviderPendingRequestPolicy.lifetime(for: "full")
+                > FileProviderPendingRequestPolicy.lifetime(for: "list")
+        )
+    }
+
+    @Test("Le listing interactif récent passe avant un download")
+    func interactiveWorkHasPriority() {
+        let list = pending(id: "list", kind: "list", age: 10)
+        let download = pending(id: "download", kind: "full", age: 1)
+
+        #expect(FileProviderPendingRequestPolicy.shouldProcessBefore(list, download))
+        #expect(!FileProviderPendingRequestPolicy.shouldProcessBefore(download, list))
+    }
+
+    @Test("Les doublons d'un dossier partagent une clé réseau, pas leur requestID")
+    @MainActor
+    func duplicateListingsShareOneNetworkKey() {
+        let first = pending(id: "waiter-a", kind: "list", age: 15)
+        let second = pending(id: "waiter-b", kind: "list", age: 5)
+        let otherPath = AppGroupPendingFetch(
+            requestID: "waiter-c",
+            remote: first.remote,
+            path: "another-folder",
+            destPath: "/tmp/waiter-c",
+            createdAt: now,
+            kind: "list"
+        )
+
+        #expect(FileProviderPendingListKey(first) == FileProviderPendingListKey(second))
+        #expect(FileProviderPendingListKey(first) != FileProviderPendingListKey(otherPath))
+        #expect(FileProviderPendingListKey(pending(id: "download", kind: "full", age: 0)) == nil)
+    }
+}
+
+@Suite("RemoteService — classification des listings introuvables")
+struct RemoteServiceMissingDirectoryTests {
+    @Test("Seul le 404 directory not found de operations/list est retentable")
+    func typedErrorClassification() {
+        #expect(RemoteService.isDirectoryNotFoundListError(
+            RcloneError.rcloneError(
+                code: 404,
+                method: "operations/list",
+                message: "error in ListJSON: directory not found"
+            )
+        ))
+        #expect(!RemoteService.isDirectoryNotFoundListError(
+            RcloneError.rcloneError(
+                code: 500,
+                method: "operations/list",
+                message: "directory not found"
+            )
+        ))
+        #expect(!RemoteService.isDirectoryNotFoundListError(
+            RcloneError.rcloneError(
+                code: 404,
+                method: "operations/stat",
+                message: "directory not found"
+            )
+        ))
+    }
+}
+
+@Suite("Support — export File Provider sans métadonnées privées")
+struct FileProviderSupportLogTests {
+    @Test("L'export conserve étape et code mais retire remote, chemin et fichier")
+    func providerMessageIsMetadataOnly() {
+        let raw = "upload staging failed id=SECRET-ID remote=private-remote path=Family/Taxes/private.pdf domain=NSCocoaErrorDomain code=257"
+        let safe = FileProviderManager.supportDiagnosticMessage(raw)
+
+        #expect(safe == "operation=upload stage=failed code=257")
+        #expect(!safe.contains("SECRET"))
+        #expect(!safe.contains("private"))
+        #expect(!safe.contains("Family"))
+        #expect(!safe.contains("pdf"))
+        #expect(!safe.contains("NSCocoaErrorDomain"))
+    }
+
+    @Test("Un payload IPC arbitraire ne peut injecter ni code ni identifiant numérique")
+    func providerPayloadCannotInjectNumericMetadata() {
+        let raw = "ipc stream error message=https://provider.invalid/callback?code=12345&count=987654&otp=404&token=SECRET"
+        let safe = FileProviderManager.supportDiagnosticMessage(raw)
+
+        #expect(safe == "operation=stream stage=failed")
+        #expect(!safe.contains("12345"))
+        #expect(!safe.contains("987654"))
+        #expect(!safe.contains("404"))
+        #expect(!safe.contains("SECRET"))
+    }
+
+    @Test("L'export support assainit aussi le ring app et ses aperçus de fichiers")
+    func appRingEntryIsMetadataOnly() {
+        let raw = LogEntry(
+            level: .info,
+            category: "list",
+            message: "operations/list ok remote=secret-vault path=Family/Taxes recurse=false entries=1628 in 30900ms · [passport.pdf, token.txt]",
+            supportMessage: "operation=listing stage=completed count=1628 duration_ms=30900 recursive=false"
+        )
+        let safe = LogService.supportSafeEntry(raw)
+
+        #expect(
+            safe.message
+                == "operation=listing stage=completed count=1628 duration_ms=30900 recursive=false"
+        )
+        #expect(!safe.message.contains("secret"))
+        #expect(!safe.message.contains("Family"))
+        #expect(!safe.message.contains("passport"))
+        #expect(!safe.message.contains("token"))
+    }
+
+    @Test("Une erreur librclone conserve le niveau sans URL, code privé, token ni chemin")
+    func rcloneEntryDropsSensitivePayload() {
+        let raw = LogEntry(
+            level: .error,
+            category: "rclone",
+            message: "request https://provider.invalid/upload/cancel?code=123456&token=SECRET failed 404: directory not found"
+        )
+        let safe = LogService.supportSafeEntry(raw)
+
+        #expect(safe.message == "operation=rclone stage=failed")
+        #expect(!safe.message.contains("http"))
+        #expect(!safe.message.contains("SECRET"))
+        #expect(!safe.message.contains("123456"))
+        #expect(!safe.message.contains("upload"))
+        #expect(!safe.message.contains("cancel"))
+        #expect(!safe.message.contains("token"))
+    }
+
+    @Test("Une pseudo-métadonnée non conforme est rejetée en bloc")
+    func malformedSupportMetadataFallsBackSafely() {
+        let raw = LogEntry(
+            level: .error,
+            category: "rclone",
+            message: "opaque backend payload",
+            supportMessage: "operation=rclone stage=failed code=123456&token=SECRET"
+        )
+        let safe = LogService.supportSafeEntry(raw)
+
+        #expect(safe.message == "operation=rclone stage=failed")
+        #expect(!safe.message.contains("123456"))
+        #expect(!safe.message.contains("SECRET"))
     }
 }

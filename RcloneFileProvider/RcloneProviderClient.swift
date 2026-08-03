@@ -172,14 +172,48 @@ actor RcloneProviderClient {
     }
 
     func upload(localURL: URL, remote: String, path: String) async throws -> FPRemoteEntry? {
-        let jobID = try await copyFile(
-            srcFs: localURL.deletingLastPathComponent().path,
-            srcPath: localURL.lastPathComponent,
-            dstFs: "\(remote):",
-            dstPath: path
+        try FileProviderBridge.ensureDirectoriesExist()
+        let requestID = UUID().uuidString
+        FileProviderBridge.appendDiagnostic(
+            "upload start id=\(requestID) remote=\(FileProviderBridge.redact(remote)) path=\(FileProviderBridge.redact(path))"
         )
-        try await waitForJob(jobID)
-        return try await stat(remote: remote, path: path)
+        let stagedURL = FileProviderBridge.uploadStagingURL(
+            requestID: requestID,
+            filename: localURL.lastPathComponent
+        )
+        try? FileManager.default.removeItem(at: stagedURL)
+        do {
+            try FileManager.default.copyItem(at: localURL, to: stagedURL)
+        } catch {
+            let nsError = error as NSError
+            FileProviderBridge.appendDiagnostic(
+                "upload staging failed id=\(requestID) domain=\(nsError.domain) code=\(nsError.code)"
+            )
+            throw error
+        }
+        defer { try? FileManager.default.removeItem(at: stagedURL) }
+
+        FileProviderBridge.appendDiagnostic(
+            "upload staged id=\(requestID) remote=\(FileProviderBridge.redact(remote)) path=\(FileProviderBridge.redact(path))"
+        )
+        do {
+            let jobID = try await copyFile(
+                srcFs: stagedURL.deletingLastPathComponent().path,
+                srcPath: stagedURL.lastPathComponent,
+                dstFs: "\(remote):",
+                dstPath: path
+            )
+            try await waitForJob(jobID)
+            let entry = try await stat(remote: remote, path: path)
+            FileProviderBridge.appendDiagnostic("upload done id=\(requestID)")
+            return entry
+        } catch {
+            let nsError = error as NSError
+            FileProviderBridge.appendDiagnostic(
+                "upload remote failed id=\(requestID) domain=\(nsError.domain) code=\(nsError.code)"
+            )
+            throw error
+        }
     }
 
     func mkdir(remote: String, path: String) async throws {

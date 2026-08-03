@@ -1,1 +1,1 @@
-支持 S3、Drive、Dropbox、Filen、Internxt、Drime、Storj 等 70+ 云盘 — 在 iOS「文件」App 内端到端加密，支持 PhotoSync 照片同步与离线流媒体播放。
+支持七牛云 Kodo、阿里云 OSS、腾讯云 COS、华为云 OBS、UCloud US3 及其他兼容 S3 的对象存储。直接复制原始 URL、Markdown 或 HTML 格式，为每个远程存储配置自定义 CDN 域名，并在 iOS“文件”App 中管理加密文件。

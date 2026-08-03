@@ -722,7 +722,7 @@ const Hero = () => {
     <section className="hero" id="top">
       <div className="wrap">
         <img className="icon" src="icon.png" alt="Rclone GUI"/>
-        <div><span className="pill"><Icon name="bolt.fill" size={14}/>{t('v2.1 · ESSAI GRATUIT','v2.1 · FREE TRIAL')}</span></div>
+        <div><span className="pill"><Icon name="bolt.fill" size={14}/>{t('v2.1.1 · ESSAI GRATUIT','v2.1.1 · FREE TRIAL')}</span></div>
         <h1 className="title">{ML(t('Tous vos clouds.\nChiffrés.','Every cloud.\nEncrypted.'))}</h1>
         <p className="sub">{t('Parcourez 80+ services cloud — y compris vos remotes rclone chiffrés — directement dans Fichiers. iPhone, iPad & Mac.','Browse 80+ cloud services — including your encrypted rclone crypt remotes — right inside Files. iPhone, iPad & Mac.')}</p>
         <div className="cta-row">
@@ -1000,7 +1000,16 @@ const FreeMonth = () => {
 };
 
 const VERSIONS = [
-  { v:'2.1', current:true, date:{ fr:'Juillet 2026', en:'July 2026' }, items:[
+  { v:'2.1.1', current:true, date:{ fr:'Août 2026', en:'August 2026' }, items:[
+    { fr:'Dossiers chiffrés : correction d’un problème où Rclone GUI ou Fichiers pouvait afficher un dossier crypt vide ou incomplet alors que ses fichiers étaient toujours présents.', en:'Encrypted folders: fixed an issue where Rclone GUI or Files could show a crypt folder as empty or incomplete even though its files were still present.' },
+    { fr:'Envoi depuis Fichiers : les fichiers déposés dans un dossier chiffré sont maintenant préparés dans une zone temporaire sécurisée, puis le dossier s’actualise automatiquement.', en:'Uploads from Files: files dropped into an encrypted folder are now prepared in secure temporary storage, then the folder refreshes automatically.' },
+    { fr:'Fichiers plus réactif : les anciennes demandes sont nettoyées, les doublons regroupés et une erreur de listing ne peut plus faire passer un dossier pour vide.', en:'More responsive Files integration: old requests are cleaned up, duplicates are coalesced, and a listing error can no longer make a folder look empty.' },
+    { fr:'Liens publics : pour les remotes compatibles, générez un lien via rclone ou utilisez un domaine CDN personnalisé, puis copiez ou partagez l’URL en texte brut, Markdown ou HTML.', en:'Public links: for supported remotes, generate a link through rclone or use a custom CDN domain, then copy or share the URL as plain text, Markdown, or HTML.' },
+    { fr:'Ajout plus visible sur iPhone : le nouveau bouton « + » permet de créer un dossier ou d’envoyer des fichiers, des dossiers, des photos et des vidéos directement depuis le navigateur.', en:'More visible add action on iPhone: the new “+” button creates a folder or uploads files, folders, photos, and videos right from the browser.' },
+    { fr:'Chinois simplifié : l’intégralité du catalogue de chaînes est maintenant disponible en zh-Hans, avec une terminologie harmonisée dans les nouveaux parcours.', en:'Simplified Chinese: the full string catalog is now available in zh-Hans, with consistent terminology throughout the new flows.' },
+    { fr:'Achat à vie : l’app distingue désormais l’accès permanent d’un abonnement renouvelable et rappelle qu’un abonnement Apple existant doit être annulé séparément.', en:'Lifetime purchase: the app now distinguishes permanent access from a renewable subscription and reminds you that an existing Apple subscription must be cancelled separately.' },
+  ] },
+  { v:'2.1', date:{ fr:'Juillet 2026', en:'July 2026' }, items:[
     { fr:'Modifier un remote : un nouvel écran « Gérer les remotes » (Réglages) permet de corriger un réglage ou de réautoriser un compte OAuth expiré sans tout recréer — vos mots de passe et jetons existants restent masqués.', en:'Edit a remote: a new "Manage remotes" screen (Settings) lets you fix a setting or re-authorize an expired OAuth account without recreating everything — your existing passwords and tokens stay hidden.' },
     { fr:'Remote Lens : jetez un œil à un fichier distant sans le télécharger — aperçu d\'image avec ses données EXIF, et première page des PDF, récupérés par lecture partielle.', en:'Remote Lens: peek at a remote file without downloading it — image preview with its EXIF data, and PDF first page, fetched through partial reads.' },
     { fr:'Suppression réparée : supprimer un fichier ou un dossier, ou le mettre à la corbeille, fonctionne à nouveau — l\'action restait sans effet.', en:'Deletion fixed: deleting a file or folder, or moving it to the trash, works again — the action silently did nothing.' },

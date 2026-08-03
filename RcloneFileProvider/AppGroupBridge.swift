@@ -172,6 +172,22 @@ public enum FileProviderBridge {
         containerURL.appending(path: "fetched-files", directoryHint: .isDirectory)
     }
 
+    /// Files.app hands the extension an Apple-managed content URL. librclone's
+    /// Go local backend does not reliably inherit that URL's security scope, so
+    /// uploads are first copied into this shared, extension-owned directory.
+    public static var uploadStagingDir: URL {
+        containerURL.appending(path: "upload-staging", directoryHint: .isDirectory)
+    }
+
+    public static func uploadStagingURL(requestID: String, filename: String) -> URL {
+        let ext = (filename as NSString).pathExtension
+        var url = uploadStagingDir.appending(path: requestID)
+        if !ext.isEmpty {
+            url = url.appendingPathExtension(ext)
+        }
+        return url
+    }
+
     public static var streamingURLsDir: URL {
         containerURL.appending(path: "streaming-urls", directoryHint: .isDirectory)
     }
@@ -393,6 +409,7 @@ public enum FileProviderBridge {
         try fm.createDirectory(at: folderManifestsDir, withIntermediateDirectories: true)
         try fm.createDirectory(at: pendingFetchesDir, withIntermediateDirectories: true)
         try fm.createDirectory(at: fetchedFilesDir, withIntermediateDirectories: true)
+        try fm.createDirectory(at: uploadStagingDir, withIntermediateDirectories: true)
         try fm.createDirectory(at: streamingURLsDir, withIntermediateDirectories: true)
         try fm.createDirectory(at: vaultDir, withIntermediateDirectories: true)
         try fm.createDirectory(at: diagnosticsURL.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -522,9 +539,11 @@ public enum FileProviderBridge {
         // considère comme stale et redemande pour le rafraîchir. iOS s'attend
         // à du contenu vivant.
         let staleThreshold: TimeInterval = 10
-        if let attrs = try? FileManager.default.attributesOfItem(atPath: manifestURL.path),
-           let mtime = attrs[.modificationDate] as? Date,
-           mtime.timeIntervalSinceNow > -staleThreshold {
+        if folderManifestIsFresh(
+            modificationDate: fileModificationDate(at: manifestURL),
+            now: .now,
+            maximumAge: staleThreshold
+        ) {
             return
         }
 
@@ -542,12 +561,22 @@ public enum FileProviderBridge {
         let data = try JSONEncoder().encode(pending)
         try data.write(to: pendingURL, options: [.atomic])
         try? FileManager.default.removeItem(at: statusURL)
+        try? FileManager.default.removeItem(at: pendingURL.appendingPathExtension("error"))
+
+        // La Task d'énumération peut être annulée par iOS à tout instant. Sans
+        // defer, le .json survivait alors au prochain boot et rejoignait la file
+        // de requêtes orphelines.
+        defer { cleanupFetchIPC(pendingURL: pendingURL) }
 
         appendDiagnostic("ipc list request id=\(requestID) remote=\(redact(remote)) path=\(redact(path))")
         postDarwinNotification(notificationFetchRequest)
 
         let deadline = Date().addingTimeInterval(timeout)
-        let startTime = Date()
+        // `createdAt` précède l'écriture du fichier IPC. Un leader coalescé
+        // peut publier le manifest entre cette écriture et le premier tour de
+        // polling ; prendre `Date()` ici ferait alors passer cette réponse
+        // valide pour un ancien cache et déclencherait un second listing direct.
+        let startTime = pending.createdAt
         let errorURL = pendingURL.appendingPathExtension("error")
         var didSeeAck = false
         while Date() < deadline {
@@ -565,21 +594,18 @@ public enum FileProviderBridge {
             switch decision {
             case .manifestReady:
                 appendDiagnostic("ipc list ready id=\(requestID)")
-                cleanupFetchIPC(pendingURL: pendingURL)
                 return
 
             case .failed(let message):
                 appendDiagnostic("ipc list error id=\(requestID) message=\(message)")
-                cleanupFetchIPC(pendingURL: pendingURL)
                 throw NSError(
                     domain: NSFileProviderErrorDomain,
-                    code: NSFileProviderError.serverUnreachable.rawValue,
+                    code: relayFileProviderErrorCode(for: message),
                     userInfo: [NSLocalizedDescriptionKey: message]
                 )
 
             case .appInactive:
                 appendDiagnostic("ipc list activation timeout id=\(requestID)")
-                cleanupFetchIPC(pendingURL: pendingURL)
                 throw NSError(
                     domain: NSFileProviderErrorDomain,
                     code: NSFileProviderError.serverUnreachable.rawValue,
@@ -599,7 +625,6 @@ public enum FileProviderBridge {
             try? await Task.sleep(for: .milliseconds(200))
         }
 
-        cleanupFetchIPC(pendingURL: pendingURL)
         appendDiagnostic("ipc list timeout id=\(requestID)")
         throw NSError(
             domain: NSFileProviderErrorDomain,
@@ -647,6 +672,36 @@ public enum FileProviderBridge {
         return .keepWaiting(sawAck: sawAck)
     }
 
+    /// Durée pendant laquelle Files peut servir un snapshot sans demander une
+    /// mise à jour. Les snapshots plus anciens restent affichés immédiatement,
+    /// puis sont rafraîchis en arrière-plan par l'enumerator.
+    public static let folderManifestFreshnessLifetime: TimeInterval = 60
+
+    public static func folderManifestIsFresh(
+        modificationDate: Date?,
+        now: Date,
+        maximumAge: TimeInterval = folderManifestFreshnessLifetime
+    ) -> Bool {
+        guard let modificationDate else { return false }
+        return now.timeIntervalSince(modificationDate) <= maximumAge
+    }
+
+    public static func folderManifestModificationDate(remote: String, path: String) -> Date? {
+        fileModificationDate(at: folderManifestURL(remote: remote, path: path))
+    }
+
+    /// Un 404 confirmé signifie que l'identifiant en cache n'existe plus. Dire
+    /// `noSuchItem` à Files lui permet de retirer cet ancien dossier ; les autres
+    /// erreurs restent des indisponibilités serveur et ne deviennent jamais `[]`.
+    public static func relayFileProviderErrorCode(for message: String) -> Int {
+        let normalized = message.lowercased()
+        if normalized.contains("directory not found"),
+           normalized.contains("404") || normalized.contains("operations/list") {
+            return NSFileProviderError.noSuchItem.rawValue
+        }
+        return NSFileProviderError.serverUnreachable.rawValue
+    }
+
     private static func fileModificationDate(at url: URL) -> Date? {
         guard let attrs = try? FileManager.default.attributesOfItem(atPath: url.path) else {
             return nil
@@ -670,6 +725,65 @@ public enum FileProviderBridge {
         } catch {
             appendDiagnostic("write folder manifest failed remote=\(redact(remote)) path=\(redact(path)) error=\(error.localizedDescription)")
         }
+    }
+
+    /// Drop a cached directory snapshot after a successful create/modify/delete.
+    /// Keeping the old manifest makes Files.app re-enumerate the pre-mutation
+    /// contents and can make a successfully uploaded file disappear again.
+    public static func invalidateFolderManifest(
+        remote: String,
+        path: String,
+        cancelPendingListings: Bool = false
+    ) {
+        if cancelPendingListings {
+            let cancelled = cancelPendingFolderListings(remote: remote, path: path)
+            if cancelled > 0 {
+                appendDiagnostic(
+                    "manifest invalidation cancelled pending listings count=\(cancelled)"
+                )
+            }
+        }
+        let url = folderManifestURL(remote: remote, path: path)
+        guard FileManager.default.fileExists(atPath: url.path) else { return }
+        do {
+            try FileManager.default.removeItem(at: url)
+        } catch {
+            appendDiagnostic("invalidate folder manifest failed remote=\(redact(remote)) path=\(redact(path)) error=\(error.localizedDescription)")
+        }
+    }
+
+    /// Une mutation réussie rend obsolète tout listing du parent commencé avant
+    /// elle. Chaque waiter reçoit une erreur transitoire tandis que le signal de
+    /// l'enumerator déclenche un nouveau listing après la mutation ; le worker de
+    /// l'app principale constatera aussi la disparition du `.json` et ne publiera
+    /// pas son ancien snapshot.
+    @discardableResult
+    private static func cancelPendingFolderListings(remote: String, path: String) -> Int {
+        let fm = FileManager.default
+        guard let files = try? fm.contentsOfDirectory(
+            at: pendingFetchesDir,
+            includingPropertiesForKeys: nil
+        ) else { return 0 }
+
+        let retryMessage = "Listing invalidé par une mutation terminée ; nouvelle énumération requise."
+        var cancelled = 0
+        for file in files where file.pathExtension == "json" {
+            guard let data = try? Data(contentsOf: file),
+                  let pending = try? JSONDecoder().decode(PendingFetch.self, from: data),
+                  pending.kind == "list",
+                  pending.remote == remote,
+                  pending.path == path else {
+                continue
+            }
+            try? Data(retryMessage.utf8).write(
+                to: file.appendingPathExtension("error"),
+                options: [.atomic]
+            )
+            try? fm.removeItem(at: file.appendingPathExtension("status"))
+            try? fm.removeItem(at: file)
+            cancelled += 1
+        }
+        return cancelled
     }
 }
 

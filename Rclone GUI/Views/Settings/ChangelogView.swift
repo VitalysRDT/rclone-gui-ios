@@ -79,6 +79,27 @@ struct ChangelogView: View {
     // Historique aligné sur rclone.rougetet.com (le plus récent en premier).
     private static let releases: [Release] = [
         Release(
+            version: "2.1.1", dateFR: "Août 2026", dateEN: "August 2026",
+            itemsFR: [
+                "Dossiers chiffrés : correction d’un problème où Rclone GUI ou Fichiers pouvait afficher un dossier crypt vide ou incomplet alors que ses fichiers étaient toujours présents.",
+                "Envoi depuis Fichiers : les fichiers déposés dans un dossier chiffré sont maintenant préparés dans une zone temporaire sécurisée, puis le dossier s’actualise automatiquement.",
+                "Fichiers plus réactif : les anciennes demandes sont nettoyées, les doublons regroupés et une erreur de listing ne peut plus faire passer un dossier pour vide.",
+                "Liens publics : pour les remotes compatibles, générez un lien via rclone ou utilisez un domaine CDN personnalisé, puis copiez ou partagez l’URL en texte brut, Markdown ou HTML.",
+                "Ajout plus visible sur iPhone : le nouveau bouton « + » permet de créer un dossier ou d’envoyer des fichiers, des dossiers, des photos et des vidéos directement depuis le navigateur.",
+                "Chinois simplifié : l’intégralité du catalogue de chaînes est maintenant disponible en zh-Hans, avec une terminologie harmonisée dans les nouveaux parcours.",
+                "Achat à vie : l’app distingue désormais l’accès permanent d’un abonnement renouvelable et rappelle qu’un abonnement Apple existant doit être annulé séparément.",
+            ],
+            itemsEN: [
+                "Encrypted folders: fixed an issue where Rclone GUI or Files could show a crypt folder as empty or incomplete even though its files were still present.",
+                "Uploads from Files: files dropped into an encrypted folder are now prepared in secure temporary storage, then the folder refreshes automatically.",
+                "More responsive Files integration: old requests are cleaned up, duplicates are coalesced, and a listing error can no longer make a folder look empty.",
+                "Public links: for supported remotes, generate a link through rclone or use a custom CDN domain, then copy or share the URL as plain text, Markdown, or HTML.",
+                "More visible add action on iPhone: the new “+” button creates a folder or uploads files, folders, photos, and videos right from the browser.",
+                "Simplified Chinese: the full string catalog is now available in zh-Hans, with consistent terminology throughout the new flows.",
+                "Lifetime purchase: the app now distinguishes permanent access from a renewable subscription and reminds you that an existing Apple subscription must be cancelled separately.",
+            ]
+        ),
+        Release(
             version: "2.1", dateFR: "Juillet 2026", dateEN: "July 2026",
             itemsFR: [
                 "Modifier un remote : un nouvel écran « Gérer les remotes » (Réglages) permet de corriger un réglage ou de réautoriser un compte OAuth expiré sans tout recréer — vos mots de passe et jetons existants restent masqués.",
