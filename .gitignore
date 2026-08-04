@@ -64,6 +64,9 @@ Rclone GUI.xcodeproj/-Xcc/
 mem0_payload_*.json
 /vitrine-topup-430.png
 
+# Stale Finder conflict copies; Fastlane only consumes the canonical filenames.
+fastlane/metadata/**/* 2.txt
+
 # App Store Connect API key (secret, never commit)
 fastlane/.appstore-key.p8
 fastlane/*.p8
