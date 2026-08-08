@@ -1,4 +1,5 @@
-Nouveautés de la version 2.1 :
-- Modifier un remote : un nouvel écran « Gérer les remotes » permet de corriger un réglage ou de réautoriser un compte OAuth expiré sans tout recréer — vos mots de passe et jetons existants restent masqués.
-- Remote Lens : jetez un œil à un fichier distant sans le télécharger — aperçu d'image avec ses données EXIF, et première page des PDF.
-- Suppression réparée : supprimer un fichier ou un dossier, ou le mettre à la corbeille, fonctionne à nouveau.
+Nouveautés de la version 2.1.2 :
+- Domaines CDN personnalisés : retirez facultativement un préfixe de chemin, comme le nom du bucket renvoyé par Qiniu Kodo ou un stockage compatible S3.
+- Annulation PhotoSync : arrêtez la synchro, videz son index et sa file locale, puis changez les albums ou le dossier de destination. Les fichiers déjà envoyés restent sur le remote.
+- Albums PhotoSync sur Mac : la sélection se met à jour immédiatement et seules les photos des albums choisis sont indexées et synchronisées.
+- Pause PhotoSync fiabilisée : elle interrompt l’export Photos et le lot rclone en cours sans mettre en pause vos autres transferts.

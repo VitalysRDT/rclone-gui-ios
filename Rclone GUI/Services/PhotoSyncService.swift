@@ -354,6 +354,74 @@ private struct PhotoSyncScanResult: Sendable {
     let candidates: [PhotoSyncCandidate]
 }
 
+/// Bridges Swift task cancellation to PhotoKit's request-ID based API.
+/// A PhotoKit data request may be downloading an iCloud original, so abandoning its
+/// continuation would leave large exports running after the user tapped Cancel.
+private nonisolated final class PhotoAssetWriteRequestState: @unchecked Sendable {
+    private let lock = NSLock()
+    private var requestID: PHAssetResourceDataRequestID?
+    private var cancellationRequested = false
+
+    nonisolated init() {}
+
+    nonisolated func setRequestID(_ requestID: PHAssetResourceDataRequestID) {
+        lock.lock()
+        self.requestID = requestID
+        let shouldCancel = cancellationRequested
+        lock.unlock()
+        if shouldCancel {
+            PHAssetResourceManager.default().cancelDataRequest(requestID)
+        }
+    }
+
+    nonisolated func cancel() {
+        lock.lock()
+        cancellationRequested = true
+        let requestID = self.requestID
+        lock.unlock()
+        if let requestID {
+            PHAssetResourceManager.default().cancelDataRequest(requestID)
+        }
+    }
+}
+
+/// Serializes PhotoKit's data callbacks into a file and remembers the first
+/// disk error so the completion handler can resume the async continuation once.
+private nonisolated final class PhotoAssetDataWriter: @unchecked Sendable {
+    private let lock = NSLock()
+    private let handle: FileHandle
+    private var writeError: Error?
+
+    nonisolated init(target: URL) throws {
+        guard FileManager.default.createFile(atPath: target.path, contents: nil) else {
+            throw CocoaError(.fileWriteUnknown)
+        }
+        handle = try FileHandle(forWritingTo: target)
+    }
+
+    nonisolated func append(_ data: Data) {
+        lock.lock()
+        defer { lock.unlock() }
+        guard writeError == nil else { return }
+        do {
+            try handle.write(contentsOf: data)
+        } catch {
+            writeError = error
+        }
+    }
+
+    nonisolated func finish(requestError: Error?) -> Error? {
+        lock.lock()
+        defer { lock.unlock() }
+        do {
+            try handle.close()
+        } catch where writeError == nil {
+            writeError = error
+        } catch {}
+        return writeError ?? requestError
+    }
+}
+
 @MainActor
 public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
     public static let shared = PhotoSyncService()
@@ -371,6 +439,17 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
     private var modelContext: ModelContext?
     private var observerRegistered = false
     private var isSyncing = false
+    /// Cooperative stop flag shared by pause, cancel, and album-scope changes.
+    /// The task that called `startFullSync()` is owned by the caller, so a
+    /// separate flag is required to interrupt it from another UI task.
+    private var isRunStopRequested = false
+    /// The producer owns PhotoKit exports while the consumer uploads the
+    /// previous batch. Keeping the task lets pause/cancel propagate Swift task
+    /// cancellation all the way to PHAssetResourceManager.
+    private var pipelineProducerTask: Task<Void, Never>?
+    /// PhotoSync uses a direct rclone `sync/copy` job rather than TransferQueue.
+    /// Remember its ID so Cancel can call `job/stop` immediately.
+    private var activeRcloneJobID: Int?
     private var observerSyncTask: Task<Void, Never>?
     private var continuationTask: Task<Void, Never>?
     /// Rolling sample of (timestamp, transferredBytes) used to compute the
@@ -889,17 +968,15 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         set { UserDefaults.standard.set(newValue, forKey: "photoSync.pausedByUser") }
     }
 
-    /// User-facing pause. Stops new work from being enqueued and halts any
-    /// in-flight TransferQueue jobs. Idempotent.
+    /// User-facing pause. Stops new work, cancels the current PhotoKit producer,
+    /// and stops the direct rclone PhotoSync job. The indexed queue is retained
+    /// so Resume can continue from the same scope.
     public func pausePhotoSync() async {
+        guard !isPausedByUser else { return }
         isPausedByUser = true
-        continuationTask?.cancel()
-        continuationTask = nil
-        do {
-            try await TransferQueue.shared.pauseAllTransfers()
-        } catch {
-            await LogService.shared.log(.error, category: "photos", message: "Pause TransferQueue impossible : \(error.localizedDescription)")
-        }
+        requestCurrentRunStop()
+        await stopActiveRcloneJobIfNeeded()
+        await waitForCurrentRunToStop()
         // E7 : Live Activity transition immédiate (force bypass throttle).
         #if os(iOS)
         if #available(iOS 16.2, *) {
@@ -929,13 +1006,7 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
     public func resumePhotoSync() async {
         guard isPausedByUser else { return }
         isPausedByUser = false
-        let mbps = UserDefaults.standard.double(forKey: "transfer.bandwidthLimitMBps")
-        let bytesPerSecond = Int64(max(0, mbps) * 1024 * 1024)
-        do {
-            try await TransferQueue.shared.resumeAllTransfers(bytesPerSecond: bytesPerSecond)
-        } catch {
-            await LogService.shared.log(.error, category: "photos", message: "Reprise TransferQueue impossible : \(error.localizedDescription)")
-        }
+        isRunStopRequested = false
         // E7 : Live Activity transition immédiate (force bypass throttle).
         #if os(iOS)
         if #available(iOS 16.2, *) {
@@ -962,6 +1033,124 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
             shouldContinueUntilEmpty = true
             scheduleContinuationIfNeeded()
         }
+    }
+
+    /// Stop PhotoSync completely and discard its local run state. Already
+    /// uploaded remote files are deliberately untouched. The feature is
+    /// disabled so the heartbeat/photo observer cannot immediately recreate
+    /// the 13k-item queue before the user changes albums or destination.
+    ///
+    /// Returns the number of local PhotoSyncAsset rows removed.
+    @discardableResult
+    public func cancelPhotoSync() async -> Int {
+        isEnabled = false
+        isPausedByUser = false
+        shouldContinueUntilEmpty = false
+        observerSyncTask?.cancel()
+        observerSyncTask = nil
+        requestCurrentRunStop()
+
+        await stopActiveRcloneJobIfNeeded()
+        await waitForCurrentRunToStop()
+
+        guard let modelContext else {
+            resetRunPresentationState()
+            isRunStopRequested = false
+            return 0
+        }
+
+        // Stop any legacy per-file PhotoSync transfers that may still exist
+        // from an older app version before deleting their local history.
+        let transferDescriptor = FetchDescriptor<Transfer>(
+            predicate: #Predicate { $0.sourceKindRaw == "photoLibrary" }
+        )
+        let photoTransfers = (try? modelContext.fetch(transferDescriptor)) ?? []
+        for transfer in photoTransfers where transfer.status == .running
+            || transfer.status == .pending
+            || transfer.status == .enqueued
+            || transfer.status == .paused {
+            await TransferQueue.shared.cancel(transfer)
+        }
+
+        let assetDescriptor = FetchDescriptor<PhotoSyncAsset>()
+        let assets = (try? modelContext.fetch(assetDescriptor)) ?? []
+        for asset in assets {
+            modelContext.delete(asset)
+        }
+        for transfer in photoTransfers {
+            modelContext.delete(transfer)
+        }
+        try? modelContext.save()
+
+        // Exported originals are disposable cache files. They must not survive
+        // a cancelled scope and be mistaken for the next run's staging data.
+        if let stagingRoot = try? Self.stagingDirectory() {
+            try? FileManager.default.removeItem(at: stagingRoot)
+        }
+
+        resetRunPresentationState()
+        invalidateIndexCache()
+        invalidateCountsCache()
+        isRunStopRequested = false
+
+        await LogService.shared.log(
+            .info,
+            category: "photos",
+            message: "Synchro photos annulée : \(assets.count) élément(s) retiré(s) de la file locale. Les fichiers distants sont conservés."
+        )
+        return assets.count
+    }
+
+    /// Apply an album picker change immediately. If a run is still using the
+    /// old selection, stop that run before another batch can be uploaded. The
+    /// next start prunes the persistent index to the new album scope.
+    public func albumSelectionDidChange() {
+        invalidateIndexCache()
+        guard isSyncing else { return }
+        requestCurrentRunStop()
+        Task { @MainActor in
+            await self.stopActiveRcloneJobIfNeeded()
+        }
+    }
+
+    private func requestCurrentRunStop() {
+        isRunStopRequested = true
+        shouldContinueUntilEmpty = false
+        continuationTask?.cancel()
+        continuationTask = nil
+        pipelineProducerTask?.cancel()
+    }
+
+    private func stopActiveRcloneJobIfNeeded() async {
+        guard let jobID = activeRcloneJobID else { return }
+        try? await TransferService.shared.stopJob(jobID: jobID)
+    }
+
+    private func waitForCurrentRunToStop() async {
+        while isSyncing {
+            try? await Task.sleep(for: .milliseconds(50))
+        }
+    }
+
+    private func checkRunInterruption() throws {
+        if isRunStopRequested || isPausedByUser || !isEnabled {
+            throw CancellationError()
+        }
+        try Task.checkCancellation()
+    }
+
+    private func resetRunPresentationState() {
+        uploadedThisSession = 0
+        sessionInitialPending = 0
+        sessionStartedAt = nil
+        ratchetTotal = 0
+        ratchetCompleted = 0
+        throughputSamples = []
+        liveBatchProgress = nil
+        liveBatchPhase = .idle
+        lastBatchEndedAt = nil
+        pipelineBuffer = []
+        pipelineProducerDone = false
     }
 
     /// Move every `.failed` asset back to `.pending` and reset attempt counters,
@@ -1165,6 +1354,9 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
             return await statusSnapshot()
         }
 
+        // A previous pause/scope-change may have stopped the last run. This is
+        // the first point at which a genuinely new run owns the pipeline.
+        isRunStopRequested = false
         isSyncing = true
         // Bypass throttle 512KB/s tant qu'une sync photo tourne (couvre
         // toute la durée — export + sync/copy + verify), pas seulement
@@ -1224,7 +1416,17 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
 
         do {
             let authorizationStatus = try await ensurePhotoAuthorization()
+            try checkRunInterruption()
+            let prunedCount = try pruneIndexOutsideCurrentAlbumSelection()
+            if prunedCount > 0 {
+                await LogService.shared.log(
+                    .info,
+                    category: "photos",
+                    message: "Sélection d'albums appliquée : \(prunedCount) élément(s) hors sélection retiré(s) de l'index local."
+                )
+            }
             let indexResult = try await indexLibrary()
+            try checkRunInterruption()
             let enqueuedCount: Int
             if continueUntilEmpty {
                 // Mode pipeline rclone-like : on prépare le batch N+1
@@ -1267,9 +1469,8 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
             }
             return summary
         } catch is CancellationError {
-            // Annulation coopérative (ex : photoLibraryDidChange redémarre la sync,
-            // app passe en arrière-plan). Pas une vraie erreur — silence l'entrée
-            // rouge dans les Logs et laisse la prochaine passe reprendre.
+            // Pause, Cancel, album change, or parent-task cancellation. This is
+            // expected control flow, never a red error in Logs.
             return await statusSnapshot()
         } catch {
             await LogService.shared.log(.error, category: "photos", message: "Synchro photos impossible : \(error.localizedDescription)")
@@ -1433,6 +1634,41 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         return ids
     }
 
+    /// Remove persisted rows that are outside the currently selected albums.
+    /// This is essential when the user first indexed the whole library and
+    /// later narrows the scope: filtering only newly discovered candidates
+    /// would leave the old 13k-item pending queue eligible for upload.
+    private func pruneIndexOutsideCurrentAlbumSelection() throws -> Int {
+        #if os(iOS) || os(macOS)
+        guard let modelContext,
+              let eligibleIDs = Self.eligibleAssetIDs() else { return 0 }
+        let assets = try modelContext.fetch(FetchDescriptor<PhotoSyncAsset>())
+        let outsideIDs = Self.identifiersOutsideSelectedAlbums(
+            indexedIdentifiers: Set(assets.map(\.localIdentifier)),
+            eligibleIdentifiers: eligibleIDs
+        )
+        guard !outsideIDs.isEmpty else { return 0 }
+        for asset in assets where outsideIDs.contains(asset.localIdentifier) {
+            modelContext.delete(asset)
+        }
+        try modelContext.save()
+        invalidateCountsCache()
+        return outsideIDs.count
+        #else
+        return 0
+        #endif
+    }
+
+    /// Pure scope helper kept internal for regression tests. A nil eligible set
+    /// means no album is selected, so the entire library remains in scope.
+    nonisolated static func identifiersOutsideSelectedAlbums(
+        indexedIdentifiers: Set<String>,
+        eligibleIdentifiers: Set<String>?
+    ) -> Set<String> {
+        guard let eligibleIdentifiers else { return [] }
+        return indexedIdentifiers.subtracting(eligibleIdentifiers)
+    }
+
     /// Prépare un batch (phase 1+2+3) sans lancer le sync/copy.
     /// Renvoie nil si rien à préparer. Le caller doit ensuite appeler
     /// `uploadPreparedBatch` pour lancer le sync/copy — ce découpage
@@ -1444,6 +1680,7 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         includeFailedRetries: Bool
     ) async throws -> PreparedBatch? {
         guard let modelContext else { return nil }
+        try checkRunInterruption()
         let prepStarted = ContinuousClock.now
         await LogService.shared.log(
             .info,
@@ -1493,7 +1730,7 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         }
 
         var eligibleMs = 0
-        #if os(iOS)
+        #if os(iOS) || os(macOS)
         let eligibleStarted = ContinuousClock.now
         if let eligibleIDs = Self.eligibleAssetIDs() {
             records = records.filter { eligibleIDs.contains($0.localIdentifier) }
@@ -1513,6 +1750,21 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         let batchDir = FileManager.default.temporaryDirectory
             .appending(path: "rclonePhotoBatch-\(UUID().uuidString)", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: batchDir, withIntermediateDirectories: true)
+        var preparationCompleted = false
+        defer {
+            if !preparationCompleted {
+                // A stopped producer may have persisted `.exporting`/`.enqueued`
+                // just before cancellation. Restore those rows so Pause can resume
+                // and remove their now-invalid temporary paths.
+                for record in records where record.status == .exporting || record.status == .enqueued {
+                    record.status = .pending
+                    record.remotePaths = []
+                }
+                try? modelContext.save()
+                invalidateCountsCache()
+                try? FileManager.default.removeItem(at: batchDir)
+            }
+        }
         // NB : pas de `defer { removeItem(batchDir) }` ici — c'est
         // uploadPreparedBatch qui supprime le batchDir une fois le
         // sync/copy terminé. Sans ce changement, le batch était
@@ -1538,7 +1790,7 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
             message: "\(Self.perfTs()) phase1 mark .exporting (\(records.count) records)"
         )
         for record in records {
-            try Task.checkCancellation()
+            try checkRunInterruption()
             record.status = .exporting
             record.lastAttemptAt = .now
             record.lastError = nil
@@ -1565,7 +1817,7 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
         var recordsToExport: [PhotoSyncAsset] = []
         recordsToExport.reserveCapacity(records.count)
         for record in records {
-            try Task.checkCancellation()
+            try checkRunInterruption()
             guard let fingerprint = record.contentHash, !fingerprint.isEmpty else {
                 // Pas de fingerprint (asset indexé avant B1, ou KVC
                 // fileSize indisponible) → fallback Phase 3 MD5.
@@ -1617,6 +1869,7 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
                 message: "\(Self.perfTs()) T_prep=\(totalPrepMs)ms (full-dedup batch, \(phase2aSkipped) skipped) → 0 photos à uploader"
             )
             try? FileManager.default.removeItem(at: batchDir)
+            preparationCompleted = true
             return nil
         }
 
@@ -1711,7 +1964,7 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
             message: "\(Self.perfTs()) phase3 hash+dedup+move start"
         )
         for record in records {
-            try Task.checkCancellation()
+            try checkRunInterruption()
             let localIdentifier = record.localIdentifier
             let creationDate = record.creationDate
 
@@ -1863,9 +2116,11 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
 
         guard !batchedRecords.isEmpty else {
             try? FileManager.default.removeItem(at: batchDir)
+            preparationCompleted = true
             return nil
         }
 
+        preparationCompleted = true
         return PreparedBatch(
             batchDir: batchDir,
             records: batchedRecords,
@@ -1912,7 +2167,13 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
                 dstFs: "\(remote):\(folder)",
                 createEmptySrcDirs: false
             )
+            activeRcloneJobID = jobID
+            if isRunStopRequested || isPausedByUser || !isEnabled {
+                try? await TransferService.shared.stopJob(jobID: jobID)
+                throw CancellationError()
+            }
             try await waitForRcloneJob(jobID: jobID)
+            try checkRunInterruption()
             for entry in batch.records {
                 entry.asset.status = .completed
                 entry.asset.completedAt = .now
@@ -1929,6 +2190,22 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
                 message: "rclone copy ok : \(batch.records.count) photos uploadées\(progressStr)"
             )
         } catch {
+            activeRcloneJobID = nil
+            if isRunStopRequested || isPausedByUser || !isEnabled || error is CancellationError {
+                for entry in batch.records {
+                    entry.asset.status = .pending
+                    entry.asset.remotePaths = []
+                    entry.asset.lastError = nil
+                }
+                try? modelContext?.save()
+                invalidateCountsCache()
+                await LogService.shared.log(
+                    .info,
+                    category: "photos",
+                    message: "Lot PhotoSync interrompu ; les éléments restent disponibles pour une future synchronisation."
+                )
+                return
+            }
             for entry in batch.records {
                 entry.asset.status = .failed
                 entry.asset.retryCount += 1
@@ -1941,6 +2218,7 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
                 message: "rclone copy échoué : \(error.localizedDescription) (\(batch.records.count) photos repassent en failed)"
             )
         }
+        activeRcloneJobID = nil
     }
 
     /// Buffer de batchs préparés en attente d'upload. Backpressure : le
@@ -2035,6 +2313,7 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
                     if Task.isCancelled { return }
                 }
                 do {
+                    try self.checkRunInterruption()
                     guard let batch = try await self.prepareBatch(
                         remote: remote,
                         folder: folder,
@@ -2045,6 +2324,9 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
                         return
                     }
                     self.pipelineBuffer.append(batch)
+                } catch is CancellationError {
+                    self.pipelineProducerDone = true
+                    return
                 } catch {
                     await LogService.shared.log(
                         .error,
@@ -2056,17 +2338,31 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
                 }
             }
         }
+        pipelineProducerTask = producer
 
         // Consumer : pop du buffer et upload séquentiellement (on n'a
         // qu'1 sync/copy à la fois — rclone parallélise déjà ses
         // transferts internes).
         defer {
+            producer.cancel()
+            pipelineProducerTask = nil
+            discardBufferedBatches()
             // C2 : pipeline drainé, on revient en idle. La UI peut
             // animer le fade-out des dernières lignes.
             liveBatchPhase = .idle
         }
         while true {
+            if isRunStopRequested || isPausedByUser || !isEnabled || Task.isCancelled {
+                producer.cancel()
+                await producer.value
+                return totalEnqueued
+            }
             while pipelineBuffer.isEmpty {
+                if isRunStopRequested || isPausedByUser || !isEnabled || Task.isCancelled {
+                    producer.cancel()
+                    await producer.value
+                    return totalEnqueued
+                }
                 if pipelineProducerDone {
                     await producer.value
                     return totalEnqueued
@@ -2077,6 +2373,25 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
             totalEnqueued += batch.enqueuedCount
             await uploadPreparedBatch(batch, remote: remote, folder: folder)
         }
+    }
+
+    /// Release staged batches that the consumer will no longer upload. Their
+    /// rows return to pending for Pause/scope changes; Cancel deletes them after
+    /// the run has fully stopped.
+    private func discardBufferedBatches() {
+        guard !pipelineBuffer.isEmpty else { return }
+        for batch in pipelineBuffer {
+            for entry in batch.records where entry.asset.status == .enqueued
+                || entry.asset.status == .exporting {
+                entry.asset.status = .pending
+                entry.asset.remotePaths = []
+                entry.asset.lastError = nil
+            }
+            try? FileManager.default.removeItem(at: batch.batchDir)
+        }
+        pipelineBuffer = []
+        try? modelContext?.save()
+        invalidateCountsCache()
     }
 
     /// Boucle d'attente sur un job rclone asynchrone (`sync/copy`,
@@ -2097,8 +2412,9 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
             )
         }
         while true {
-            try Task.checkCancellation()
+            try checkRunInterruption()
             try await Task.sleep(nanoseconds: 500_000_000)
+            try checkRunInterruption()
             // Met à jour la progression LIVE avant de vérifier le statut
             // — si le job vient juste de finir, on garde une dernière
             // valeur cohérente jusqu'au prochain snapshot.
@@ -2967,7 +3283,7 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
     /// selected (= scope is the whole library, no filter). Synchronous so
     /// it can be called from both MainActor (enqueuePending) and nonisolated
     /// (scanPhotoLibrary) contexts. Photos fetches are fast in-memory ops.
-    #if os(iOS)
+    #if os(iOS) || os(macOS)
     nonisolated static func eligibleAssetIDs() -> Set<String>? {
         let selectedAlbumIDs = PhotoSyncAlbumStore.load()
         guard !selectedAlbumIDs.isEmpty else { return nil }
@@ -2991,7 +3307,7 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
     ) -> PhotoSyncScanResult {
         // Read the user's album filter from UserDefaults. An empty set means
         // "scan everything" (legacy default behavior).
-        #if os(iOS)
+        #if os(iOS) || os(macOS)
         let selectedAlbumIDs = PhotoSyncAlbumStore.load()
         #else
         let selectedAlbumIDs = Set<String>()
@@ -3103,8 +3419,12 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
 
     nonisolated private static func visiblePhotoAssetCount() async -> Int {
         await Task.detached(priority: .utility) {
-            let options = PHFetchOptions()
-            return PHAsset.fetchAssets(with: options).count
+            #if os(iOS) || os(macOS)
+            if let eligibleIDs = eligibleAssetIDs() {
+                return eligibleIDs.count
+            }
+            #endif
+            return PHAsset.fetchAssets(with: PHFetchOptions()).count
         }.value
     }
 
@@ -3133,14 +3453,26 @@ public final class PhotoSyncService: NSObject, PHPhotoLibraryChangeObserver {
 
             let options = PHAssetResourceRequestOptions()
             options.isNetworkAccessAllowed = true
-            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-                PHAssetResourceManager.default().writeData(for: resource, toFile: target, options: options) { error in
-                    if let error {
-                        continuation.resume(throwing: error)
-                    } else {
-                        continuation.resume()
+            let requestState = PhotoAssetWriteRequestState()
+            let writer = try PhotoAssetDataWriter(target: target)
+            try await withTaskCancellationHandler {
+                try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                    let requestID = PHAssetResourceManager.default().requestData(
+                        for: resource,
+                        options: options
+                    ) { data in
+                        writer.append(data)
+                    } completionHandler: { error in
+                        if let error = writer.finish(requestError: error) {
+                            continuation.resume(throwing: error)
+                        } else {
+                            continuation.resume()
+                        }
                     }
+                    requestState.setRequestID(requestID)
                 }
+            } onCancel: {
+                requestState.cancel()
             }
             let size = Int64((try? target.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0)
             exported.append(ExportedResource(url: target, bytes: size))

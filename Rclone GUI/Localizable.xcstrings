@@ -93992,6 +93992,16 @@
         }
       }
     },
+    "Préfixe de chemin à supprimer (facultatif)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "要删除的路径前缀（可选）"
+          }
+        }
+      }
+    },
     "Enregistrer" : {
       "localizations" : {
         "zh-Hans" : {
@@ -94008,6 +94018,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "该域名必须指向此远程存储或存储桶的公开根目录。应用会自动追加文件路径，但不会修改存储权限。"
+          }
+        }
+      }
+    },
+    "Le domaine doit pointer vers la racine publique de ce remote ou de ce bucket. L’app ajoute automatiquement le chemin du fichier ; elle ne modifie pas les permissions du stockage. Si le chemin commence par un préfixe de bucket, saisis-le dans le champ facultatif pour le retirer de l’URL CDN." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "该域名必须指向此远程存储或存储桶的公开根目录。应用会自动追加文件路径，但不会修改存储权限。如果路径以存储桶前缀开头，请在可选字段中输入该前缀，以便从 CDN URL 中删除。"
           }
         }
       }
@@ -94178,6 +94198,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "此域名仅在本设备上为远程存储“%@”保存。它必须已经能够公开访问存储桶根目录。"
+          }
+        }
+      }
+    },
+    "Ce domaine est enregistré uniquement sur cet appareil pour le remote « %@ ». Il doit déjà servir publiquement la racine du bucket. Pour Qiniu Kodo ou un autre backend qui renvoie le bucket dans le chemin, saisis ici le préfixe à retirer, par exemple `aab`." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此域名仅在本设备上为远程存储“%@”保存。它必须已经能够公开访问存储桶根目录。如果 Qiniu Kodo 或其他后端在路径中返回存储桶名称，请在此输入要删除的前缀，例如 `aab`。"
           }
         }
       }

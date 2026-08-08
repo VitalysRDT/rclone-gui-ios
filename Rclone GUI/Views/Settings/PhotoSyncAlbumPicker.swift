@@ -180,10 +180,15 @@ struct PhotoSyncAlbumPicker: View {
 
     private func save() {
         PhotoSyncAlbumStore.save(selectedIDs)
+        PhotoSyncService.shared.albumSelectionDidChange()
     }
 
     @MainActor
     private func reload() async {
+        // NavigationSplitView on macOS may keep this destination alive. Reload
+        // persisted state explicitly instead of relying on @State's one-time
+        // initializer when the user revisits the picker.
+        selectedIDs = PhotoSyncAlbumStore.load()
         authorizationStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
         guard authorizationStatus == .authorized || authorizationStatus == .limited else {
             isLoading = false
@@ -247,6 +252,7 @@ struct PhotoSyncAlbumPicker: View {
 /// scan cycle).
 nonisolated public enum PhotoSyncAlbumStore {
     public static let userDefaultsKey = "photosync.selectedAlbumIDs"
+    public static let didChangeNotification = Notification.Name("PhotoSyncAlbumStore.didChange")
 
     nonisolated public static func load() -> Set<String> {
         guard let data = UserDefaults.standard.data(forKey: userDefaultsKey),
@@ -257,9 +263,13 @@ nonisolated public enum PhotoSyncAlbumStore {
     }
 
     nonisolated public static func save(_ ids: Set<String>) {
+        let previous = load()
         let array = Array(ids).sorted()
         if let data = try? JSONEncoder().encode(array) {
             UserDefaults.standard.set(data, forKey: userDefaultsKey)
+            if previous != ids {
+                NotificationCenter.default.post(name: didChangeNotification, object: nil)
+            }
         }
     }
 }

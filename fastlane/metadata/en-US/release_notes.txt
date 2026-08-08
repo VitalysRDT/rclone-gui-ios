@@ -1,4 +1,5 @@
-What's new in 2.1:
-- Edit a remote: a new "Manage remotes" screen lets you fix a setting or re-authorize an expired OAuth account without recreating everything — your existing passwords and tokens stay hidden.
-- Remote Lens: peek at a remote file without downloading it — image preview with its EXIF data, and PDF first page.
-- Deletion fixed: deleting a file or folder, or moving it to the trash, works again.
+What's new in 2.1.2:
+- Custom CDN domains: optionally remove a path prefix, such as the bucket name returned by Qiniu Kodo or other S3-compatible storage.
+- Cancel PhotoSync: stop the sync, clear its local index and queue, then change the selected albums or destination folder. Files already uploaded remain on the remote.
+- PhotoSync albums on Mac: selections update immediately, and only photos from the chosen albums are indexed and synced.
+- More reliable PhotoSync pause: it interrupts the current Photos export and rclone batch without pausing your other transfers.

@@ -34,6 +34,30 @@ struct PublicLinkServiceTests {
         )
     }
 
+    @Test("CDN paths can remove a matching bucket prefix")
+    func removesMatchingPathPrefix() throws {
+        let base = try #require(PublicLinkFormatter.normalizedBaseURL(from: "https://image.example.com"))
+        let url = try #require(PublicLinkFormatter.customURL(
+            baseURL: base,
+            remotePath: "aab/img/CloudX_1785625479.452707.jpg",
+            removingPathPrefix: "/aab/"
+        ))
+        #expect(url.absoluteString == "https://image.example.com/img/CloudX_1785625479.452707.jpg")
+
+        let unchanged = try #require(PublicLinkFormatter.customURL(
+            baseURL: base,
+            remotePath: "aab2/img/photo.jpg",
+            removingPathPrefix: "aab"
+        ))
+        #expect(unchanged.absoluteString == "https://image.example.com/aab2/img/photo.jpg")
+    }
+
+    @Test("Path prefixes are normalized without changing their components")
+    func normalizesPathPrefix() {
+        #expect(PublicLinkFormatter.normalizedPathPrefix(from: " /aab//img/ ") == "aab/img")
+        #expect(PublicLinkFormatter.normalizedPathPrefix(from: "   ").isEmpty)
+    }
+
     @Test("Images use Markdown image syntax")
     func formatsImageMarkdown() throws {
         let url = try #require(URL(string: "https://img.example.com/photo.png"))
@@ -90,5 +114,17 @@ struct PublicLinkServiceTests {
                 == "https://cdn.example.com/root"
         )
         #expect(RemotePublicLinkSettingsStore.customBaseURL(for: "other", defaults: defaults).isEmpty)
+
+        let prefix = RemotePublicLinkSettingsStore.setPathPrefixToRemove(
+            "/aab/",
+            for: "photos",
+            defaults: defaults
+        )
+        #expect(prefix == "aab")
+        #expect(
+            RemotePublicLinkSettingsStore.pathPrefixToRemove(for: "photos", defaults: defaults)
+                == "aab"
+        )
+        #expect(RemotePublicLinkSettingsStore.pathPrefixToRemove(for: "other", defaults: defaults).isEmpty)
     }
 }

@@ -39,19 +39,34 @@ enum PublicLinkFormatter {
         return components.url
     }
 
+    /// Normalizes a logical remote path prefix such as `/aab/` to `aab`.
+    /// Empty components are ignored so users can paste either a bucket name or
+    /// a bucket-relative prefix without having to format the slashes exactly.
+    static func normalizedPathPrefix(from rawValue: String) -> String {
+        pathComponents(rawValue.trimmingCharacters(in: .whitespacesAndNewlines))
+            .joined(separator: "/")
+    }
+
     /// Builds `<custom origin>/<remote path>` while encoding each object-name
     /// segment independently. Encoding per segment preserves `/` as the folder
     /// separator and safely handles spaces, `#`, `%`, `?`, and Unicode names.
-    static func customURL(baseURL: URL, remotePath: String) -> URL? {
+    /// An optional prefix is removed only when it matches the first path
+    /// components exactly. This supports S3-compatible providers such as
+    /// Qiniu Kodo, whose object paths can include the bucket name.
+    static func customURL(
+        baseURL: URL,
+        remotePath: String,
+        removingPathPrefix: String? = nil
+    ) -> URL? {
         guard var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false) else {
             return nil
         }
 
+        let effectiveRemotePath = pathByRemovingPrefix(removingPathPrefix, from: remotePath)
+
         var allowed = CharacterSet.urlPathAllowed
         allowed.remove(charactersIn: "/?#%")
-        let encodedRemotePath = remotePath
-            .split(separator: "/", omittingEmptySubsequences: true)
-            .map(String.init)
+        let encodedRemotePath = pathComponents(effectiveRemotePath)
             .compactMap { $0.addingPercentEncoding(withAllowedCharacters: allowed) }
             .joined(separator: "/")
 
@@ -66,6 +81,24 @@ enum PublicLinkFormatter {
         components.query = nil
         components.fragment = nil
         return components.url
+    }
+
+    private static func pathByRemovingPrefix(_ prefix: String?, from remotePath: String) -> String {
+        let prefixComponents = pathComponents(prefix ?? "")
+        guard !prefixComponents.isEmpty else { return remotePath }
+
+        let remoteComponents = pathComponents(remotePath)
+        guard remoteComponents.count >= prefixComponents.count,
+              Array(remoteComponents.prefix(prefixComponents.count)) == prefixComponents else {
+            return remotePath
+        }
+        return remoteComponents.dropFirst(prefixComponents.count).joined(separator: "/")
+    }
+
+    private static func pathComponents(_ value: String) -> [String] {
+        value
+            .split(separator: "/", omittingEmptySubsequences: true)
+            .map(String.init)
     }
 
     static func markdown(url: URL, name: String, isDirectory: Bool) -> String {
@@ -103,9 +136,14 @@ enum PublicLinkFormatter {
 
 enum RemotePublicLinkSettingsStore {
     private static let defaultsKey = "publicLinks.customBaseURLByRemote.v1"
+    private static let pathPrefixDefaultsKey = "publicLinks.pathPrefixToRemoveByRemote.v1"
 
     static func customBaseURL(for remote: String, defaults: UserDefaults = .standard) -> String {
         storedValues(defaults: defaults)[remote] ?? ""
+    }
+
+    static func pathPrefixToRemove(for remote: String, defaults: UserDefaults = .standard) -> String {
+        pathPrefixValues(defaults: defaults)[remote] ?? ""
     }
 
     @discardableResult
@@ -130,7 +168,28 @@ enum RemotePublicLinkSettingsStore {
         return stored
     }
 
+    @discardableResult
+    static func setPathPrefixToRemove(
+        _ rawValue: String,
+        for remote: String,
+        defaults: UserDefaults = .standard
+    ) -> String {
+        var values = pathPrefixValues(defaults: defaults)
+        let normalized = PublicLinkFormatter.normalizedPathPrefix(from: rawValue)
+        if normalized.isEmpty {
+            values.removeValue(forKey: remote)
+        } else {
+            values[remote] = normalized
+        }
+        defaults.set(values, forKey: pathPrefixDefaultsKey)
+        return normalized
+    }
+
     private static func storedValues(defaults: UserDefaults) -> [String: String] {
         defaults.dictionary(forKey: defaultsKey) as? [String: String] ?? [:]
+    }
+
+    private static func pathPrefixValues(defaults: UserDefaults) -> [String: String] {
+        defaults.dictionary(forKey: pathPrefixDefaultsKey) as? [String: String] ?? [:]
     }
 }

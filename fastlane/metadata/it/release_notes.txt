@@ -1,4 +1,5 @@
-Novità della versione 2.1:
-- Modificare un remoto: una nuova schermata «Gestisci remoti» consente di correggere un'impostazione o riautorizzare un account OAuth scaduto senza ricreare tutto — le password e i token esistenti restano nascosti.
-- Remote Lens: dai un'occhiata a un file remoto senza scaricarlo — anteprima dell'immagine con i suoi dati EXIF e prima pagina dei PDF.
-- Eliminazione riparata: eliminare un file o una cartella, o spostarlo nel cestino, funziona di nuovo.
+Novità della versione 2.1.2:
+- Domini CDN personalizzati: rimuovi facoltativamente un prefisso del percorso, come il nome del bucket restituito da Qiniu Kodo o da altri archivi compatibili con S3.
+- Annullamento di PhotoSync: interrompi la sincronizzazione, svuota l’indice e la coda locali, quindi cambia gli album o la cartella di destinazione. I file già caricati restano sul remote.
+- Album PhotoSync su Mac: la selezione si aggiorna subito e vengono indicizzate e sincronizzate solo le foto degli album scelti.
+- Pausa PhotoSync più affidabile: interrompe l’esportazione da Foto e il batch rclone in corso senza mettere in pausa gli altri trasferimenti.

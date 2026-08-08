@@ -17,6 +17,7 @@ struct PublicLinkSheet: View {
     let entry: RemoteEntryDTO
 
     @State private var customBaseURL = ""
+    @State private var pathPrefixToRemove = ""
     @State private var nativeURL: URL?
     @State private var supportsNativeLink: Bool?
     @State private var isGenerating = false
@@ -27,7 +28,11 @@ struct PublicLinkSheet: View {
         guard let baseURL = PublicLinkFormatter.normalizedBaseURL(from: customBaseURL) else {
             return nil
         }
-        return PublicLinkFormatter.customURL(baseURL: baseURL, remotePath: entry.pathInRemote)
+        return PublicLinkFormatter.customURL(
+            baseURL: baseURL,
+            remotePath: entry.pathInRemote,
+            removingPathPrefix: pathPrefixToRemove
+        )
     }
 
     var body: some View {
@@ -39,6 +44,8 @@ struct PublicLinkSheet: View {
 
                 Section {
                     urlTextField
+                    TextField("Préfixe de chemin à supprimer (facultatif)", text: $pathPrefixToRemove)
+                        .autocorrectionDisabled(true)
 
                     HStack {
                         Button("Enregistrer") { saveCustomDomain() }
@@ -46,7 +53,9 @@ struct PublicLinkSheet: View {
                         if !customBaseURL.isEmpty {
                             Button("Effacer", role: .destructive) {
                                 customBaseURL = ""
+                                pathPrefixToRemove = ""
                                 _ = RemotePublicLinkSettingsStore.setCustomBaseURL("", for: remote)
+                                _ = RemotePublicLinkSettingsStore.setPathPrefixToRemove("", for: remote)
                                 confirmationMessage = String(localized: "Domaine CDN supprimé.")
                             }
                         }
@@ -54,7 +63,7 @@ struct PublicLinkSheet: View {
                 } header: {
                     Text("Domaine CDN de \(remote)")
                 } footer: {
-                    Text("Le domaine doit pointer vers la racine publique de ce remote ou de ce bucket. L’app ajoute automatiquement le chemin du fichier ; elle ne modifie pas les permissions du stockage.")
+                    Text("Le domaine doit pointer vers la racine publique de ce remote ou de ce bucket. L’app ajoute automatiquement le chemin du fichier ; elle ne modifie pas les permissions du stockage. Si le chemin commence par un préfixe de bucket, saisis-le dans le champ facultatif pour le retirer de l’URL CDN.")
                 }
 
                 Section {
@@ -114,6 +123,7 @@ struct PublicLinkSheet: View {
         }
         .task {
             customBaseURL = RemotePublicLinkSettingsStore.customBaseURL(for: remote)
+            pathPrefixToRemove = RemotePublicLinkSettingsStore.pathPrefixToRemove(for: remote)
             supportsNativeLink = await RemoteService.shared.supportsPublicLink(remote: remote)
         }
     }
@@ -194,6 +204,10 @@ struct PublicLinkSheet: View {
             return
         }
         customBaseURL = stored
+        pathPrefixToRemove = RemotePublicLinkSettingsStore.setPathPrefixToRemove(
+            pathPrefixToRemove,
+            for: remote
+        )
         confirmationMessage = stored.isEmpty
             ? String(localized: "Domaine CDN supprimé.")
             : String(localized: "Domaine CDN enregistré.")
@@ -233,6 +247,7 @@ struct RemotePublicLinkSettingsView: View {
     let remote: String
 
     @State private var customBaseURL = ""
+    @State private var pathPrefixToRemove = ""
     @State private var errorMessage: String?
     @State private var supportsNativeLink: Bool?
 
@@ -243,12 +258,14 @@ struct RemotePublicLinkSettingsView: View {
                     TextField("https://img.example.com", text: $customBaseURL)
                         .textContentType(.URL)
                         .autocorrectionDisabled(true)
+                    TextField("Préfixe de chemin à supprimer (facultatif)", text: $pathPrefixToRemove)
+                        .autocorrectionDisabled(true)
                     Button("Enregistrer") { save() }
                         .buttonStyle(.borderedProminent)
                 } header: {
                     Text("Domaine CDN personnalisé")
                 } footer: {
-                    Text("Ce domaine est enregistré uniquement sur cet appareil pour le remote « \(remote) ». Il doit déjà servir publiquement la racine du bucket.")
+                    Text("Ce domaine est enregistré uniquement sur cet appareil pour le remote « \(remote) ». Il doit déjà servir publiquement la racine du bucket. Pour Qiniu Kodo ou un autre backend qui renvoie le bucket dans le chemin, saisis ici le préfixe à retirer, par exemple `aab`.")
                 }
 
                 Section("Lien natif rclone") {
@@ -286,6 +303,7 @@ struct RemotePublicLinkSettingsView: View {
         }
         .task {
             customBaseURL = RemotePublicLinkSettingsStore.customBaseURL(for: remote)
+            pathPrefixToRemove = RemotePublicLinkSettingsStore.pathPrefixToRemove(for: remote)
             supportsNativeLink = await RemoteService.shared.supportsPublicLink(remote: remote)
         }
     }
@@ -296,6 +314,10 @@ struct RemotePublicLinkSettingsView: View {
             return
         }
         customBaseURL = stored
+        pathPrefixToRemove = RemotePublicLinkSettingsStore.setPathPrefixToRemove(
+            pathPrefixToRemove,
+            for: remote
+        )
         errorMessage = nil
         dismiss()
     }

@@ -494,6 +494,31 @@ struct PhotoSyncServiceBatchingTests {
         #expect(!PhotoSyncService.shouldContinueSync(continueUntilEmpty: true, pendingCount: 0, activeCount: 0, limits: limits))
         #expect(!PhotoSyncService.shouldContinueSync(continueUntilEmpty: false, pendingCount: 5, activeCount: 0, limits: limits))
     }
+
+    @Test("selected albums prune every indexed asset outside their union")
+    func selectedAlbumsPruneExistingFullLibraryIndex() {
+        let indexed: Set<String> = ["album-a-1", "album-a-2", "outside-1", "outside-2"]
+        let eligible: Set<String> = ["album-a-1", "album-a-2"]
+
+        let outside = PhotoSyncService.identifiersOutsideSelectedAlbums(
+            indexedIdentifiers: indexed,
+            eligibleIdentifiers: eligible
+        )
+
+        #expect(outside == ["outside-1", "outside-2"])
+    }
+
+    @Test("empty album selection keeps the whole indexed library")
+    func noAlbumSelectionKeepsWholeLibrary() {
+        let indexed: Set<String> = ["asset-1", "asset-2"]
+
+        let outside = PhotoSyncService.identifiersOutsideSelectedAlbums(
+            indexedIdentifiers: indexed,
+            eligibleIdentifiers: nil
+        )
+
+        #expect(outside.isEmpty)
+    }
 }
 
 // MARK: - Transfer batch metadata

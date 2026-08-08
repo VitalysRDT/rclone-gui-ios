@@ -23,6 +23,9 @@ struct PhotoSyncSettingsView: View {
     @State private var requiresPower = true
     @State private var allowsCellular = false
     @State private var isSyncing = false
+    @State private var isCancelling = false
+    @State private var showCancelConfirmation = false
+    @State private var syncTask: Task<Void, Never>?
     @State private var message: String?
     @State private var stats = PhotoSyncStats()
     @State private var recentAssets: [PhotoSyncAsset] = []
@@ -158,7 +161,7 @@ struct PhotoSyncSettingsView: View {
             Section {
                 Button {
                     save()
-                    Task { await syncNow() }
+                    syncTask = Task { await syncNow() }
                 } label: {
                     if isSyncing {
                         HStack(spacing: 8) {
@@ -192,6 +195,22 @@ struct PhotoSyncSettingsView: View {
                     }
                 }
                 .disabled(selectedRemote.isEmpty)
+
+                if isSyncing || stats.pending > 0 || stats.active > 0 || stats.indexed > 0 {
+                    Button(role: .destructive) {
+                        showCancelConfirmation = true
+                    } label: {
+                        if isCancelling {
+                            HStack(spacing: 8) {
+                                ProgressView()
+                                Text("Annulation…")
+                            }
+                        } else {
+                            Label("Annuler la synchronisation", systemImage: "xmark.circle")
+                        }
+                    }
+                    .disabled(isCancelling)
+                }
 
                 if stats.failed > 0 {
                     Button {
@@ -363,6 +382,21 @@ struct PhotoSyncSettingsView: View {
             activeFilterCount = PhotoSyncService.shared.filters.activeCount
             #endif
         }
+        .onReceive(NotificationCenter.default.publisher(for: PhotoSyncAlbumStore.didChangeNotification)) { _ in
+            selectedAlbumCount = PhotoSyncAlbumStore.load().count
+        }
+        .confirmationDialog(
+            "Annuler la synchronisation Photos ?",
+            isPresented: $showCancelConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Annuler et vider la file locale", role: .destructive) {
+                Task { await cancelSync() }
+            }
+            Button("Continuer la synchronisation", role: .cancel) {}
+        } message: {
+            Text("La synchronisation sera arrêtée et désactivée. L'index et la file locale seront effacés pour vous permettre de changer les albums et le dossier. Les fichiers déjà envoyés sur le remote ne seront pas supprimés.")
+        }
     }
 
     private func load() async {
@@ -395,6 +429,7 @@ struct PhotoSyncSettingsView: View {
         isSyncing = true
         defer { isSyncing = false }
         let summary = await PhotoSyncService.shared.startFullSync()
+        guard !Task.isCancelled else { return }
         applySummary(summary)
         reloadRecentAssets()
         if summary.isLimitedAccess {
@@ -439,6 +474,21 @@ struct PhotoSyncSettingsView: View {
             await PhotoSyncService.shared.pausePhotoSync()
         }
         await reloadStats()
+    }
+
+    private func cancelSync() async {
+        guard !isCancelling else { return }
+        isCancelling = true
+        syncTask?.cancel()
+        syncTask = nil
+        let removed = await PhotoSyncService.shared.cancelPhotoSync()
+        enabled = false
+        isSyncing = false
+        await reloadStats()
+        message = removed == 0
+            ? "Synchronisation annulée. La file locale est vide."
+            : "Synchronisation annulée. \(removed) élément(s) retiré(s) de la file locale. Les fichiers distants sont conservés."
+        isCancelling = false
     }
 
     private func retryFailed() async {

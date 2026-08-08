@@ -79,6 +79,21 @@ struct ChangelogView: View {
     // Historique aligné sur rclone.rougetet.com (le plus récent en premier).
     private static let releases: [Release] = [
         Release(
+            version: "2.1.2", dateFR: "Août 2026", dateEN: "August 2026",
+            itemsFR: [
+                "Domaines CDN personnalisés : un préfixe de chemin facultatif permet de retirer le nom du bucket renvoyé par Qiniu Kodo et d’autres stockages compatibles S3.",
+                "Annulation PhotoSync : arrêtez une synchronisation en cours, videz l’index et la file locale, puis changez librement les albums ou le dossier de destination — les fichiers déjà envoyés restent sur le remote.",
+                "Albums PhotoSync sur Mac : la sélection se met à jour immédiatement et seules les photos des albums choisis sont indexées et synchronisées, y compris après une ancienne indexation complète.",
+                "Pause PhotoSync fiabilisée : elle interrompt désormais l’export Photos et le lot rclone en cours sans mettre en pause vos autres transferts.",
+            ],
+            itemsEN: [
+                "Custom CDN domains: an optional path prefix can remove the bucket name returned by Qiniu Kodo and other S3-compatible storage providers.",
+                "Cancel PhotoSync: stop an active sync, clear its local index and queue, then freely change the selected albums or destination folder — files already uploaded remain on the remote.",
+                "PhotoSync albums on Mac: selections now update immediately, and only photos from the chosen albums are indexed and synced, including after an earlier full-library index.",
+                "More reliable PhotoSync pause: it now interrupts the current Photos export and rclone batch without pausing your other transfers.",
+            ]
+        ),
+        Release(
             version: "2.1.1", dateFR: "Août 2026", dateEN: "August 2026",
             itemsFR: [
                 "Dossiers chiffrés : correction d’un problème où Rclone GUI ou Fichiers pouvait afficher un dossier crypt vide ou incomplet alors que ses fichiers étaient toujours présents.",

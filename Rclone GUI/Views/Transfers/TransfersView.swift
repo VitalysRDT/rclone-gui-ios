@@ -38,6 +38,7 @@ struct TransfersView: View {
     @State private var photoSyncRemote: String?
     @State private var photoSyncFolder = "Photothèque"
     @State private var photoSyncActionInProgress = false
+    @State private var showPhotoSyncCancelConfirmation = false
     /// Progression live du batch rclone copy en cours, uniquement utilisée
     /// pour le fichier courant et l'état inter-batch.
     @State private var photoSyncProgress: PhotoBatchLiveProgress?
@@ -111,6 +112,18 @@ struct TransfersView: View {
                         .padding()
                 }
             }
+        }
+        .confirmationDialog(
+            "Annuler la synchronisation Photos ?",
+            isPresented: $showPhotoSyncCancelConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Annuler et vider la file locale", role: .destructive) {
+                Task { await cancelPhotoSync() }
+            }
+            Button("Continuer la synchronisation", role: .cancel) {}
+        } message: {
+            Text("La synchronisation sera arrêtée et désactivée. L'index et la file locale seront effacés pour vous permettre de changer les albums et le dossier. Les fichiers déjà envoyés sur le remote ne seront pas supprimés.")
         }
         .appToast($toast)
         .sensoryFeedback(.selection, trigger: hapticTrigger)
@@ -417,6 +430,22 @@ struct TransfersView: View {
         await refreshPhotoSyncState()
     }
 
+    private func cancelPhotoSync() async {
+        photoSyncActionInProgress = true
+        defer { photoSyncActionInProgress = false }
+
+        let removed = await PhotoSyncService.shared.cancelPhotoSync()
+        toast = AppToast(
+            title: String(localized: "Synchro Photos annulée"),
+            message: removed == 0
+                ? String(localized: "La file locale est vide. Les fichiers distants sont conservés.")
+                : String(localized: "\(removed) élément(s) retiré(s) de la file locale. Les fichiers distants sont conservés."),
+            severity: .info
+        )
+        hapticTrigger &+= 1
+        await refreshPhotoSyncState()
+    }
+
     private func refreshPhotoSyncState() async {
         let service = PhotoSyncService.shared
         photoSyncIsEnabled = service.isEnabled
@@ -444,6 +473,9 @@ struct TransfersView: View {
                         isActionInProgress: photoSyncActionInProgress,
                         onTogglePause: {
                             Task { await togglePhotoSyncPause() }
+                        },
+                        onCancel: {
+                            showPhotoSyncCancelConfirmation = true
                         },
                         onRetryFailed: {
                             Task { await retryFailedPhotoSync() }
@@ -587,6 +619,7 @@ private struct PhotoSyncActivityCard: View {
     let folder: String
     let isActionInProgress: Bool
     let onTogglePause: () -> Void
+    let onCancel: () -> Void
     let onRetryFailed: () -> Void
 
     var body: some View {
@@ -745,6 +778,13 @@ private struct PhotoSyncActivityCard: View {
             .buttonStyle(.plain)
             .disabled(!hasConfiguredDestination || summary == nil || isActionInProgress)
             .accessibilityLabel(summary?.pausedByUser == true ? "Reprendre PhotoSync" : "Mettre PhotoSync en pause")
+
+            Button(role: .destructive, action: onCancel) {
+                actionIcon("xmark.circle.fill", tint: .red)
+            }
+            .buttonStyle(.plain)
+            .disabled(summary?.hasTrackedPhotoSyncWork != true || isActionInProgress)
+            .accessibilityLabel("Annuler PhotoSync et vider la file locale")
 
             Button(action: onRetryFailed) {
                 actionIcon("arrow.clockwise", tint: .purple)

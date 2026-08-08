@@ -722,7 +722,7 @@ const Hero = () => {
     <section className="hero" id="top">
       <div className="wrap">
         <img className="icon" src="icon.png" alt="Rclone GUI"/>
-        <div><span className="pill"><Icon name="bolt.fill" size={14}/>{t('v2.1.1 · ESSAI GRATUIT','v2.1.1 · FREE TRIAL')}</span></div>
+        <div><span className="pill"><Icon name="bolt.fill" size={14}/>{t('v2.1.2 · ESSAI GRATUIT','v2.1.2 · FREE TRIAL')}</span></div>
         <h1 className="title">{ML(t('Tous vos clouds.\nChiffrés.','Every cloud.\nEncrypted.'))}</h1>
         <p className="sub">{t('Parcourez 80+ services cloud — y compris vos remotes rclone chiffrés — directement dans Fichiers. iPhone, iPad & Mac.','Browse 80+ cloud services — including your encrypted rclone crypt remotes — right inside Files. iPhone, iPad & Mac.')}</p>
         <div className="cta-row">
@@ -1000,7 +1000,13 @@ const FreeMonth = () => {
 };
 
 const VERSIONS = [
-  { v:'2.1.1', current:true, date:{ fr:'Août 2026', en:'August 2026' }, items:[
+  { v:'2.1.2', current:true, date:{ fr:'Août 2026', en:'August 2026' }, items:[
+    { fr:'Domaines CDN personnalisés : un préfixe de chemin facultatif permet de retirer le nom du bucket renvoyé par Qiniu Kodo et d’autres stockages compatibles S3.', en:'Custom CDN domains: an optional path prefix can remove the bucket name returned by Qiniu Kodo and other S3-compatible storage providers.' },
+    { fr:'Annulation PhotoSync : arrêtez une synchronisation en cours, videz l’index et la file locale, puis changez librement les albums ou le dossier de destination — les fichiers déjà envoyés restent sur le remote.', en:'Cancel PhotoSync: stop an active sync, clear its local index and queue, then freely change the selected albums or destination folder — files already uploaded remain on the remote.' },
+    { fr:'Albums PhotoSync sur Mac : la sélection se met à jour immédiatement et seules les photos des albums choisis sont indexées et synchronisées, y compris après une ancienne indexation complète.', en:'PhotoSync albums on Mac: selections now update immediately, and only photos from the chosen albums are indexed and synced, including after an earlier full-library index.' },
+    { fr:'Pause PhotoSync fiabilisée : elle interrompt désormais l’export Photos et le lot rclone en cours sans mettre en pause vos autres transferts.', en:'More reliable PhotoSync pause: it now interrupts the current Photos export and rclone batch without pausing your other transfers.' },
+  ] },
+  { v:'2.1.1', date:{ fr:'Août 2026', en:'August 2026' }, items:[
     { fr:'Dossiers chiffrés : correction d’un problème où Rclone GUI ou Fichiers pouvait afficher un dossier crypt vide ou incomplet alors que ses fichiers étaient toujours présents.', en:'Encrypted folders: fixed an issue where Rclone GUI or Files could show a crypt folder as empty or incomplete even though its files were still present.' },
     { fr:'Envoi depuis Fichiers : les fichiers déposés dans un dossier chiffré sont maintenant préparés dans une zone temporaire sécurisée, puis le dossier s’actualise automatiquement.', en:'Uploads from Files: files dropped into an encrypted folder are now prepared in secure temporary storage, then the folder refreshes automatically.' },
     { fr:'Fichiers plus réactif : les anciennes demandes sont nettoyées, les doublons regroupés et une erreur de listing ne peut plus faire passer un dossier pour vide.', en:'More responsive Files integration: old requests are cleaned up, duplicates are coalesced, and a listing error can no longer make a folder look empty.' },
