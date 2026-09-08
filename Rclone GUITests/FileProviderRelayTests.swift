@@ -271,15 +271,19 @@ struct FileProviderFolderManifestTests {
 struct FileProviderPendingRequestPolicyTests {
     private let now = Date(timeIntervalSinceReferenceDate: 800_000_000)
 
+    /// `path` défaut sur `folder-<id>` pour que chaque requête vise un dossier
+    /// distinct. Le passer explicitement permet de simuler DEUX requêtes
+    /// concurrentes sur LE MÊME dossier — le cas des doublons.
     private func pending(
         id: String,
         kind: String?,
-        age: TimeInterval
+        age: TimeInterval,
+        path: String? = nil
     ) -> AppGroupPendingFetch {
         AppGroupPendingFetch(
             requestID: id,
             remote: "crypt",
-            path: "folder-\(id)",
+            path: path ?? "folder-\(id)",
             destPath: "/tmp/\(id)",
             createdAt: now.addingTimeInterval(-age),
             kind: kind
@@ -329,8 +333,13 @@ struct FileProviderPendingRequestPolicyTests {
     @Test("Les doublons d'un dossier partagent une clé réseau, pas leur requestID")
     @MainActor
     func duplicateListingsShareOneNetworkKey() {
-        let first = pending(id: "waiter-a", kind: "list", age: 15)
-        let second = pending(id: "waiter-b", kind: "list", age: 5)
+        // Deux requestID distincts pour LE MÊME dossier : c'est précisément la
+        // situation que la clé doit fusionner. Sans `path:` explicite, le
+        // helper aurait fabriqué deux dossiers différents et le test aurait
+        // vérifié l'inverse de son intention.
+        let sharedFolder = "folder-waiter"
+        let first = pending(id: "waiter-a", kind: "list", age: 15, path: sharedFolder)
+        let second = pending(id: "waiter-b", kind: "list", age: 5, path: sharedFolder)
         let otherPath = AppGroupPendingFetch(
             requestID: "waiter-c",
             remote: first.remote,
