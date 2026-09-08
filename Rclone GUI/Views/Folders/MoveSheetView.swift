@@ -126,7 +126,8 @@ struct MoveSheetView: View {
                 srcRemote: sourceRemote,
                 srcPath: entry.pathInRemote,
                 dstRemote: dstRemote,
-                dstPath: dstPath
+                dstPath: dstPath,
+                isDirectory: entry.isDirectory
             )
             await LogService.shared.log(
                 .info,

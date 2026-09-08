@@ -11,6 +11,53 @@
 
 import Foundation
 
+/// How a move (or rename, which is just a move in place) maps onto rclone's
+/// rc API.
+///
+/// rclone exposes two *different* call shapes, and they are not interchangeable:
+///
+///   - `operations/movefile` takes an fs **root** plus a path relative to it.
+///     It resolves the source through `NewObject`, which returns
+///     `fs.ErrorIsDir` — surfaced verbatim as "is a directory not a file" —
+///     as soon as the path designates a directory.
+///   - `sync/move` takes a **complete** fs string on each side
+///     ("remote:some/dir") and is the only way to move a directory.
+///
+/// Issue #142: renaming a folder went through `operations/movefile`
+/// unconditionally, so every directory rename failed. Crypt remotes made it
+/// visible because they forward the wrapped backend's `ErrorIsDir` untouched,
+/// where other backends blur it into a not-found error.
+///
+/// Keeping the decision in one `Equatable` value makes it unit-testable
+/// without an rclone engine, and stops the routing being re-implemented (and
+/// re-broken) at each call site.
+///
+/// `nonisolated` because the target defaults to `MainActor` isolation: this is
+/// a pure value type built and compared from `TransferService` (a non-main
+/// actor) and from tests, so a main-actor-isolated `Equatable` conformance
+/// would be a Swift 6 error.
+public nonisolated enum RemoteMovePlan: Equatable, Sendable {
+    /// `operations/movefile`: fs root + relative path, on each side.
+    case file(srcFs: String, srcPath: String, dstFs: String, dstPath: String)
+    /// `sync/move`: full fs string on each side.
+    case directory(srcFs: String, dstFs: String)
+
+    /// Resolve the call shape for moving `srcPath` on `srcRemote` to `dstPath`
+    /// on `dstRemote`. Source and destination remotes may differ; a rename is
+    /// simply the same-remote, same-parent case.
+    public static func make(
+        srcRemote: String,
+        srcPath: String,
+        dstRemote: String,
+        dstPath: String,
+        isDirectory: Bool
+    ) -> RemoteMovePlan {
+        isDirectory
+            ? .directory(srcFs: "\(srcRemote):\(srcPath)", dstFs: "\(dstRemote):\(dstPath)")
+            : .file(srcFs: "\(srcRemote):", srcPath: srcPath, dstFs: "\(dstRemote):", dstPath: dstPath)
+    }
+}
+
 public actor TransferService {
     public static let shared = TransferService()
 
@@ -84,9 +131,38 @@ public actor TransferService {
         )
     }
 
-    /// Rename in place: same parent, new name. Wraps moveFile.
-    public func renameAsync(remote: String, oldPath: String, newPath: String) async throws -> Int {
-        try await moveFileAsync(srcFs: "\(remote):", srcPath: oldPath, dstFs: "\(remote):", dstPath: newPath)
+    /// Run a move/rename, dispatching on the shape resolved by `RemoteMovePlan`.
+    /// Single entry point so the file-vs-directory decision lives in exactly
+    /// one place (see `RemoteMovePlan` for why it must not be duplicated).
+    public func moveAsync(_ plan: RemoteMovePlan) async throws -> Int {
+        switch plan {
+        case let .file(srcFs, srcPath, dstFs, dstPath):
+            return try await moveFileAsync(srcFs: srcFs, srcPath: srcPath, dstFs: dstFs, dstPath: dstPath)
+        case let .directory(srcFs, dstFs):
+            return try await moveDirAsync(srcFs: srcFs, dstFs: dstFs)
+        }
+    }
+
+    /// Rename in place: same remote, same parent, new name.
+    ///
+    /// `isDirectory` has no default on purpose: guessing wrong silently sends a
+    /// folder through `operations/movefile`, which is exactly the bug reported
+    /// in issue #142. Callers must state what they are renaming.
+    public func renameAsync(
+        remote: String,
+        oldPath: String,
+        newPath: String,
+        isDirectory: Bool
+    ) async throws -> Int {
+        try await moveAsync(
+            RemoteMovePlan.make(
+                srcRemote: remote,
+                srcPath: oldPath,
+                dstRemote: remote,
+                dstPath: newPath,
+                isDirectory: isDirectory
+            )
+        )
     }
 
     /// Delete a single file.

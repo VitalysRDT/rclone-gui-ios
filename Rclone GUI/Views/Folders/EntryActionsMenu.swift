@@ -265,7 +265,8 @@ struct RenameSheetView: View {
             try await TransferQueue.shared.enqueueRename(
                 remote: remote,
                 oldPath: entry.pathInRemote,
-                newPath: dstPath
+                newPath: dstPath,
+                isDirectory: entry.isDirectory
             )
             isPresented = false
         } catch {

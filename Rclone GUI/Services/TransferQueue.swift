@@ -578,7 +578,15 @@ public final class TransferQueue {
         }
     }
 
-    public func enqueueRename(remote: String, oldPath: String, newPath: String) async throws {
+    /// Rename an entry in place. `isDirectory` decides which rclone rc method
+    /// is used — a folder cannot go through `operations/movefile` (issue #142)
+    /// — and is persisted so a retry re-routes the same way.
+    public func enqueueRename(
+        remote: String,
+        oldPath: String,
+        newPath: String,
+        isDirectory: Bool
+    ) async throws {
         let transfer = Transfer(
             kind: .move,
             sourceRemote: remote,
@@ -586,17 +594,31 @@ public final class TransferQueue {
             destinationRemote: remote,
             destinationPath: newPath
         )
+        transfer.isDirectoryTransfer = isDirectory
         transfer.status = .running
         modelContext?.insert(transfer)
         try modelContext?.save()
 
-        let jobID = try await TransferService.shared.renameAsync(remote: remote, oldPath: oldPath, newPath: newPath)
+        let jobID = try await TransferService.shared.renameAsync(
+            remote: remote,
+            oldPath: oldPath,
+            newPath: newPath,
+            isDirectory: isDirectory
+        )
         transfer.jobID = jobID
         try modelContext?.save()
         startPolling(transfer)
     }
 
-    public func enqueueMove(srcRemote: String, srcPath: String, dstRemote: String, dstPath: String) async throws {
+    /// Move an entry across remotes and/or folders. Same routing constraint as
+    /// `enqueueRename`: directories must go through `sync/move`.
+    public func enqueueMove(
+        srcRemote: String,
+        srcPath: String,
+        dstRemote: String,
+        dstPath: String,
+        isDirectory: Bool
+    ) async throws {
         let transfer = Transfer(
             kind: .move,
             sourceRemote: srcRemote,
@@ -604,15 +626,19 @@ public final class TransferQueue {
             destinationRemote: dstRemote,
             destinationPath: dstPath
         )
+        transfer.isDirectoryTransfer = isDirectory
         transfer.status = .running
         modelContext?.insert(transfer)
         try modelContext?.save()
 
-        let jobID = try await TransferService.shared.moveFileAsync(
-            srcFs: "\(srcRemote):",
-            srcPath: srcPath,
-            dstFs: "\(dstRemote):",
-            dstPath: dstPath
+        let jobID = try await TransferService.shared.moveAsync(
+            RemoteMovePlan.make(
+                srcRemote: srcRemote,
+                srcPath: srcPath,
+                dstRemote: dstRemote,
+                dstPath: dstPath,
+                isDirectory: isDirectory
+            )
         )
         transfer.jobID = jobID
         try modelContext?.save()
@@ -691,17 +717,17 @@ public final class TransferQueue {
                 srcFs: "\(srcRemote):\(entry.pathInRemote)",
                 dstFs: "\(dstRemote):\(dstPath)"
             )
-        case (.move, false):
-            jobID = try await TransferService.shared.moveFileAsync(
-                srcFs: "\(srcRemote):",
-                srcPath: entry.pathInRemote,
-                dstFs: "\(dstRemote):",
-                dstPath: dstPath
-            )
-        case (.move, true):
-            jobID = try await TransferService.shared.moveDirAsync(
-                srcFs: "\(srcRemote):\(entry.pathInRemote)",
-                dstFs: "\(dstRemote):\(dstPath)"
+        case (.move, _):
+            // Routing delegated to RemoteMovePlan so file-vs-directory is
+            // decided in a single, unit-tested place (issue #142).
+            jobID = try await TransferService.shared.moveAsync(
+                RemoteMovePlan.make(
+                    srcRemote: srcRemote,
+                    srcPath: entry.pathInRemote,
+                    dstRemote: dstRemote,
+                    dstPath: dstPath,
+                    isDirectory: entry.isDirectory
+                )
             )
         case (.sync, true):
             jobID = try await TransferService.shared.syncDirAsync(
@@ -931,14 +957,16 @@ public final class TransferQueue {
                 return try await TransferService.shared.copyDirAsync(
                     srcFs: "\(srcRemote):\(t.sourcePath)",
                     dstFs: "\(dstRemote):\(t.destinationPath)")
-            case (.move, false):
-                return try await TransferService.shared.moveFileAsync(
-                    srcFs: "\(srcRemote):", srcPath: t.sourcePath,
-                    dstFs: "\(dstRemote):", dstPath: t.destinationPath)
-            case (.move, true):
-                return try await TransferService.shared.moveDirAsync(
-                    srcFs: "\(srcRemote):\(t.sourcePath)",
-                    dstFs: "\(dstRemote):\(t.destinationPath)")
+            case (.move, let isDirectory):
+                return try await TransferService.shared.moveAsync(
+                    RemoteMovePlan.make(
+                        srcRemote: srcRemote,
+                        srcPath: t.sourcePath,
+                        dstRemote: dstRemote,
+                        dstPath: t.destinationPath,
+                        isDirectory: isDirectory
+                    )
+                )
             case (.sync, true):
                 return try await TransferService.shared.syncDirAsync(
                     srcFs: "\(srcRemote):\(t.sourcePath)",
